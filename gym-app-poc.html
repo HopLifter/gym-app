@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Today's Lift</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --surface: #161917;
+    --surface-2: #1F2320;
+    --line: #2A2F2B;
+    --text: #EDEEEA;
+    --text-dim: #8C948C;
+    --accent: #C6FF3D;
+    --accent-dim: #7A9A2E;
+    --done: #3A4A2E;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
+    padding: 20px 16px 40px;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .date {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  h1 {
+    font-size: 28px;
+    margin: 6px 0 20px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .exercise {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .exercise.done {
+    background: var(--done);
+    border-color: var(--accent-dim);
+  }
+  .ex-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  .ex-name {
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .ex-meta {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+  .check {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    flex-shrink: 0;
+    margin-left: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    color: transparent;
+  }
+  .exercise.done .check {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+  }
+  textarea {
+    width: 100%;
+    margin-top: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 8px 10px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 44px;
+  }
+  textarea::placeholder { color: var(--text-dim); }
+  .status {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 24px;
+    letter-spacing: 0.04em;
+  }
+  .status.saved { color: var(--accent-dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="eyebrow">Today's Lift</span>
+  <span class="date" id="date"></span>
+</header>
+<h1 id="dayTitle">Push Day</h1>
+
+<div id="workout"></div>
+
+<div class="status" id="status">Notes save automatically on this phone</div>
+
+<script>
+  // ---- POC hardcoded workout (later: replace with CSV import) ----
+  const workout = [
+    { id: "bench",   name: "Barbell Bench Press", meta: "4 sets × 6-8 reps" },
+    { id: "ohp",     name: "Overhead Press",       meta: "3 sets × 8 reps" },
+    { id: "incline", name: "Incline DB Press",     meta: "3 sets × 10 reps" },
+    { id: "tricep",  name: "Tricep Pushdown",      meta: "3 sets × 12 reps" },
+    { id: "lateral", name: "Lateral Raise",        meta: "3 sets × 15 reps" }
+  ];
+
+  const STORAGE_KEY = "gymapp_state_v1";
+
+  function loadState() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveState(state) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    const status = document.getElementById("status");
+    status.textContent = "Saved just now";
+    status.classList.add("saved");
+    clearTimeout(saveState._t);
+    saveState._t = setTimeout(() => {
+      status.textContent = "Notes save automatically on this phone";
+      status.classList.remove("saved");
+    }, 1500);
+  }
+
+  let state = loadState();
+
+  function render() {
+    const container = document.getElementById("workout");
+    container.innerHTML = "";
+    workout.forEach(ex => {
+      const exState = state[ex.id] || { done: false, notes: "" };
+      const div = document.createElement("div");
+      div.className = "exercise" + (exState.done ? " done" : "");
+      div.innerHTML = `
+        <div class="ex-top">
+          <div>
+            <div class="ex-name">${ex.name}</div>
+            <div class="ex-meta">${ex.meta}</div>
+          </div>
+          <div class="check">✓</div>
+        </div>
+        <textarea placeholder="Notes — weight, how it felt, etc.">${exState.notes}</textarea>
+      `;
+      div.querySelector(".ex-top").addEventListener("click", () => {
+        exState.done = !exState.done;
+        state[ex.id] = exState;
+        saveState(state);
+        render();
+      });
+      div.querySelector("textarea").addEventListener("input", (e) => {
+        exState.notes = e.target.value;
+        state[ex.id] = exState;
+        saveState(state);
+      });
+      container.appendChild(div);
+    });
+  }
+
+  document.getElementById("date").textContent = new Date().toLocaleDateString(undefined, {
+    weekday: "short", month: "short", day: "numeric"
+  });
+
+  render();
+</script>
+
+</body>
+</html>
