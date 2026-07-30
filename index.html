@@ -27,11 +27,15 @@
     max-width: 480px;
     margin: 0 auto;
   }
-  header {
+  .hidden { display: none !important; }
+
+  /* Top nav */
+  .top-nav {
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
+    align-items: center;
     margin-bottom: 4px;
+    position: relative;
   }
   .eyebrow {
     font-size: 12px;
@@ -40,13 +44,105 @@
     color: var(--accent);
     font-weight: 700;
   }
-  .date { font-size: 12px; color: var(--text-dim); }
+  .eyebrow.past { color: var(--text-dim); }
+  .header-menu-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 22px; cursor: pointer; padding: 2px 8px; line-height: 1;
+  }
+  .nav-right { display: flex; align-items: center; gap: 4px; position: relative; }
+  .today-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--accent-dim);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .today-btn:active { border-color: var(--accent); }
+  .edit-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .edit-btn:active { border-color: var(--accent); }
+  .edit-btn.save-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg);
+  }
+  .header-menu-dropdown button[data-action="delete-workout"] { color: var(--danger); }
+  input:disabled, textarea:disabled { opacity: 0.7; cursor: default; }
+  .header-menu-dropdown {
+    display: none;
+    position: absolute;
+    top: 28px; right: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 30;
+    min-width: 180px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .header-menu-dropdown.open { display: block; }
+  .header-menu-dropdown button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    padding: 12px 14px;
+    cursor: pointer;
+  }
+  .header-menu-dropdown button:not(:last-child) { border-bottom: 1px solid var(--line); }
+  .header-menu-dropdown button[data-action="complete"] { color: var(--accent); font-weight: 700; }
+
+  .title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 6px 0 6px;
+  }
   h1 {
     font-size: 28px;
-    margin: 6px 0 20px;
     font-weight: 800;
     letter-spacing: -0.02em;
+    margin: 0;
   }
+  .title-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed transparent;
+    color: var(--text);
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    padding: 2px 0;
+    min-width: 0;
+  }
+  .title-input:focus { outline: none; border-bottom-color: var(--accent); }
+  .date-input {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 6px 8px;
+    color-scheme: dark;
+    margin-bottom: 16px;
+  }
+  .date-input:focus { outline: none; border-color: var(--accent); }
+
   .exercise {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -124,7 +220,6 @@
     text-align: center;
   }
   .stat-field input:focus { outline: none; border-color: var(--accent); }
-  /* Hide the tiny up/down arrows on number inputs */
   input[type=number]::-webkit-outer-spin-button,
   input[type=number]::-webkit-inner-spin-button {
     -webkit-appearance: none;
@@ -227,20 +322,107 @@
     background: none; border: none; color: var(--accent);
     font-weight: 700; font-size: 14px; cursor: pointer;
   }
+
+  /* History screen */
+  .history-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .back-btn {
+    background: none; border: none; color: var(--accent);
+    font-size: 14px; font-weight: 700; cursor: pointer; padding: 4px 0;
+  }
+  .history-item {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+  }
+  .history-item:active { border-color: var(--accent); }
+  .history-name { font-weight: 700; font-size: 16px; }
+  .history-date { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .history-empty { text-align: center; color: var(--text-dim); font-size: 14px; margin-top: 40px; }
+
+  /* Delete confirmation modal (custom, not window.confirm — unreliable in home-screen PWAs) */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 20px;
+  }
+  .modal-box {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    max-width: 340px;
+    width: 100%;
+  }
+  .modal-title { font-weight: 800; font-size: 17px; margin-bottom: 8px; }
+  .modal-text { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-btn-cancel {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .modal-btn-danger {
+    background: var(--danger);
+    border: none;
+    color: #1a0a08;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
 
-<header>
-  <span class="eyebrow">Today's Lift</span>
-  <span class="date" id="date"></span>
-</header>
-<h1 id="dayTitle">Push Day</h1>
+<!-- WORKOUT SCREEN (current or a past workout) -->
+<div id="workoutScreen">
+  <div class="top-nav">
+    <span class="eyebrow" id="eyebrow">Today's Lift</span>
+    <div class="nav-right">
+      <button class="edit-btn hidden" id="editBtn">Edit</button>
+      <button class="today-btn hidden" id="todayBtn">Today</button>
+      <button class="header-menu-btn" id="headerMenuBtn">⋮</button>
+      <div class="header-menu-dropdown" id="headerMenuDropdown"></div>
+    </div>
+  </div>
+  <div class="title-row">
+    <input class="title-input" id="dayTitle" data-field="name" placeholder="Workout name">
+  </div>
+  <input type="date" class="date-input" id="dateInput">
 
-<div id="workout"></div>
-<button class="add-btn" id="addBtn">+ Add Exercise</button>
+  <div id="workout"></div>
+  <button class="add-btn" id="addBtn">+ Add Exercise</button>
 
-<div class="status" id="status">Changes save automatically on this phone</div>
+  <div class="status" id="status">Changes save automatically on this phone</div>
+</div>
+
+<!-- HISTORY SCREEN -->
+<div id="historyScreen" class="hidden">
+  <div class="history-header">
+    <button class="back-btn" id="backToTodayBtn">← Today</button>
+  </div>
+  <h1>Past Workouts</h1>
+  <div id="historyList"></div>
+</div>
 
 <div class="undo-banner" id="undoBanner">
   <span id="undoText">Exercise deleted</span>
@@ -252,8 +434,21 @@
   <button id="cancelSelectBtn">Cancel</button>
 </div>
 
+<div class="modal-overlay hidden" id="deleteConfirmOverlay">
+  <div class="modal-box">
+    <div class="modal-title">Delete this workout?</div>
+    <div class="modal-text" id="deleteConfirmText">This will permanently delete this workout. This action cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" id="deleteCancelBtn">Cancel</button>
+      <button class="modal-btn-danger" id="deleteConfirmBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  const STORAGE_KEY = "gymapp_state_v3";
+  const CURRENT_KEY = "gymapp_current_v1";
+  const HISTORY_KEY = "gymapp_history_v1";
+  const OLD_STORAGE_KEY = "gymapp_state_v3"; // previous single-workout format
 
   const defaultExercises = [
     { id: "ex1", name: "Barbell Bench Press", sets: 4, reps: 6, weight: 135, rpe: 8, rest: 90, notes: "", supersetId: null },
@@ -263,22 +458,75 @@
     { id: "ex5", name: "Lateral Raise",        sets: 3, reps: 15, weight: 15, rpe: 8, rest: 45, notes: "", supersetId: null }
   ];
 
-  function loadState() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-      if (saved && Array.isArray(saved.exercises)) return saved;
-    } catch (e) {}
-    return { exercises: defaultExercises };
+  function todayISO() {
+    return new Date().toISOString().slice(0, 10);
   }
 
-  let state = loadState();
+  function freshCurrent() {
+    return {
+      name: "Push Day",
+      date: todayISO(),
+      exercises: JSON.parse(JSON.stringify(defaultExercises))
+    };
+  }
+
+  function loadCurrent() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CURRENT_KEY));
+      if (saved && Array.isArray(saved.exercises)) return saved;
+    } catch (e) {}
+    // Migrate from the old single-workout format if present
+    try {
+      const old = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY));
+      if (old && Array.isArray(old.exercises)) {
+        return { name: "Push Day", date: todayISO(), exercises: old.exercises };
+      }
+    } catch (e) {}
+    return freshCurrent();
+  }
+
+  function loadHistory() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY));
+      if (Array.isArray(saved)) return saved;
+    } catch (e) {}
+    return [];
+  }
+
+  let currentState = loadCurrent();
+  let historyList = loadHistory();
+  let editingId = null;      // null = editing current workout; else id of a past workout
+  let editMode = false;      // past workouts open read-only until this is toggled on
+  let currentView = "workout"; // "workout" | "history"
+
   let lastDeleted = null;   // { exercise, index }
   let undoTimer = null;
   let openMenuId = null;    // which exercise's ⋮ menu is currently open
-  let supersettingId = null; // if set, we're waiting for a second tap to pair this exercise
+  let headerMenuOpen = false;
+  let supersettingId = null;
+
+  function getActiveWorkout() {
+    if (editingId) return historyList.find(w => w.id === editingId);
+    return currentState;
+  }
+
+  function isEditable() {
+    return !editingId || editMode;
+  }
+
+  function newId() {
+    return "ex" + Date.now() + Math.floor(Math.random() * 1000);
+  }
+  function newWorkoutId() {
+    return "wk" + Date.now() + Math.floor(Math.random() * 1000);
+  }
 
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (editingId) {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(historyList));
+    } else {
+      localStorage.setItem(CURRENT_KEY, JSON.stringify(currentState));
+    }
     const status = document.getElementById("status");
     status.textContent = "Saved just now";
     status.classList.add("saved");
@@ -296,17 +544,16 @@
     return s * r * w;
   }
 
-  function newId() {
-    return "ex" + Date.now() + Math.floor(Math.random() * 1000);
-  }
-
   function cardHTML(ex) {
     const selectable = supersettingId && supersettingId !== ex.id;
+    const editable = isEditable();
+    const dis = editable ? "" : "disabled";
     return `
       <div class="exercise${selectable ? " selectable" : ""}" data-id="${ex.id}">
         <div class="ex-header">
-          <input class="name-input" data-field="name" value="${escapeAttr(ex.name)}" placeholder="Exercise name">
+          <input class="name-input" data-field="name" value="${escapeAttr(ex.name)}" placeholder="Exercise name" ${dis}>
           <div class="header-right">
+            ${editable ? `
             <button class="menu-btn" data-action="menu">⋮</button>
             <div class="menu-dropdown${openMenuId === ex.id ? " open" : ""}">
               <button data-action="delete">Delete</button>
@@ -314,27 +561,69 @@
               <button data-action="move-down">Move Down</button>
               <button data-action="superset">${ex.supersetId ? "Remove Superset" : "Superset"}</button>
             </div>
+            ` : ""}
           </div>
         </div>
         <div class="stats-grid">
-          <div class="stat-field"><label>Sets</label><input type="number" inputmode="numeric" data-field="sets" value="${ex.sets}"></div>
-          <div class="stat-field"><label>Reps</label><input type="number" inputmode="numeric" data-field="reps" value="${ex.reps}"></div>
-          <div class="stat-field"><label>Weight</label><input type="number" inputmode="decimal" data-field="weight" value="${ex.weight}"></div>
-          <div class="stat-field"><label>RPE</label><input type="number" inputmode="decimal" data-field="rpe" value="${ex.rpe}"></div>
-          <div class="stat-field"><label>Rest(s)</label><input type="number" inputmode="numeric" data-field="rest" value="${ex.rest}"></div>
+          <div class="stat-field"><label>Sets</label><input type="number" inputmode="numeric" data-field="sets" value="${ex.sets}" ${dis}></div>
+          <div class="stat-field"><label>Reps</label><input type="number" inputmode="numeric" data-field="reps" value="${ex.reps}" ${dis}></div>
+          <div class="stat-field"><label>Weight</label><input type="number" inputmode="decimal" data-field="weight" value="${ex.weight}" ${dis}></div>
+          <div class="stat-field"><label>RPE</label><input type="number" inputmode="decimal" data-field="rpe" value="${ex.rpe}" ${dis}></div>
+          <div class="stat-field"><label>Rest(s)</label><input type="number" inputmode="numeric" data-field="rest" value="${ex.rest}" ${dis}></div>
         </div>
         <div class="volume">Volume: <span class="volume-value">${calcVolume(ex)}</span></div>
-        <textarea placeholder="Notes — how it felt, adjustments, etc." data-field="notes">${escapeHtml(ex.notes)}</textarea>
+        <textarea placeholder="Notes — how it felt, adjustments, etc." data-field="notes" ${dis}>${escapeHtml(ex.notes)}</textarea>
       </div>
     `;
   }
 
-  // Groups consecutive exercises that share a supersetId into one
-  // bordered wrapper, so they render side by side with a visual link.
   function render() {
+    renderWorkoutHeader();
+    renderExercises();
+    renderHeaderMenu();
+  }
+
+  function renderWorkoutHeader() {
+    const workout = getActiveWorkout();
+    const editable = isEditable();
+    document.getElementById("eyebrow").textContent = editingId
+      ? (editMode ? "Past Workout · Editing" : "Past Workout · Read Only")
+      : "Today's Lift";
+    document.getElementById("eyebrow").classList.toggle("past", !!editingId);
+    document.getElementById("todayBtn").classList.toggle("hidden", !editingId);
+    const editBtn = document.getElementById("editBtn");
+    editBtn.classList.toggle("hidden", !editingId);
+    editBtn.textContent = editMode ? "Save" : "Edit";
+    editBtn.classList.toggle("save-active", editMode);
+    const titleInput = document.getElementById("dayTitle");
+    if (document.activeElement !== titleInput) titleInput.value = workout.name;
+    titleInput.disabled = !editable;
+    const dateInput = document.getElementById("dateInput");
+    if (document.activeElement !== dateInput) dateInput.value = workout.date;
+    dateInput.disabled = !editable;
+    document.getElementById("addBtn").classList.toggle("hidden", !editable);
+  }
+
+  function renderHeaderMenu() {
+    const dropdown = document.getElementById("headerMenuDropdown");
+    dropdown.classList.toggle("open", headerMenuOpen);
+    if (editingId) {
+      dropdown.innerHTML = `
+        <button data-action="view-history">Back to History</button>
+        <button data-action="delete-workout">Delete Workout</button>
+      `;
+    } else {
+      dropdown.innerHTML = `
+        <button data-action="view-history">View History</button>
+        <button data-action="complete">Mark Workout Complete</button>
+      `;
+    }
+  }
+
+  function renderExercises() {
     const container = document.getElementById("workout");
     container.innerHTML = "";
-    const exs = state.exercises;
+    const exs = getActiveWorkout().exercises;
     let i = 0;
     while (i < exs.length) {
       const ex = exs[i];
@@ -354,6 +643,36 @@
     }
   }
 
+  function renderHistoryList() {
+    const list = document.getElementById("historyList");
+    const sorted = [...historyList].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    if (sorted.length === 0) {
+      list.innerHTML = `<div class="history-empty">No completed workouts yet.</div>`;
+      return;
+    }
+    list.innerHTML = sorted.map(w => `
+      <div class="history-item" data-id="${w.id}">
+        <div class="history-name">${escapeHtml(w.name || "Workout")}</div>
+        <div class="history-date">${formatDateDisplay(w.date)}</div>
+      </div>
+    `).join("");
+  }
+
+  function formatDateDisplay(iso) {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function showScreen(view) {
+    currentView = view;
+    document.getElementById("workoutScreen").classList.toggle("hidden", view !== "workout");
+    document.getElementById("historyScreen").classList.toggle("hidden", view !== "history");
+    if (view === "history") renderHistoryList();
+    else render();
+  }
+
   function escapeHtml(str) {
     return (str || "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
   }
@@ -362,11 +681,9 @@
   }
 
   function findExercise(id) {
-    return state.exercises.find(e => e.id === id);
+    return getActiveWorkout().exercises.find(e => e.id === id);
   }
 
-  // Event delegation: one set of listeners on the container handles all cards,
-  // including cards added later.
   const container = document.getElementById("workout");
 
   container.addEventListener("click", (e) => {
@@ -377,7 +694,6 @@
     if (!ex) return;
     const action = e.target.dataset.action;
 
-    // If we're in "pick a partner" mode, any tap on a different card pairs them.
     if (supersettingId && supersettingId !== id && !action) {
       pairSuperset(supersettingId, id);
       return;
@@ -386,81 +702,85 @@
     if (action === "menu") {
       e.stopPropagation();
       openMenuId = openMenuId === id ? null : id;
-      render();
+      renderExercises();
       return;
     }
 
     if (action === "delete") {
       openMenuId = null;
-      const index = state.exercises.findIndex(x => x.id === id);
+      const exs = getActiveWorkout().exercises;
+      const index = exs.findIndex(x => x.id === id);
       lastDeleted = { exercise: ex, index };
-      state.exercises.splice(index, 1);
+      exs.splice(index, 1);
       saveState();
-      render();
+      renderExercises();
       showUndo(ex.name);
       return;
     }
 
     if (action === "move-up" || action === "move-down") {
       openMenuId = null;
-      const index = state.exercises.findIndex(x => x.id === id);
+      const exs = getActiveWorkout().exercises;
+      const index = exs.findIndex(x => x.id === id);
       const target = action === "move-up" ? index - 1 : index + 1;
-      if (target >= 0 && target < state.exercises.length) {
-        const [moved] = state.exercises.splice(index, 1);
-        state.exercises.splice(target, 0, moved);
+      if (target >= 0 && target < exs.length) {
+        const [moved] = exs.splice(index, 1);
+        exs.splice(target, 0, moved);
         saveState();
       }
-      render();
+      renderExercises();
       return;
     }
 
     if (action === "superset") {
       openMenuId = null;
       if (ex.supersetId) {
-        // Already paired: unlink it
         ex.supersetId = null;
         saveState();
-        render();
+        renderExercises();
       } else {
-        // Enter "pick a partner" mode
         supersettingId = id;
         document.getElementById("selectText").textContent = `Tap an exercise to pair with "${ex.name}"`;
         document.getElementById("selectBanner").classList.add("visible");
-        render();
+        renderExercises();
       }
       return;
     }
   });
 
   function pairSuperset(idA, idB) {
+    const exs = getActiveWorkout().exercises;
     const exA = findExercise(idA);
     const exB = findExercise(idB);
     if (!exA || !exB) return;
     const groupId = exA.supersetId || newId();
     exA.supersetId = groupId;
     exB.supersetId = groupId;
-    // Move exB to sit immediately after exA so they render side by side
-    const indexB = state.exercises.findIndex(x => x.id === idB);
-    const [moved] = state.exercises.splice(indexB, 1);
-    const indexA = state.exercises.findIndex(x => x.id === idA);
-    state.exercises.splice(indexA + 1, 0, moved);
+    const indexB = exs.findIndex(x => x.id === idB);
+    const [moved] = exs.splice(indexB, 1);
+    const indexA = exs.findIndex(x => x.id === idA);
+    exs.splice(indexA + 1, 0, moved);
     supersettingId = null;
     document.getElementById("selectBanner").classList.remove("visible");
     saveState();
-    render();
+    renderExercises();
   }
 
   document.getElementById("cancelSelectBtn").addEventListener("click", () => {
     supersettingId = null;
     document.getElementById("selectBanner").classList.remove("visible");
-    render();
+    renderExercises();
   });
 
-  // Close the ⋮ menu when tapping anywhere outside it
+  // Close open menus when tapping outside
   document.addEventListener("click", (e) => {
     if (openMenuId && !e.target.closest(".menu-btn") && !e.target.closest(".menu-dropdown")) {
       openMenuId = null;
-      render();
+      renderExercises();
+    }
+    if (headerMenuOpen && !e.target.closest("#headerMenuBtn") && !e.target.closest("#headerMenuDropdown")) {
+      headerMenuOpen = false;
+      renderHeaderMenu();
     }
   });
 
@@ -475,7 +795,6 @@
 
     if (["sets", "reps", "weight", "rpe", "rest"].includes(field)) {
       ex[field] = e.target.value === "" ? "" : Number(e.target.value);
-      // Update just the volume number, not the whole card, so focus isn't lost
       card.querySelector(".volume-value").textContent = calcVolume(ex);
     } else {
       ex[field] = e.target.value;
@@ -496,9 +815,9 @@
 
   document.getElementById("undoBtn").addEventListener("click", () => {
     if (!lastDeleted) return;
-    state.exercises.splice(lastDeleted.index, 0, lastDeleted.exercise);
+    getActiveWorkout().exercises.splice(lastDeleted.index, 0, lastDeleted.exercise);
     saveState();
-    render();
+    renderExercises();
     document.getElementById("undoBanner").classList.remove("visible");
     clearTimeout(undoTimer);
     lastDeleted = null;
@@ -506,10 +825,9 @@
 
   document.getElementById("addBtn").addEventListener("click", () => {
     const ex = { id: newId(), name: "New Exercise", sets: 3, reps: 10, weight: 0, rpe: "", rest: 60, notes: "", supersetId: null };
-    state.exercises.push(ex);
+    getActiveWorkout().exercises.push(ex);
     saveState();
-    render();
-    // Scroll to and focus the new exercise's name field
+    renderExercises();
     setTimeout(() => {
       const cards = document.querySelectorAll(".exercise");
       const last = cards[cards.length - 1];
@@ -520,8 +838,101 @@
     }, 50);
   });
 
-  document.getElementById("date").textContent = new Date().toLocaleDateString(undefined, {
-    weekday: "short", month: "short", day: "numeric"
+  // Workout name / date editing
+  document.getElementById("dayTitle").addEventListener("input", (e) => {
+    getActiveWorkout().name = e.target.value;
+    saveState();
+  });
+  document.getElementById("dateInput").addEventListener("change", (e) => {
+    getActiveWorkout().date = e.target.value || todayISO();
+    saveState();
+    // Position in the Past Workouts list is recalculated at render time,
+    // so no manual re-sort is needed here.
+  });
+
+  // Header menu (⋮) — view history / mark complete / back to today
+  document.getElementById("headerMenuBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    headerMenuOpen = !headerMenuOpen;
+    renderHeaderMenu();
+  });
+
+  document.getElementById("headerMenuDropdown").addEventListener("click", (e) => {
+    const action = e.target.dataset.action;
+    if (!action) return;
+    headerMenuOpen = false;
+
+    if (action === "view-history") {
+      showScreen("history");
+    } else if (action === "back-today") {
+      editingId = null;
+      editMode = false;
+      showScreen("workout");
+    } else if (action === "complete") {
+      completeWorkout();
+    } else if (action === "delete-workout") {
+      const workout = getActiveWorkout();
+      document.getElementById("deleteConfirmText").textContent =
+        `This will permanently delete "${workout.name || "this workout"}". This action cannot be undone.`;
+      document.getElementById("deleteConfirmOverlay").classList.remove("hidden");
+    }
+  });
+
+  document.getElementById("deleteCancelBtn").addEventListener("click", () => {
+    document.getElementById("deleteConfirmOverlay").classList.add("hidden");
+  });
+
+  document.getElementById("deleteConfirmBtn").addEventListener("click", () => {
+    historyList = historyList.filter(w => w.id !== editingId);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(historyList));
+    editingId = null;
+    editMode = false;
+    document.getElementById("deleteConfirmOverlay").classList.add("hidden");
+    showScreen("history");
+  });
+
+  function completeWorkout() {
+    const clone = JSON.parse(JSON.stringify(currentState));
+    clone.id = newWorkoutId();
+    historyList.push(clone);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(historyList));
+
+    currentState = freshCurrent();
+    localStorage.setItem(CURRENT_KEY, JSON.stringify(currentState));
+
+    editingId = null;
+    showScreen("workout");
+  }
+
+  // History screen navigation
+  document.getElementById("historyList").addEventListener("click", (e) => {
+    const item = e.target.closest(".history-item");
+    if (!item) return;
+    editingId = item.dataset.id;
+    editMode = false;
+    showScreen("workout");
+  });
+
+  document.getElementById("editBtn").addEventListener("click", () => {
+    if (!editMode) {
+      editMode = true;
+    } else {
+      editMode = false;
+      saveState();
+    }
+    render();
+  });
+
+  document.getElementById("todayBtn").addEventListener("click", () => {
+    editingId = null;
+    editMode = false;
+    showScreen("workout");
+  });
+
+  document.getElementById("backToTodayBtn").addEventListener("click", () => {
+    editingId = null;
+    editMode = false;
+    showScreen("workout");
   });
 
   render();
