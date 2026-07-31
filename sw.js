@@ -1,7 +1,7 @@
 // A "cache name" is just a label for a storage bucket in the browser.
 // Bump this number whenever you update index.html, so the browser knows
 // to fetch and cache the new version instead of reusing the old one.
-const CACHE_NAME = "gym-app-cache-v8";
+const CACHE_NAME = "gym-app-cache-v13";
 
 const FILES_TO_CACHE = [
   "index.html",
