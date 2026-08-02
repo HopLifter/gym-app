@@ -10,9 +10,12 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v15` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v17` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
+  There's also an `APP_VERSION` constant near the top of `index.html`'s
+  script (shown on the Settings → About screen) — **keep it in sync with
+  `CACHE_NAME` in `sw.js`, both need bumping together.**
 
 ## Why these tech choices
 - **Plain HTML/CSS/JavaScript**, no frameworks — simplest possible setup for a
@@ -28,16 +31,21 @@ no subscriptions.
   dialogs are unreliable (often silently no-op) on iOS when the app is
   launched from the home screen, which is how this app is used. Any future
   confirmation prompts should follow the same custom-modal pattern rather
-  than native dialogs.
+  than native dialogs. The shared confirm modal (`openConfirm()`) now takes
+  an optional button label and a `danger` flag — `danger: true` gives a red
+  destructive button (delete, end program, replace), `danger: false` gives
+  an accent/primary button (restore, finish workout) for reversible or
+  positive actions.
 
 ## Data model
-localStorage keys:
+Unchanged this session — no data model or application logic changes, only
+navigation/UI reorganization. localStorage keys:
 - `gymapp_program_v1` — the currently active imported program, if any:
   `{ id, name, importedAt }`. `null`/absent if no program is active.
 - `gymapp_queue_v1` — array of planned workouts, each:
   `{ id, programId, label, date, status: "queued", order, exercises }`.
   `order` determines queue position (ascending); the lowest `order` is the
-  "Next Up" / active workout. `date` is `null` until the workout is
+  "Today's Workout" / active workout. `date` is `null` until the workout is
   completed. `programId` is `null` for ad-hoc workouts.
 - `gymapp_history_v1` — array of completed workouts, each:
   `{ id, programId, label, date, status: "completed", note, exercises }`
@@ -45,22 +53,73 @@ localStorage keys:
 - Each exercise: `{ id, name, sets, reps, weight, rpe, rest, notes, supersetId }`.
   `rest` is stored **in seconds** internally (see Rest Timer note below).
 
+## Navigation & screen structure (reorganized this session)
+The app is now organized around four workflows, each screen showing only
+what's relevant to it:
+
+**Workout screen** — perform today's workout. Three sub-states depending on
+what's being viewed:
+- **Today's Workout** (the actual front-of-queue workout) — the default
+  landing view. No back button (it's home). Header ⋮ menu: View Queue,
+  View History, Finish Workout, Settings.
+- **Queued Workout** (peeked ahead at a future queue item, opened from the
+  Queue screen) — shows a "← Back to Queue" button. Finish Workout is
+  **not** offered here (you can't finish a workout out of order). Header ⋮
+  menu: View Queue, View History, Settings.
+- **Past Workout** (opened from History) — shows a "← Back to History"
+  button instead of the old ambiguous "Queue" button (which actually
+  jumped to today's workout, not the Queue screen — that mislabeled button
+  has been removed). Header ⋮ menu: View Queue, View History, Restore to
+  Queue, Delete Workout, Settings.
+
+The contextual back button is a single element (`#backNavBtn`) whose label
+and destination change based on `backNavTarget` (`"queue"`, `"history"`,
+or hidden), set in `renderWorkoutHeader()`.
+
+**Queue screen** — plan future workouts.
+- Back button: "← Back to Today's Workout"
+- "Current Program" name shown at top (display-only now)
+- "+ Add Ad-hoc Workout" directly below the program info, above the list
+- Queue item ⋮ menu: Move Up, Move Down, **Delete Workout** (renamed from
+  "Remove from Queue" — wording now matches the rest of the app)
+- Header ⋮ menu (new): Settings only
+- Program management (Start New Program / End Current Program) moved out
+  to Settings — no longer editable from here
+
+**History screen** — review completed workouts.
+- Back button: "← Back to Today's Workout"
+- Tapping an item opens it as a read-only Past Workout (Edit toggles
+  edit mode)
+- List item ⋮ menu: Restore to Queue
+- Header ⋮ menu (new): Settings only
+
+**Settings screen** (new) — infrequent admin actions, reached via
+"Settings" at the bottom of every screen's ⋮ menu:
+- **About** — app name, `APP_VERSION`, short description
+- **Program Management** — shows current program (or "No active program"),
+  "Start New Program" (reuses the existing JSON import flow/modal),
+  "End Current Program" (only shown when a program is active)
+- **Data** — "Export Gym Log" button (opens the existing export modal)
+
 ## Current features (as of this version)
 **Program & Queue**
-- Import a program from JSON (header ⋮ menu → Import Program) — paste or
-  choose a file. Ask Claude to convert a spreadsheet/plan into the expected
-  `{ program: { name }, workouts: [...] }` format.
+- Import a program from JSON — now reached via Settings → Program
+  Management → "Start New Program" (same underlying flow/modal as before,
+  `openImportModal()`; paste JSON or choose a file). Ask Claude to convert
+  a spreadsheet/plan into the expected `{ program: { name }, workouts:
+  [...] }` format.
 - Export the active program's queued + completed workouts back to JSON.
-  (The `exportProgram()` function still exists but its buttons have been
-  removed from the UI — see "Export Gym Log" below, which replaced it as
-  the workflow actually used. Kept in code in case it's useful again later.)
-- "End Program" clears its remaining queued workouts (completed ones stay
-  in history) and annotates the last completed workout.
+  (The `exportProgram()` function still exists but has no UI entry point
+  — see "Export Gym Log" below, which replaced it as the workflow
+  actually used. Kept in code in case it's useful again later.)
+- "End Current Program" (Settings) clears its remaining queued workouts
+  (completed ones stay in history) and annotates the last completed
+  workout.
 - Queue screen lists all planned workouts in order; reorder (Move Up/Down),
-  remove from queue, or add a one-off ad-hoc workout.
+  Delete Workout, or add a one-off ad-hoc workout.
 - The active workout screen always shows the workout at the front of the
-  queue ("Next Up") unless you've navigated into another queued or past
-  workout to view/edit it ahead of time.
+  queue ("Today's Workout") unless you've navigated into another queued or
+  past workout to view/edit it ahead of time.
 
 **Exercise editing**
 - Editable exercise fields: name, sets, reps, weight, RPE, rest time
@@ -73,9 +132,9 @@ localStorage keys:
 - Superset pairing: link two exercises, shown grouped with a visual badge
 
 **Export Gym Log**
-- Header ⋮ menu → "Export Gym Log" opens a modal that generates
-  tab-separated text of completed workouts, formatted to paste directly
-  into the user's external Excel gym log with no reformatting.
+- Settings → "Export Gym Log" opens a modal that generates tab-separated
+  text of completed workouts, formatted to paste directly into the user's
+  external Excel gym log with no reformatting.
 - Column order (matches the target sheet exactly, paste starting at
   column C): Day, Lift, Sets, Reps, Weight, *(blank — Volume is a formula
   column in the target sheet, intentionally left empty)*, Comments, Rest
@@ -97,7 +156,7 @@ localStorage keys:
   fallback since clipboard permissions can be unreliable in the
   home-screen web app context.
 
-
+**Rest Timer**
 - Each editable exercise has a ⏱ button that starts a rest timer using
   that exercise's configured rest duration.
 - A single persistent floating timer bar is visible across all screens
@@ -111,16 +170,19 @@ localStorage keys:
   (not supported reliably as a home-screen web app).
 
 **Active workout date**
-- The active ("Next Up") workout shows today's date as a read-only badge —
-  informational only, not stored, since queued workouts don't get a real
-  date until they're completed.
+- Today's Workout shows today's date as a read-only badge — informational
+  only, not stored, since queued workouts don't get a real date until
+  they're completed.
 - Other queued/future workouts don't show a date badge (avoids implying
   they're scheduled for "today").
 
 **Workout history**
 - Editable workout name and date on the current workout
-- "Mark Workout Complete" (header ⋮ menu) saves a full copy of the current
-  workout into Past Workouts, then advances to the next queued workout
+- "Finish Workout" (header ⋮ menu, only available when viewing today's
+  actual active workout) now asks for confirmation first — "Finish
+  Workout?" / "This will move today's workout into your history and make
+  the next queued workout active." — before saving a full copy into Past
+  Workouts and advancing to the next queued workout.
 - "Past Workouts" list (header ⋮ menu → View History), sorted newest first
 - Tapping a past workout opens it in the same workout view used for today
 - Past workouts open **read-only** by default; an "Edit" button (top nav)
@@ -133,8 +195,8 @@ localStorage keys:
   workout. Moves a completed workout back into the active queue as a
   planned workout (status reset, date cleared), preserving all exercise
   data. Confirmed via the standard in-app modal.
-- Persistent "Today" button (top nav) appears whenever viewing a past or
-  other queued workout, returns to the active workout instantly
+- "← Back to History" button (top nav) appears whenever viewing a past
+  workout, returns to the History list.
 
 **General**
 - Installable as a home screen shortcut via browser (Add to Home Screen)
@@ -149,6 +211,9 @@ localStorage keys:
 - Export Gym Log assumes weight is always entered in kg — no unit
   conversion. If the target sheet's column order/layout ever changes,
   update the column list inside `buildGymLogExportRows()` to match.
+- `APP_VERSION` (shown on Settings → About) is a separate constant from
+  `CACHE_NAME` in `sw.js` — both must be bumped together by hand, there's
+  no single source of truth for the version string yet.
 
 ## Backlog / ideas not yet built
 - Search past workouts

@@ -50,7 +50,7 @@
     font-size: 22px; cursor: pointer; padding: 2px 8px; line-height: 1;
   }
   .nav-right { display: flex; align-items: center; gap: 4px; position: relative; }
-  .today-btn {
+  .back-nav-btn {
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
     border-radius: 8px;
@@ -59,8 +59,9 @@
     font-weight: 700;
     padding: 6px 12px;
     cursor: pointer;
+    white-space: nowrap;
   }
-  .today-btn:active { border-color: var(--accent); }
+  .back-nav-btn:active { border-color: var(--accent); }
   .edit-btn {
     background: var(--surface-2);
     border: 1px solid var(--line);
@@ -482,7 +483,22 @@
     padding: 14px 16px;
     margin-bottom: 18px;
   }
+  .program-bar-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; font-weight: 700; }
   .program-bar-name { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  .settings-section {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .settings-section-title {
+    font-size: 11px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 8px; font-weight: 700;
+  }
+  .settings-about-name { font-weight: 800; font-size: 17px; }
+  .settings-about-version { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .settings-about-desc { font-size: 13px; color: var(--text-dim); margin-top: 8px; line-height: 1.4; }
   .program-bar-empty { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
   .program-bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
   .pill-btn {
@@ -528,7 +544,7 @@
     overflow-y: auto;
   }
   .modal-title { font-weight: 800; font-size: 17px; margin-bottom: 8px; }
-  .modal-text { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4; }
+  .modal-text { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4; white-space: pre-line; }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
   .modal-btn-cancel {
     background: none;
@@ -597,10 +613,10 @@
 <!-- WORKOUT SCREEN (queue item, history item, or empty state) -->
 <div id="workoutScreen">
   <div class="top-nav">
-    <span class="eyebrow" id="eyebrow">Next Up</span>
+    <span class="eyebrow" id="eyebrow">Today's Workout</span>
     <div class="nav-right">
       <button class="edit-btn hidden" id="editBtn">Edit</button>
-      <button class="today-btn hidden" id="todayBtn">Queue</button>
+      <button class="back-nav-btn hidden" id="backNavBtn">← Back</button>
       <button class="header-menu-btn" id="headerMenuBtn">⋮</button>
       <div class="header-menu-dropdown" id="headerMenuDropdown"></div>
     </div>
@@ -633,7 +649,11 @@
 <!-- QUEUE SCREEN -->
 <div id="queueScreen" class="hidden">
   <div class="history-header">
-    <button class="back-btn" id="backFromQueueBtn">← Back</button>
+    <button class="back-btn" id="backFromQueueBtn">← Back to Today's Workout</button>
+    <div class="nav-right">
+      <button class="header-menu-btn" id="queueMenuBtn">⋮</button>
+      <div class="header-menu-dropdown" id="queueMenuDropdown"></div>
+    </div>
   </div>
   <h1>Queue</h1>
   <div class="program-bar" id="programBar"></div>
@@ -645,10 +665,23 @@
 <!-- HISTORY SCREEN -->
 <div id="historyScreen" class="hidden">
   <div class="history-header">
-    <button class="back-btn" id="backToTodayBtn">← Queue</button>
+    <button class="back-btn" id="backToTodayBtn">← Back to Today's Workout</button>
+    <div class="nav-right">
+      <button class="header-menu-btn" id="historyMenuBtn">⋮</button>
+      <div class="header-menu-dropdown" id="historyMenuDropdown"></div>
+    </div>
   </div>
   <h1>Past Workouts</h1>
   <div id="historyList"></div>
+</div>
+
+<!-- SETTINGS SCREEN -->
+<div id="settingsScreen" class="hidden">
+  <div class="history-header">
+    <button class="back-btn" id="backFromSettingsBtn">← Back</button>
+  </div>
+  <h1>Settings</h1>
+  <div id="settingsList"></div>
 </div>
 
 <div class="rest-timer-bar" id="restTimerBar">
@@ -726,6 +759,9 @@
 </div>
 
 <script>
+  // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
+  const APP_VERSION = "gym-app-cache-v17";
+
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
   const HISTORY_KEY = "gymapp_history_v1";
@@ -793,7 +829,10 @@
   let lastDeleted = null;
   let undoTimer = null;
   let openMenuId = null;
+  let backNavTarget = null; // "queue" | "history" | null — where the contextual back button on the Workout screen goes
   let headerMenuOpen = false;
+  let queueMenuOpen = false;   // Queue screen ⋮ menu (Settings)
+  let historyMenuOpen = false; // History screen ⋮ menu (Settings)
   let openItemMenuId = null; // queue list item ⋮ menu
   let supersettingId = null;
   let confirmAction = null;
@@ -923,7 +962,8 @@
   function renderEmptyHeader() {
     document.getElementById("eyebrow").textContent = "No Workout Queued";
     document.getElementById("eyebrow").classList.remove("past");
-    document.getElementById("todayBtn").classList.add("hidden");
+    backNavTarget = null;
+    document.getElementById("backNavBtn").classList.add("hidden");
     document.getElementById("editBtn").classList.add("hidden");
     renderHeaderMenu();
   }
@@ -933,14 +973,30 @@
     const eyebrow = document.getElementById("eyebrow");
     const isNext = viewSource === "queue" && sortedQueue()[0] && sortedQueue()[0].id === workout.id;
     if (viewSource === "queue") {
-      eyebrow.textContent = isNext ? "Next Up" : "Queued Workout";
+      eyebrow.textContent = isNext ? "Today's Workout" : "Queued Workout";
       eyebrow.classList.remove("past");
     } else {
       eyebrow.textContent = editMode ? "Past Workout · Editing" : "Past Workout · Read Only";
       eyebrow.classList.add("past");
     }
 
-    document.getElementById("todayBtn").classList.toggle("hidden", viewSource === "queue");
+    // Contextual back button: only shown when viewing something other than
+    // today's active workout — a peeked-ahead queued workout goes back to
+    // the Queue, a past workout goes back to History.
+    const backNavBtn = document.getElementById("backNavBtn");
+    if (viewSource === "queue" && !isNext) {
+      backNavTarget = "queue";
+      backNavBtn.textContent = "← Back to Queue";
+      backNavBtn.classList.remove("hidden");
+    } else if (viewSource === "history") {
+      backNavTarget = "history";
+      backNavBtn.textContent = "← Back to History";
+      backNavBtn.classList.remove("hidden");
+    } else {
+      backNavTarget = null;
+      backNavBtn.classList.add("hidden");
+    }
+
     const editBtn = document.getElementById("editBtn");
     editBtn.classList.toggle("hidden", viewSource !== "history");
     editBtn.textContent = editMode ? "Save" : "Edit";
@@ -978,18 +1034,15 @@
   function renderHeaderMenu() {
     const dropdown = document.getElementById("headerMenuDropdown");
     dropdown.classList.toggle("open", headerMenuOpen);
-    let items = [`<button data-action="view-queue">View Queue</button>`, `<button data-action="view-history">View History</button>`, `<button data-action="export-gym-log">Export Gym Log</button>`];
-    if (viewSource === "queue") {
-      items.push(`<button data-action="complete">Mark Workout Complete</button>`);
+    let items = [`<button data-action="view-queue">View Queue</button>`, `<button data-action="view-history">View History</button>`];
+    const isNextWorkout = viewSource === "queue" && sortedQueue()[0] && getActiveWorkout() && sortedQueue()[0].id === getActiveWorkout().id;
+    if (viewSource === "queue" && isNextWorkout) {
+      items.push(`<button data-action="complete">Finish Workout</button>`);
     } else if (viewSource === "history") {
       items.push(`<button data-action="restore-workout">Restore to Queue</button>`);
       items.push(`<button data-action="delete-workout">Delete Workout</button>`);
     }
-    items.push(`<button data-action="add-adhoc">+ Add Ad-hoc Workout</button>`);
-    items.push(`<button data-action="import-program">Import Program</button>`);
-    if (program) {
-      items.push(`<button data-action="end-program">End Program</button>`);
-    }
+    items.push(`<button data-action="settings">Settings</button>`);
     dropdown.innerHTML = items.join("");
   }
 
@@ -1020,18 +1073,11 @@
   function renderProgramBar() {
     const bar = document.getElementById("programBar");
     if (!program) {
-      bar.innerHTML = `<div class="program-bar-empty">No active program.</div>
-        <div class="program-bar-actions"><button class="pill-btn accent" id="programBarImportBtn">Import Program</button></div>`;
-      document.getElementById("programBarImportBtn").addEventListener("click", openImportModal);
+      bar.innerHTML = `<div class="program-bar-empty">No active program. Manage programs in Settings.</div>`;
       return;
     }
-    bar.innerHTML = `<div class="program-bar-name">${escapeHtml(program.name)}</div>
-      <div class="program-bar-actions">
-        <button class="pill-btn danger" id="programBarEndBtn">End Program</button>
-        <button class="pill-btn" id="programBarImportBtn">Import New</button>
-      </div>`;
-    document.getElementById("programBarEndBtn").addEventListener("click", confirmEndProgram);
-    document.getElementById("programBarImportBtn").addEventListener("click", openImportModal);
+    bar.innerHTML = `<div class="program-bar-label">Current Program</div>
+      <div class="program-bar-name">${escapeHtml(program.name)}</div>`;
   }
 
   function renderQueueList() {
@@ -1049,7 +1095,7 @@
         <div class="item-menu-dropdown${openItemMenuId === w.id ? " open" : ""}">
           <button data-action="move-up">Move Up</button>
           <button data-action="move-down">Move Down</button>
-          <button data-action="remove-queue">Remove from Queue</button>
+          <button data-action="remove-queue">Delete Workout</button>
         </div>
       </div>
     `).join("");
@@ -1075,6 +1121,37 @@
     `).join("");
   }
 
+  function renderSettings() {
+    const list = document.getElementById("settingsList");
+    list.innerHTML = `
+      <div class="settings-section">
+        <div class="settings-section-title">About</div>
+        <div class="settings-about-name">Today's Lift</div>
+        <div class="settings-about-version">Version: ${APP_VERSION}</div>
+        <div class="settings-about-desc">A free, offline-first workout tracker. Data stays on this device only — no accounts, no cloud sync.</div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Program Management</div>
+        ${program
+          ? `<div class="program-bar-label">Current Program</div><div class="program-bar-name">${escapeHtml(program.name)}</div>`
+          : `<div class="program-bar-empty">No active program.</div>`}
+        <div class="program-bar-actions">
+          <button class="pill-btn accent" id="settingsStartProgramBtn">Start New Program</button>
+          ${program ? `<button class="pill-btn danger" id="settingsEndProgramBtn">End Current Program</button>` : ""}
+        </div>
+      </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Data</div>
+        <div class="program-bar-actions">
+          <button class="pill-btn" id="settingsExportGymLogBtn">Export Gym Log</button>
+        </div>
+      </div>
+    `;
+    document.getElementById("settingsStartProgramBtn").addEventListener("click", openImportModal);
+    if (program) document.getElementById("settingsEndProgramBtn").addEventListener("click", confirmEndProgram);
+    document.getElementById("settingsExportGymLogBtn").addEventListener("click", openExportGymLogModal);
+  }
+
   function formatDateDisplay(iso) {
     if (!iso) return "";
     const [y, m, d] = iso.split("-").map(Number);
@@ -1095,8 +1172,10 @@
     document.getElementById("workoutScreen").classList.toggle("hidden", view !== "workout");
     document.getElementById("queueScreen").classList.toggle("hidden", view !== "queue");
     document.getElementById("historyScreen").classList.toggle("hidden", view !== "history");
+    document.getElementById("settingsScreen").classList.toggle("hidden", view !== "settings");
     if (view === "queue") { renderProgramBar(); renderQueueList(); }
     else if (view === "history") renderHistoryList();
+    else if (view === "settings") renderSettings();
     else render();
   }
 
@@ -1335,6 +1414,14 @@
       if (currentScreen === "queue") renderQueueList();
       else if (currentScreen === "history") renderHistoryList();
     }
+    if (queueMenuOpen && !e.target.closest("#queueMenuBtn") && !e.target.closest("#queueMenuDropdown")) {
+      queueMenuOpen = false;
+      document.getElementById("queueMenuDropdown").classList.remove("open");
+    }
+    if (historyMenuOpen && !e.target.closest("#historyMenuBtn") && !e.target.closest("#historyMenuDropdown")) {
+      historyMenuOpen = false;
+      document.getElementById("historyMenuDropdown").classList.remove("open");
+    }
   });
 
   container.addEventListener("input", (e) => {
@@ -1424,7 +1511,13 @@
     } else if (action === "view-history") {
       showScreen("history");
     } else if (action === "complete") {
-      completeActiveWorkout();
+      openConfirm(
+        "Finish Workout?",
+        "This will move today's workout into your history and make the next queued workout active.\n\nAre you sure you want to finish today's workout?",
+        completeActiveWorkout,
+        "Finish Workout",
+        false
+      );
     } else if (action === "restore-workout") {
       const workout = getActiveWorkout();
       openConfirm(
@@ -1434,7 +1527,9 @@
           restoreWorkoutToQueue(viewId);
           setActiveToNextQueued();
           showScreen("workout");
-        }
+        },
+        "Restore",
+        false
       );
     } else if (action === "delete-workout") {
       const workout = getActiveWorkout();
@@ -1446,16 +1541,12 @@
           localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
           setActiveToNextQueued();
           showScreen("workout");
-        }
+        },
+        "Delete",
+        true
       );
-    } else if (action === "add-adhoc") {
-      addAdhocWorkout();
-    } else if (action === "import-program") {
-      openImportModal();
-    } else if (action === "export-gym-log") {
-      openExportGymLogModal();
-    } else if (action === "end-program") {
-      confirmEndProgram();
+    } else if (action === "settings") {
+      showScreen("settings");
     } else {
       renderHeaderMenu();
     }
@@ -1512,11 +1603,18 @@
     setTimeout(() => document.getElementById("dayTitle").focus(), 50);
   }
 
-  // Generic confirm modal
-  function openConfirm(title, text, onConfirm) {
+  // Generic confirm modal.
+  // confirmLabel: text on the action button. danger: true = red/destructive
+  // styling (deletes, discards data), false = accent/primary styling (safe,
+  // reversible actions like restoring or finishing a workout).
+  function openConfirm(title, text, onConfirm, confirmLabel = "Confirm", danger = true) {
     document.getElementById("confirmTitle").textContent = title;
     document.getElementById("confirmText").textContent = text;
     confirmAction = onConfirm;
+    const btn = document.getElementById("confirmDangerBtn");
+    btn.textContent = confirmLabel;
+    btn.classList.toggle("modal-btn-danger", danger);
+    btn.classList.toggle("modal-btn-primary", !danger);
     document.getElementById("confirmOverlay").classList.remove("hidden");
   }
   document.getElementById("confirmCancelBtn").addEventListener("click", () => {
@@ -1532,12 +1630,12 @@
 
   function confirmEndProgram() {
     if (!program) return;
-    headerMenuOpen = false;
-    renderHeaderMenu();
     openConfirm(
       "End this program?",
       `Queued workouts from "${program.name}" that aren't completed will be discarded. Completed workouts stay in your history.`,
-      endProgram
+      endProgram,
+      "End Program",
+      true
     );
   }
 
@@ -1556,7 +1654,7 @@
     saveQueue();
     saveHistory();
     setActiveToNextQueued();
-    showScreen(currentScreen === "queue" ? "queue" : "workout");
+    showScreen(currentScreen);
   }
 
   // Import
@@ -1602,7 +1700,9 @@
       openConfirm(
         "Replace current program?",
         `This ends "${program.name}" (its queued workouts are discarded) and imports "${data.program.name}".`,
-        () => { endProgram(); doImport(data); }
+        () => { endProgram(); doImport(data); },
+        "Replace",
+        true
       );
     } else {
       doImport(data);
@@ -1773,6 +1873,21 @@
   document.getElementById("addAdhocBtn").addEventListener("click", addAdhocWorkout);
   document.getElementById("backFromQueueBtn").addEventListener("click", () => showScreen("workout"));
 
+  document.getElementById("queueMenuBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    queueMenuOpen = !queueMenuOpen;
+    const dropdown = document.getElementById("queueMenuDropdown");
+    dropdown.innerHTML = `<button data-action="settings">Settings</button>`;
+    dropdown.classList.toggle("open", queueMenuOpen);
+  });
+  document.getElementById("queueMenuDropdown").addEventListener("click", (e) => {
+    if (e.target.dataset.action === "settings") {
+      queueMenuOpen = false;
+      document.getElementById("queueMenuDropdown").classList.remove("open");
+      showScreen("settings");
+    }
+  });
+
   document.getElementById("queueList").addEventListener("click", (e) => {
     const item = e.target.closest(".history-item");
     if (!item) return;
@@ -1803,14 +1918,16 @@
       openItemMenuId = null;
       const w = queue.find(x => x.id === id);
       openConfirm(
-        "Remove from queue?",
+        "Delete this workout?",
         `"${w.label || "This workout"}" will be removed without being logged to history.`,
         () => {
           queue = queue.filter(x => x.id !== id);
           saveQueue();
           if (viewId === id) setActiveToNextQueued();
           renderQueueList();
-        }
+        },
+        "Delete",
+        true
       );
       return;
     }
@@ -1843,7 +1960,9 @@
         () => {
           restoreWorkoutToQueue(id);
           renderHistoryList();
-        }
+        },
+        "Restore",
+        false
       );
       return;
     }
@@ -1852,6 +1971,26 @@
     viewSource = "history";
     viewId = id;
     editMode = false;
+    showScreen("workout");
+  });
+
+  document.getElementById("historyMenuBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    historyMenuOpen = !historyMenuOpen;
+    const dropdown = document.getElementById("historyMenuDropdown");
+    dropdown.innerHTML = `<button data-action="settings">Settings</button>`;
+    dropdown.classList.toggle("open", historyMenuOpen);
+  });
+  document.getElementById("historyMenuDropdown").addEventListener("click", (e) => {
+    if (e.target.dataset.action === "settings") {
+      historyMenuOpen = false;
+      document.getElementById("historyMenuDropdown").classList.remove("open");
+      showScreen("settings");
+    }
+  });
+
+  document.getElementById("backFromSettingsBtn").addEventListener("click", () => {
+    setActiveToNextQueued();
     showScreen("workout");
   });
 
@@ -1865,10 +2004,12 @@
     render();
   });
 
-  document.getElementById("todayBtn").addEventListener("click", () => {
-    setActiveToNextQueued();
-    editMode = false;
-    showScreen("workout");
+  document.getElementById("backNavBtn").addEventListener("click", () => {
+    if (backNavTarget === "queue") {
+      showScreen("queue");
+    } else if (backNavTarget === "history") {
+      showScreen("history");
+    }
   });
   document.getElementById("backToTodayBtn").addEventListener("click", () => {
     setActiveToNextQueued();
