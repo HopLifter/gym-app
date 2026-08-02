@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v13` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v15` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
 
@@ -51,6 +51,9 @@ localStorage keys:
   choose a file. Ask Claude to convert a spreadsheet/plan into the expected
   `{ program: { name }, workouts: [...] }` format.
 - Export the active program's queued + completed workouts back to JSON.
+  (The `exportProgram()` function still exists but its buttons have been
+  removed from the UI — see "Export Gym Log" below, which replaced it as
+  the workflow actually used. Kept in code in case it's useful again later.)
 - "End Program" clears its remaining queued workouts (completed ones stay
   in history) and annotates the last completed workout.
 - Queue screen lists all planned workouts in order; reorder (Move Up/Down),
@@ -69,7 +72,32 @@ localStorage keys:
 - Reorder exercises (Move Up / Move Down)
 - Superset pairing: link two exercises, shown grouped with a visual badge
 
-**Rest timer**
+**Export Gym Log**
+- Header ⋮ menu → "Export Gym Log" opens a modal that generates
+  tab-separated text of completed workouts, formatted to paste directly
+  into the user's external Excel gym log with no reformatting.
+- Column order (matches the target sheet exactly, paste starting at
+  column C): Day, Lift, Sets, Reps, Weight, *(blank — Volume is a formula
+  column in the target sheet, intentionally left empty)*, Comments, Rest
+  Time (min), RPE.
+- One row per exercise (not per set) — sets/reps/weight changes mid-lift
+  are handled by the user logging them as separate exercise entries in
+  the app, so exercise order in a workout already matches row order
+  needed in the log. No per-set data model was needed for this.
+- Weight is exported as-is; assumes the user always logs in kg (matches
+  their external sheet).
+- Rows are sorted chronologically (oldest first) across ALL completed
+  workouts by default. Optional From/To date inputs in the modal narrow
+  the export to a specific range — both blank exports full history.
+- Superset pairs get a `(Superset A)`, `(Superset B)`... tag appended to
+  the Rest Time cell (letters assigned per workout, not globally).
+- Read-only: pulls from `history` only, never modifies stored data.
+- Tries to auto-copy to clipboard on open (and on the explicit "Copy to
+  Clipboard" button); the textarea itself is always shown as a manual
+  fallback since clipboard permissions can be unreliable in the
+  home-screen web app context.
+
+
 - Each editable exercise has a ⏱ button that starts a rest timer using
   that exercise's configured rest duration.
 - A single persistent floating timer bar is visible across all screens
@@ -118,6 +146,9 @@ localStorage keys:
   next to each other automatically).
 - The rest timer doesn't survive the app being fully closed/killed (only
   brief backgrounding); no background notifications.
+- Export Gym Log assumes weight is always entered in kg — no unit
+  conversion. If the target sheet's column order/layout ever changes,
+  update the column list inside `buildGymLogExportRows()` to match.
 
 ## Backlog / ideas not yet built
 - Search past workouts

@@ -686,6 +686,29 @@
   </div>
 </div>
 
+<!-- Export Gym Log modal -->
+<div class="modal-overlay hidden" id="exportGymLogOverlay">
+  <div class="modal-box">
+    <div class="modal-title">Export Gym Log</div>
+    <div class="modal-text" id="exportGymLogInfo"></div>
+    <div style="display:flex; gap:10px; margin-bottom:12px;">
+      <div class="stat-field" style="flex:1;">
+        <label>From (optional)</label>
+        <input type="date" class="date-input" id="exportGymLogFrom" style="width:100%; margin-bottom:0;">
+      </div>
+      <div class="stat-field" style="flex:1;">
+        <label>To (optional)</label>
+        <input type="date" class="date-input" id="exportGymLogTo" style="width:100%; margin-bottom:0;">
+      </div>
+    </div>
+    <textarea class="import-textarea" id="exportGymLogTextarea" readonly></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" id="exportGymLogCloseBtn">Close</button>
+      <button class="modal-btn-primary" id="exportGymLogCopyBtn">Copy to Clipboard</button>
+    </div>
+  </div>
+</div>
+
 <!-- Import modal -->
 <div class="modal-overlay hidden" id="importOverlay">
   <div class="modal-box">
@@ -955,7 +978,7 @@
   function renderHeaderMenu() {
     const dropdown = document.getElementById("headerMenuDropdown");
     dropdown.classList.toggle("open", headerMenuOpen);
-    let items = [`<button data-action="view-queue">View Queue</button>`, `<button data-action="view-history">View History</button>`];
+    let items = [`<button data-action="view-queue">View Queue</button>`, `<button data-action="view-history">View History</button>`, `<button data-action="export-gym-log">Export Gym Log</button>`];
     if (viewSource === "queue") {
       items.push(`<button data-action="complete">Mark Workout Complete</button>`);
     } else if (viewSource === "history") {
@@ -965,7 +988,6 @@
     items.push(`<button data-action="add-adhoc">+ Add Ad-hoc Workout</button>`);
     items.push(`<button data-action="import-program">Import Program</button>`);
     if (program) {
-      items.push(`<button data-action="export-program">Export Program</button>`);
       items.push(`<button data-action="end-program">End Program</button>`);
     }
     dropdown.innerHTML = items.join("");
@@ -1005,11 +1027,9 @@
     }
     bar.innerHTML = `<div class="program-bar-name">${escapeHtml(program.name)}</div>
       <div class="program-bar-actions">
-        <button class="pill-btn accent" id="programBarExportBtn">Export</button>
         <button class="pill-btn danger" id="programBarEndBtn">End Program</button>
         <button class="pill-btn" id="programBarImportBtn">Import New</button>
       </div>`;
-    document.getElementById("programBarExportBtn").addEventListener("click", exportProgram);
     document.getElementById("programBarEndBtn").addEventListener("click", confirmEndProgram);
     document.getElementById("programBarImportBtn").addEventListener("click", openImportModal);
   }
@@ -1432,8 +1452,8 @@
       addAdhocWorkout();
     } else if (action === "import-program") {
       openImportModal();
-    } else if (action === "export-program") {
-      exportProgram();
+    } else if (action === "export-gym-log") {
+      openExportGymLogModal();
     } else if (action === "end-program") {
       confirmEndProgram();
     } else {
@@ -1653,6 +1673,101 @@
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
+
+  // ---- Export Gym Log ----
+  // Produces tab-separated text matching the user's external Excel gym
+  // log layout (Day, Lift, Sets, Reps, Weight, [blank — Volume is a
+  // formula in their sheet], Comments, Rest Time, RPE), one row per
+  // exercise, in chronological / logged order. Read-only: never touches
+  // `history`. Kept as its own function so the row-building logic stays
+  // in one place if new fields are ever added to the exercise model.
+  function buildGymLogExportRows(fromDate, toDate) {
+    let sorted = [...history].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    if (fromDate) sorted = sorted.filter(w => w.date && w.date >= fromDate);
+    if (toDate) sorted = sorted.filter(w => w.date && w.date <= toDate);
+    const rows = [];
+    for (const w of sorted) {
+      const supersetLetters = new Map();
+      let nextLetter = 65; // 'A'
+      for (const ex of w.exercises) {
+        const mins = restSecondsToMinutes(ex.rest);
+        let restCell = mins === "" ? "" : String(mins);
+        if (ex.supersetId) {
+          if (!supersetLetters.has(ex.supersetId)) {
+            supersetLetters.set(ex.supersetId, String.fromCharCode(nextLetter++));
+          }
+          const letter = supersetLetters.get(ex.supersetId);
+          restCell = (restCell === "" ? "" : restCell + " ") + `(Superset ${letter})`;
+        }
+        rows.push([
+          w.date || "",
+          ex.name || "",
+          ex.sets === "" || ex.sets == null ? "" : ex.sets,
+          ex.reps === "" || ex.reps == null ? "" : ex.reps,
+          ex.weight === "" || ex.weight == null ? "" : ex.weight,
+          "", // Volume — left blank; it's a formula column in the target sheet
+          ex.notes || "",
+          restCell,
+          ex.rpe === "" || ex.rpe == null ? "" : ex.rpe
+        ]);
+      }
+    }
+    return rows;
+  }
+
+  function buildGymLogExportText() {
+    return buildGymLogExportRows().map(r => r.join("\t")).join("\n");
+  }
+
+  function refreshExportGymLogPreview(autoCopy) {
+    const from = document.getElementById("exportGymLogFrom").value || null;
+    const to = document.getElementById("exportGymLogTo").value || null;
+    const rows = buildGymLogExportRows(from, to);
+    const textarea = document.getElementById("exportGymLogTextarea");
+    const info = document.getElementById("exportGymLogInfo");
+    textarea.value = rows.map(r => r.join("\t")).join("\n");
+    if (rows.length === 0) {
+      info.textContent = (from || to)
+        ? "No completed workouts in that date range."
+        : "No completed workouts yet — finish a workout first.";
+      return;
+    }
+    info.textContent = `${rows.length} exercise row${rows.length === 1 ? "" : "s"} ready. Paste starting at column C in your gym log.`;
+    if (autoCopy && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textarea.value)
+        .then(() => { info.textContent = `Copied ${rows.length} row${rows.length === 1 ? "" : "s"} to clipboard. Paste starting at column C in your gym log.`; })
+        .catch(() => { /* clipboard blocked — textarea below still has the text to select/copy manually */ });
+    }
+  }
+
+  function openExportGymLogModal() {
+    headerMenuOpen = false;
+    renderHeaderMenu();
+    document.getElementById("exportGymLogFrom").value = "";
+    document.getElementById("exportGymLogTo").value = "";
+    document.getElementById("exportGymLogOverlay").classList.remove("hidden");
+    refreshExportGymLogPreview(true);
+  }
+
+  document.getElementById("exportGymLogFrom").addEventListener("change", () => refreshExportGymLogPreview(false));
+  document.getElementById("exportGymLogTo").addEventListener("change", () => refreshExportGymLogPreview(false));
+
+  document.getElementById("exportGymLogCloseBtn").addEventListener("click", () => {
+    document.getElementById("exportGymLogOverlay").classList.add("hidden");
+  });
+  document.getElementById("exportGymLogCopyBtn").addEventListener("click", () => {
+    const textarea = document.getElementById("exportGymLogTextarea");
+    const info = document.getElementById("exportGymLogInfo");
+    textarea.select();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(textarea.value)
+        .then(() => { info.textContent = "Copied to clipboard."; })
+        .catch(() => { document.execCommand("copy"); info.textContent = "Copied to clipboard."; });
+    } else {
+      document.execCommand("copy");
+      info.textContent = "Copied to clipboard.";
+    }
+  });
 
   // Queue screen interactions
   document.getElementById("addAdhocBtn").addEventListener("click", addAdhocWorkout);
