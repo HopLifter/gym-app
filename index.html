@@ -760,7 +760,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v17";
+  const APP_VERSION = "gym-app-cache-v19";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -906,8 +906,23 @@
     return Math.round((Number(seconds) / 60) * 100) / 100;
   }
   function restMinutesToSeconds(minutes) {
-    if (minutes === "") return "";
-    return Math.round(Number(minutes) * 60);
+    const parsed = parseDecimalInput(minutes);
+    if (parsed === "") return "";
+    return Math.round(parsed * 60);
+  }
+
+  // Centralized decimal input parser. Many non-US numeric keyboards only
+  // offer a comma (even on an "English" layout), so every decimal field
+  // in the app should route through this instead of calling Number()
+  // directly on raw input — that way comma support is automatic for any
+  // future decimal field too. Integer-only fields (sets, reps) don't use
+  // this; they keep using plain Number().
+  function parseDecimalInput(value) {
+    if (value === "" || value === null || value === undefined) return "";
+    const normalized = String(value).trim().replace(",", ".");
+    if (normalized === "" || normalized === "-" || normalized === ".") return "";
+    const num = Number(normalized);
+    return isNaN(num) ? "" : num;
   }
 
   function cardHTML(ex) {
@@ -934,9 +949,9 @@
         <div class="stats-grid">
           <div class="stat-field"><label>Sets</label><input type="number" inputmode="numeric" data-field="sets" value="${ex.sets}" ${dis}></div>
           <div class="stat-field"><label>Reps</label><input type="number" inputmode="numeric" data-field="reps" value="${ex.reps}" ${dis}></div>
-          <div class="stat-field"><label>Weight</label><input type="number" inputmode="decimal" data-field="weight" value="${ex.weight}" ${dis}></div>
-          <div class="stat-field"><label>RPE</label><input type="number" inputmode="decimal" data-field="rpe" value="${ex.rpe}" ${dis}></div>
-          <div class="stat-field"><label>Rest (min)</label><input type="number" inputmode="decimal" step="0.5" min="0" data-field="rest" value="${restSecondsToMinutes(ex.rest)}" ${dis}></div>
+          <div class="stat-field"><label>Weight</label><input type="text" inputmode="decimal" data-field="weight" value="${ex.weight}" ${dis}></div>
+          <div class="stat-field"><label>RPE</label><input type="text" inputmode="decimal" data-field="rpe" value="${ex.rpe}" ${dis}></div>
+          <div class="stat-field"><label>Rest (min)</label><input type="text" inputmode="decimal" data-field="rest" value="${restSecondsToMinutes(ex.rest)}" ${dis}></div>
         </div>
         <div class="volume">Volume: <span class="volume-value">${calcVolume(ex)}</span></div>
         <textarea placeholder="Notes — how it felt, adjustments, etc." data-field="notes" ${dis}>${escapeHtml(ex.notes)}</textarea>
@@ -1300,6 +1315,21 @@
     pauseBtn.classList.toggle("hidden", restTimer.finished);
   }
 
+  // The countdown is already derived from real-world time (endAt is a
+  // fixed timestamp, remaining = endAt - Date.now()), so it's naturally
+  // correct even after the app was backgrounded. The only gap: while
+  // backgrounded, the browser throttles/pauses setInterval, so the
+  // on-screen number doesn't refresh until the next tick fires — which
+  // could lag a moment after you unlock your phone. This forces an
+  // immediate recompute the instant the app becomes visible again, so a
+  // timer that already finished shows "Rest complete" right away instead
+  // of waiting for the next 250ms tick.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && restTimer && restTimer.running) {
+      tickRestTimer();
+    }
+  });
+
   document.getElementById("restTimerPauseBtn").addEventListener("click", () => {
     if (!restTimer) return;
     if (restTimer.running) pauseRestTimer(); else resumeRestTimer();
@@ -1435,8 +1465,11 @@
 
     if (field === "rest") {
       ex.rest = restMinutesToSeconds(e.target.value);
-    } else if (["sets", "reps", "weight", "rpe"].includes(field)) {
+    } else if (field === "sets" || field === "reps") {
       ex[field] = e.target.value === "" ? "" : Number(e.target.value);
+      card.querySelector(".volume-value").textContent = calcVolume(ex);
+    } else if (field === "weight" || field === "rpe") {
+      ex[field] = parseDecimalInput(e.target.value);
       card.querySelector(".volume-value").textContent = calcVolume(ex);
     } else {
       ex[field] = e.target.value;

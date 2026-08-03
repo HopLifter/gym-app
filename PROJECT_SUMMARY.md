@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v17` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v19` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -125,6 +125,17 @@ or hidden), set in `renderWorkoutHeader()`.
 - Editable exercise fields: name, sets, reps, weight, RPE, rest time
 - Rest time is displayed and edited **in minutes** (e.g. 1.5), stored
   internally in seconds — see Rest Timer note below for why.
+- **Decimal fields (Weight, RPE, Rest) accept both `.` and `,` as the
+  decimal separator** — some phones only offer a comma on the numeric
+  keyboard even in English layouts. These three fields are `type="text"`
+  (not `type="number"`, which silently blocks a typed comma on most
+  browsers) with `inputmode="decimal"` to still bring up a numeric
+  keyboard. All parsing routes through a single `parseDecimalInput()`
+  helper that swaps `,` → `.` before converting to a number, so both
+  `2.5` and `2,5` store identically. Sets/Reps stay integer-only
+  (`type="number"`, `inputmode="numeric"`) and are unaffected. Any new
+  decimal field should reuse `parseDecimalInput()` rather than parsing
+  `input.value` directly, to keep comma support automatic.
 - Auto-calculated Volume (sets × reps × weight)
 - Notes field per exercise
 - Add / delete exercises, with 6-second undo after delete
@@ -168,6 +179,17 @@ or hidden), set in `renderWorkoutHeader()`.
   current one.
 - At zero: shows "Rest complete" with a pulse animation. No sound/vibration
   (not supported reliably as a home-screen web app).
+- **Timestamp-based, so it stays accurate through backgrounding** — the
+  countdown is calculated from a fixed start time + duration vs. the
+  current time (not a per-tick decrement), so it self-corrects if you
+  switch apps, lock your phone, or take a call, and displays the correct
+  remaining time the moment you come back. A `visibilitychange` listener
+  forces an immediate recheck on return, so a timer that already expired
+  in the background shows "Rest complete" right away instead of waiting
+  for the next tick. It still doesn't survive the app being fully closed/
+  killed (in-memory state only, no persistence to localStorage) — that
+  remains a known limitation, not background notifications/vibration
+  either.
 
 **Active workout date**
 - Today's Workout shows today's date as a read-only badge — informational
