@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v19` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v21` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -167,6 +167,27 @@ or hidden), set in `renderWorkoutHeader()`.
   fallback since clipboard permissions can be unreliable in the
   home-screen web app context.
 
+**Recent Performance (Workout Context)**
+- Each exercise card has a 📊 "Recent" button (next to the timer button,
+  visible in edit and read-only modes alike) that expands an inline panel
+  showing the last 3 times an exercise with that name was logged in
+  history: date, sets×reps @ weight, RPE, rest time (in minutes), and
+  notes/comments (newest first). Notes are only shown if present for that
+  session.
+- Matches purely by exercise **name** (trimmed, case-insensitive) — there's
+  no shared ID linking the same exercise across different workouts/imports,
+  so renaming an exercise breaks the match to its own prior history. Worth
+  keeping in mind if this becomes confusing in practice.
+- No history for that name → panel shows "No history yet for this
+  exercise" instead of hiding the button.
+- Read-only and inline — no navigation away from the workout, no new
+  screen. Toggling is per-exercise (`expandedHistoryIds`, a Set of
+  exercise IDs), so multiple panels can be open at once.
+- Implemented via `getRecentPerformance(name, limit)`, a standalone
+  read-only lookup over `history` — reuse this helper for any future
+  "Workout Context" additions (PRs, 1RM trend, notes) rather than writing
+  a new history scan.
+
 **Rest Timer**
 - Each editable exercise has a ⏱ button that starts a rest timer using
   that exercise's configured rest duration.
@@ -240,8 +261,10 @@ or hidden), set in `renderWorkoutHeader()`.
 ## Backlog / ideas not yet built
 - Search past workouts
 - Filter by exercise
-- Show personal records
-- Compare previous workouts
+- Show personal records (natural next step on top of Recent Performance)
+- Estimated 1RM / volume trends (natural next step on top of Recent Performance)
+- Match recent performance by a stable exercise ID instead of name, so
+  renaming an exercise doesn't break its history match
 - Bulk export of all workout history (not tied to a single program)
 - Automatic timer start after completing a set
 - Audio/vibration alert when the rest timer finishes

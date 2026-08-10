@@ -205,6 +205,41 @@
     line-height: 1;
   }
   .timer-btn:active { color: var(--accent); }
+  .history-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 15px; cursor: pointer; padding: 2px 6px;
+    line-height: 1;
+  }
+  .history-btn.active { color: var(--accent); }
+  .recent-panel {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+  }
+  .recent-panel-title {
+    font-size: 10px; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.05em; font-weight: 700; margin-bottom: 6px;
+  }
+  .recent-panel-row {
+    display: flex; justify-content: space-between; gap: 8px;
+    padding: 4px 0;
+    color: var(--text);
+  }
+  .recent-panel-row + .recent-panel-row { border-top: 1px dashed var(--line); }
+  .recent-panel-date { color: var(--text-dim); flex-shrink: 0; }
+  .recent-panel-stats { text-align: right; }
+  .recent-panel-rpe { color: var(--accent-dim); }
+  .recent-panel-rest { color: var(--text-dim); }
+  .recent-panel-notes {
+    color: var(--text-dim);
+    font-style: italic;
+    padding: 0 0 6px;
+    font-size: 11px;
+  }
+  .recent-panel-empty { color: var(--text-dim); font-style: italic; }
   .menu-dropdown {
     display: none;
     position: absolute;
@@ -760,7 +795,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v19";
+  const APP_VERSION = "gym-app-cache-v21";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -829,6 +864,7 @@
   let lastDeleted = null;
   let undoTimer = null;
   let openMenuId = null;
+  let expandedHistoryIds = new Set(); // exercise ids with the "Recent" panel open
   let backNavTarget = null; // "queue" | "history" | null — where the contextual back button on the Workout screen goes
   let headerMenuOpen = false;
   let queueMenuOpen = false;   // Queue screen ⋮ menu (Settings)
@@ -934,6 +970,7 @@
         <div class="ex-header">
           <input class="name-input" data-field="name" value="${escapeAttr(ex.name)}" placeholder="Exercise name" ${dis}>
           <div class="header-right">
+            <button class="history-btn${expandedHistoryIds.has(ex.id) ? " active" : ""}" data-action="toggle-history" title="Recent performance">📊</button>
             ${editable ? `<button class="timer-btn" data-action="start-timer" title="Start rest timer">⏱</button>` : ""}
             ${editable ? `
             <button class="menu-btn" data-action="menu">⋮</button>
@@ -946,6 +983,7 @@
             ` : ""}
           </div>
         </div>
+        ${expandedHistoryIds.has(ex.id) ? recentPanelHTML(ex) : ""}
         <div class="stats-grid">
           <div class="stat-field"><label>Sets</label><input type="number" inputmode="numeric" data-field="sets" value="${ex.sets}" ${dis}></div>
           <div class="stat-field"><label>Reps</label><input type="number" inputmode="numeric" data-field="reps" value="${ex.reps}" ${dis}></div>
@@ -1201,6 +1239,46 @@
     return (str || "").replace(/"/g, "&quot;");
   }
 
+  // ---- Recent Performance (Workout Context) ----
+  // Looks up the last N times an exercise with this name was logged in
+  // history, newest first. Matches by name only (trimmed, case-insensitive)
+  // since exercises don't share a stable ID across workouts. Read-only —
+  // never touches `history`. Kept as a standalone helper so future context
+  // (PRs, 1RM trend, notes) can reuse the same lookup.
+  function getRecentPerformance(name, limit = 3) {
+    const key = (name || "").trim().toLowerCase();
+    if (!key) return [];
+    const matches = [];
+    for (const w of history) {
+      if (!w.exercises) continue;
+      for (const ex of w.exercises) {
+        if ((ex.name || "").trim().toLowerCase() === key) {
+          matches.push({ date: w.date, sets: ex.sets, reps: ex.reps, weight: ex.weight, rpe: ex.rpe, rest: ex.rest, notes: ex.notes });
+        }
+      }
+    }
+    matches.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    return matches.slice(0, limit);
+  }
+
+  function recentPanelHTML(ex) {
+    const recent = getRecentPerformance(ex.name, 3);
+    if (recent.length === 0) {
+      return `<div class="recent-panel"><div class="recent-panel-title">Recent Performance</div><div class="recent-panel-empty">No history yet for this exercise.</div></div>`;
+    }
+    const rows = recent.map(r => {
+      const mins = restSecondsToMinutes(r.rest);
+      return `
+      <div class="recent-panel-row">
+        <span class="recent-panel-date">${formatDateDisplay(r.date) || "—"}</span>
+        <span class="recent-panel-stats">${r.sets ?? "?"}×${r.reps ?? "?"} @ ${r.weight ?? "?"}${r.rpe !== "" && r.rpe != null ? ` <span class="recent-panel-rpe">RPE ${r.rpe}</span>` : ""}${mins !== "" ? ` <span class="recent-panel-rest">· ${mins}m rest</span>` : ""}</span>
+      </div>
+      ${r.notes ? `<div class="recent-panel-notes">"${escapeHtml(r.notes)}"</div>` : ""}
+    `;
+    }).join("");
+    return `<div class="recent-panel"><div class="recent-panel-title">Recent Performance</div>${rows}</div>`;
+  }
+
   function findExercise(id) {
     const w = getActiveWorkout();
     return w ? w.exercises.find(e => e.id === id) : null;
@@ -1354,6 +1432,13 @@
 
     if (action === "start-timer") {
       startRestTimer(ex);
+      return;
+    }
+
+    if (action === "toggle-history") {
+      if (expandedHistoryIds.has(id)) expandedHistoryIds.delete(id);
+      else expandedHistoryIds.add(id);
+      renderExercises();
       return;
     }
 
