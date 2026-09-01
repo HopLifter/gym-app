@@ -181,8 +181,14 @@
     margin-bottom: 10px;
     position: relative;
   }
-  .name-input {
+  .name-field-wrap {
     flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .name-input, .name-select {
     background: transparent;
     border: none;
     border-bottom: 1px dashed var(--line);
@@ -191,8 +197,11 @@
     font-weight: 600;
     padding: 4px 2px;
     min-width: 0;
+    width: 100%;
   }
-  .name-input:focus { outline: none; border-bottom-color: var(--accent); }
+  .name-select { background: var(--surface); }
+  .name-select option { background: var(--surface); color: var(--text); }
+  .name-input:focus, .name-select:focus { outline: none; border-bottom-color: var(--accent); }
   .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; position: relative; }
   .menu-btn {
     background: none; border: none; color: var(--text-dim);
@@ -795,11 +804,43 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v21";
+  const APP_VERSION = "gym-app-cache-v23";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
   const HISTORY_KEY = "gymapp_history_v1";
+
+  // ---- Exercise Name Standardization ----
+  // Source-of-truth list of preferred/canonical exercise names. Hardcoded
+  // for now (per this session's scope) — expand this array to add more
+  // canonical names later; no other code needs to change when you do.
+  const CANONICAL_EXERCISES = [
+    "Bench Press", "Incline Bench Press", "Decline Bench Press",
+    "Overhead Press", "Incline Dumbbell Press", "Chest Fly",
+    "Tricep Pushdown", "Tricep Extension", "Lateral Raise", "Front Raise",
+    "Barbell Squat", "Front Squat", "Deadlift", "Romanian Deadlift",
+    "Barbell Row", "Seated Row", "Pull-Up", "Lat Pulldown", "Leg Press",
+    "Leg Extension", "Leg Curl", "Calf Raise", "Hip Thrust",
+    "Bicep Curl", "Hammer Curl", "Dumbbell Shoulder Press", "Face Pull",
+    "Plank", "Shoulder Shrug"
+  ];
+
+  const CANONICAL_EXERCISES_SORTED = [...CANONICAL_EXERCISES].sort((a, b) => a.localeCompare(b));
+  const CUSTOM_NAME_VALUE = "__custom__"; // sentinel <option> value meaning "not on the list"
+
+  function normalizeExerciseName(str) {
+    return (str || "").toLowerCase().trim().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
+  }
+  // Exact (case/whitespace/punctuation-insensitive) lookup of a name
+  // against the canonical list — used to decide whether the dropdown
+  // should show a canonical entry selected or fall back to "+ New/Custom".
+  // Reusable against any list; swap CANONICAL_EXERCISES for a different
+  // array later and this needs no changes.
+  function findCanonicalMatch(name, list) {
+    const norm = normalizeExerciseName(name);
+    if (!norm) return null;
+    return list.find(c => normalizeExerciseName(c) === norm) || null;
+  }
 
   const defaultExercises = [
     { id: "ex1", name: "Barbell Bench Press", sets: 4, reps: 6, weight: 135, rpe: 8, rest: 90, notes: "", supersetId: null },
@@ -961,6 +1002,27 @@
     return isNaN(num) ? "" : num;
   }
 
+  // Renders the exercise-name picker for editable cards: a dropdown of
+  // canonical names (alphabetical, "+ New / Custom Name" pinned at top)
+  // plus a free-text input that only shows when the exercise's current
+  // name isn't an exact match on the list. Picking a canonical option
+  // sets the name directly and hides the text input; picking "+ New /
+  // Custom Name" reveals the text input so the user can type anything.
+  function nameFieldHTML(ex) {
+    const matched = findCanonicalMatch(ex.name, CANONICAL_EXERCISES);
+    const isCustom = !matched;
+    const options = [`<option value="${CUSTOM_NAME_VALUE}"${isCustom ? " selected" : ""}>+ New / Custom Name</option>`]
+      .concat(CANONICAL_EXERCISES_SORTED.map(n =>
+        `<option value="${escapeAttr(n)}"${matched === n ? " selected" : ""}>${escapeHtml(n)}</option>`
+      ));
+    return `
+      <div class="name-field-wrap">
+        <select class="name-select" data-action="name-select">${options.join("")}</select>
+        <input class="name-input${isCustom ? "" : " hidden"}" data-field="name" value="${escapeAttr(ex.name)}" placeholder="Exercise name">
+      </div>
+    `;
+  }
+
   function cardHTML(ex) {
     const selectable = supersettingId && supersettingId !== ex.id;
     const editable = isEditable();
@@ -968,7 +1030,7 @@
     return `
       <div class="exercise${selectable ? " selectable" : ""}" data-id="${ex.id}">
         <div class="ex-header">
-          <input class="name-input" data-field="name" value="${escapeAttr(ex.name)}" placeholder="Exercise name" ${dis}>
+          ${editable ? nameFieldHTML(ex) : `<input class="name-input" data-field="name" value="${escapeAttr(ex.name)}" placeholder="Exercise name" disabled>`}
           <div class="header-right">
             <button class="history-btn${expandedHistoryIds.has(ex.id) ? " active" : ""}" data-action="toggle-history" title="Recent performance">📊</button>
             ${editable ? `<button class="timer-btn" data-action="start-timer" title="Start rest timer">⏱</button>` : ""}
@@ -1417,6 +1479,28 @@
 
   const container = document.getElementById("workout");
 
+  // Exercise-name dropdown: picking a canonical entry sets the name
+  // directly; picking "+ New / Custom Name" clears the name and reveals
+  // the free-text input, focused so the user can type right away.
+  container.addEventListener("change", (e) => {
+    if (e.target.dataset.action !== "name-select") return;
+    const card = e.target.closest(".exercise");
+    if (!card) return;
+    const id = card.dataset.id;
+    const ex = findExercise(id);
+    if (!ex) return;
+    const value = e.target.value;
+    ex.name = value === CUSTOM_NAME_VALUE ? "" : value;
+    saveActiveWorkout();
+    renderExercises();
+    if (value === CUSTOM_NAME_VALUE) {
+      setTimeout(() => {
+        const input = document.querySelector(`.exercise[data-id="${id}"] .name-input`);
+        if (input) input.focus();
+      }, 30);
+    }
+  });
+
   container.addEventListener("click", (e) => {
     const card = e.target.closest(".exercise");
     if (!card) return;
@@ -1548,7 +1632,9 @@
     const field = e.target.dataset.field;
     if (!field) return;
 
-    if (field === "rest") {
+    if (field === "name") {
+      ex.name = e.target.value;
+    } else if (field === "rest") {
       ex.rest = restMinutesToSeconds(e.target.value);
     } else if (field === "sets" || field === "reps") {
       ex[field] = e.target.value === "" ? "" : Number(e.target.value);
