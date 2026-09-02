@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v23` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v25` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -189,30 +189,41 @@ or hidden), set in `renderWorkoutHeader()`.
   a new history scan.
 
 **Exercise Name Standardization**
-- Every editable exercise's name field is now a dropdown (`<select>`)
-  listing a hardcoded canonical exercise list (`CANONICAL_EXERCISES`,
-  top of the script) in alphabetical order, with **"+ New / Custom
-  Name"** pinned at the top.
-- Picking a canonical entry sets the exercise name to that exact string.
-  Picking "+ New / Custom Name" clears the name and reveals a free-text
-  input (focused automatically) so the user can type anything — this is
-  the escape hatch for exercises not on the list.
+- Every editable exercise's name field shows exactly **one** control at
+  a time — never both a dropdown and a text box together:
+  - Normally, a `<select>` (`nameFieldHTML()`) listing the hardcoded
+    canonical exercise list (`CANONICAL_EXERCISES`, top of the script)
+    in alphabetical order, with **"+ New / Custom Name"** pinned at the
+    top of the list. The dropdown's own visible text is whatever the
+    exercise is currently named — a canonical entry, or (via a
+    synthetic `<option>` inserted just for this) a custom name the user
+    already typed. "+ New / Custom Name" is only ever an option *inside*
+    the list, never the persistently displayed value.
+  - While actively entering a custom name, a plain free-text input
+    instead (no dropdown visible). Entered by picking "+ New / Custom
+    Name" from the dropdown (clears the name, focuses the input) or by
+    tapping "+ Add Exercise" (new exercises start blank, straight into
+    this text-entry state). Leaving the field (blur) or pressing Enter
+    exits back to the dropdown view, now showing whatever was typed.
+  - Which state an exercise is in is tracked in `customNameEditingIds`
+    (a `Set` of exercise ids), cleared on delete/undo-safe cleanup.
 - If an exercise's current name exactly matches a canonical entry
-  (case/punctuation/whitespace-insensitive), the dropdown opens with
-  that entry pre-selected and the text input hidden. Otherwise it opens
-  on "+ New / Custom Name" with the text input showing the current name
-  — this is how a brand-new exercise (default name "New Exercise") or
-  any name not on the list behaves, so nothing is ever silently changed.
+  (case/punctuation/whitespace-insensitive), the dropdown pre-selects
+  that entry.
 - Read-only views (viewing a past workout without Edit active) are
-  unaffected — they still show a plain disabled text field, no dropdown.
+  unaffected — still a plain disabled text field, no dropdown.
 - `findCanonicalMatch()` (exact-match lookup) is a small, reusable
   helper decoupled from the list itself — swapping `CANONICAL_EXERCISES`
   for a longer/different list later needs no other code changes.
-- `CANONICAL_EXERCISES` is currently hardcoded in `index.html` — there's
-  no in-app UI yet to view/edit the list (see backlog).
+- `CANONICAL_EXERCISES` is currently hardcoded in `index.html` (57
+  entries, supplied by the user directly — replaced this session's
+  earlier placeholder list) — there's no in-app UI yet to view/edit
+  the list (see backlog).
 - Note: an earlier version of this feature tried fuzzy "did you mean"
   suggestions instead of a dropdown; that approach was replaced this
-  session in favor of the simpler, unambiguous picker above.
+  session in favor of the simpler, unambiguous picker above. A later
+  revision (this session) also removed the earlier design where the
+  dropdown and a text box were shown together at the same time.
 
 **Rest Timer**
 - Each editable exercise has a ⏱ button that starts a rest timer using

@@ -189,6 +189,7 @@
     gap: 6px;
   }
   .name-input, .name-select {
+    flex: 1;
     background: transparent;
     border: none;
     border-bottom: 1px dashed var(--line);
@@ -804,7 +805,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v23";
+  const APP_VERSION = "gym-app-cache-v25";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -815,14 +816,20 @@
   // for now (per this session's scope) — expand this array to add more
   // canonical names later; no other code needs to change when you do.
   const CANONICAL_EXERCISES = [
-    "Bench Press", "Incline Bench Press", "Decline Bench Press",
-    "Overhead Press", "Incline Dumbbell Press", "Chest Fly",
-    "Tricep Pushdown", "Tricep Extension", "Lateral Raise", "Front Raise",
-    "Barbell Squat", "Front Squat", "Deadlift", "Romanian Deadlift",
-    "Barbell Row", "Seated Row", "Pull-Up", "Lat Pulldown", "Leg Press",
-    "Leg Extension", "Leg Curl", "Calf Raise", "Hip Thrust",
-    "Bicep Curl", "Hammer Curl", "Dumbbell Shoulder Press", "Face Pull",
-    "Plank", "Shoulder Shrug"
+    "Ab Roller", "Alternating DB Curls", "Back Extension", "Band Pull Apart",
+    "Barbell Lunges", "Bench", "Bent Over Reverse DB Flye", "Cable Bicep Curls",
+    "Cable External Rotation", "Cable Pullover", "Calf Machine", "Concentration Curls",
+    "Conv. Deadlift", "DB Bench", "DB Bulgarian Split Squats", "DB External Rotation",
+    "DB OHP", "DB Shoulder Press", "DB Shoulder Raises", "Dips", "Dragon Flags",
+    "Face Pulls", "Front Squats", "Hammer Curls", "Hamstring Curl Machine",
+    "Hanging Leg Raise", "Hip Abduction", "Hip Adduction", "Incline Bench",
+    "Incline DB Bench", "Lat Pulldowns", "Leg Extensions", "Leg Press", "OHP",
+    "Overhead DB Extension", "Pendlay Rows", "Physio Suggested OHP", "Planks",
+    "Preacher Curls", "Pullups", "Pushups", "Romanian Deadlifts", "Rope Bicep Curls",
+    "Seated DB Curls", "Seated Rows", "Serratus Anterior Raise", "Shoulder Ext. Rotation",
+    "Single Arm DB Row", "Single Leg Calf Raise", "Skull Crushers", "Squats",
+    "Standing Barbell Curls", "Sumo Deadlift", "T3 Raise", "Trap Raises",
+    "Tricep Kickbacks", "Tricep Pulldowns"
   ];
 
   const CANONICAL_EXERCISES_SORTED = [...CANONICAL_EXERCISES].sort((a, b) => a.localeCompare(b));
@@ -912,6 +919,7 @@
   let historyMenuOpen = false; // History screen ⋮ menu (Settings)
   let openItemMenuId = null; // queue list item ⋮ menu
   let supersettingId = null;
+  let customNameEditingIds = new Set(); // exercise ids currently showing the free-text name input instead of the dropdown
   let confirmAction = null;
 
   function sortedQueue() {
@@ -1002,25 +1010,32 @@
     return isNaN(num) ? "" : num;
   }
 
-  // Renders the exercise-name picker for editable cards: a dropdown of
-  // canonical names (alphabetical, "+ New / Custom Name" pinned at top)
-  // plus a free-text input that only shows when the exercise's current
-  // name isn't an exact match on the list. Picking a canonical option
-  // sets the name directly and hides the text input; picking "+ New /
-  // Custom Name" reveals the text input so the user can type anything.
+  // Renders the exercise-name picker for editable cards.
+  // Two states per exercise:
+  // - Editing a custom name (id is in customNameEditingIds): show a
+  //   plain free-text input only. Entered on picking "+ New / Custom
+  //   Name" from the dropdown, or when a brand-new exercise is added.
+  // - Otherwise: show a dropdown only. Its selected/visible text is
+  //   whatever name the exercise currently has — a canonical entry, or
+  //   (via a synthetic option) the custom name the user already typed.
+  //   "+ New / Custom Name" is just one option inside that dropdown,
+  //   not something displayed once a name has been chosen — it only
+  //   reappears if the user opens the list again.
   function nameFieldHTML(ex) {
+    if (customNameEditingIds.has(ex.id)) {
+      return `<input class="name-input" data-field="name" data-action="custom-name-input" value="${escapeAttr(ex.name)}" placeholder="Exercise name">`;
+    }
     const matched = findCanonicalMatch(ex.name, CANONICAL_EXERCISES);
-    const isCustom = !matched;
-    const options = [`<option value="${CUSTOM_NAME_VALUE}"${isCustom ? " selected" : ""}>+ New / Custom Name</option>`]
-      .concat(CANONICAL_EXERCISES_SORTED.map(n =>
-        `<option value="${escapeAttr(n)}"${matched === n ? " selected" : ""}>${escapeHtml(n)}</option>`
-      ));
-    return `
-      <div class="name-field-wrap">
-        <select class="name-select" data-action="name-select">${options.join("")}</select>
-        <input class="name-input${isCustom ? "" : " hidden"}" data-field="name" value="${escapeAttr(ex.name)}" placeholder="Exercise name">
-      </div>
-    `;
+    const options = [`<option value="${CUSTOM_NAME_VALUE}">+ New / Custom Name</option>`];
+    if (!matched && ex.name) {
+      // Synthetic option so the select's own visible text is the user's
+      // custom name, not the "+ New / Custom Name" placeholder label.
+      options.push(`<option value="${escapeAttr(ex.name)}" selected>${escapeHtml(ex.name)}</option>`);
+    }
+    options.push(...CANONICAL_EXERCISES_SORTED.map(n =>
+      `<option value="${escapeAttr(n)}"${matched === n ? " selected" : ""}>${escapeHtml(n)}</option>`
+    ));
+    return `<select class="name-select" data-action="name-select">${options.join("")}</select>`;
   }
 
   function cardHTML(ex) {
@@ -1480,8 +1495,10 @@
   const container = document.getElementById("workout");
 
   // Exercise-name dropdown: picking a canonical entry sets the name
-  // directly; picking "+ New / Custom Name" clears the name and reveals
-  // the free-text input, focused so the user can type right away.
+  // directly and keeps the dropdown showing. Picking "+ New / Custom
+  // Name" clears the name and switches to the free-text input, focused
+  // so the user can type right away; the dropdown (and its "+ New /
+  // Custom Name" option) only comes back if they reopen it later.
   container.addEventListener("change", (e) => {
     if (e.target.dataset.action !== "name-select") return;
     const card = e.target.closest(".exercise");
@@ -1490,7 +1507,12 @@
     const ex = findExercise(id);
     if (!ex) return;
     const value = e.target.value;
-    ex.name = value === CUSTOM_NAME_VALUE ? "" : value;
+    if (value === CUSTOM_NAME_VALUE) {
+      ex.name = "";
+      customNameEditingIds.add(id);
+    } else {
+      ex.name = value;
+    }
     saveActiveWorkout();
     renderExercises();
     if (value === CUSTOM_NAME_VALUE) {
@@ -1498,6 +1520,24 @@
         const input = document.querySelector(`.exercise[data-id="${id}"] .name-input`);
         if (input) input.focus();
       }, 30);
+    }
+  });
+
+  // Finishing a custom name (leaving the field) switches back to the
+  // dropdown view, now showing the typed name instead of "+ New /
+  // Custom Name". Enter key does the same, via blur.
+  container.addEventListener("focusout", (e) => {
+    if (e.target.dataset.action !== "custom-name-input") return;
+    const card = e.target.closest(".exercise");
+    if (!card) return;
+    const id = card.dataset.id;
+    if (!customNameEditingIds.has(id)) return;
+    customNameEditingIds.delete(id);
+    renderExercises();
+  });
+  container.addEventListener("keydown", (e) => {
+    if (e.target.dataset.action === "custom-name-input" && e.key === "Enter") {
+      e.target.blur();
     }
   });
 
@@ -1539,6 +1579,7 @@
       const index = exs.findIndex(x => x.id === id);
       lastDeleted = { exercise: ex, index };
       exs.splice(index, 1);
+      customNameEditingIds.delete(id);
       saveActiveWorkout();
       renderExercises();
       showUndo(ex.name);
@@ -1670,10 +1711,11 @@
   });
 
   document.getElementById("addBtn").addEventListener("click", () => {
-    const ex = { id: newId("ex"), name: "New Exercise", sets: 3, reps: 10, weight: 0, rpe: "", rest: 60, notes: "", supersetId: null };
+    const ex = { id: newId("ex"), name: "", sets: 3, reps: 10, weight: 0, rpe: "", rest: 60, notes: "", supersetId: null };
     const w = getActiveWorkout();
     if (!w) return;
     w.exercises.push(ex);
+    customNameEditingIds.add(ex.id);
     saveActiveWorkout();
     renderExercises();
     setTimeout(() => {
