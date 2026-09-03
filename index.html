@@ -203,6 +203,22 @@
   .name-select { background: var(--surface); }
   .name-select option { background: var(--surface); color: var(--text); }
   .name-input:focus, .name-select:focus { outline: none; border-bottom-color: var(--accent); }
+  .add-to-list-btn {
+    align-self: flex-start;
+    background: none;
+    border: 1px dashed var(--accent-dim);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .add-to-list-btn:disabled {
+    color: var(--text-dim);
+    border-color: var(--line);
+    cursor: default;
+  }
   .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; position: relative; }
   .menu-btn {
     background: none; border: none; color: var(--text-dim);
@@ -651,6 +667,44 @@
     font-size: 13px;
     margin-bottom: 10px;
   }
+  .exercise-list-add-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .exercise-list-add-row input {
+    flex: 1;
+    min-width: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+  .exercise-list-add-row input:focus { outline: none; border-color: var(--accent); }
+  .exercise-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .exercise-list-remove-btn {
+    background: none;
+    border: none;
+    color: var(--danger);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 4px 6px;
+    flex-shrink: 0;
+  }
 </style>
 </head>
 <body>
@@ -729,6 +783,20 @@
   <div id="settingsList"></div>
 </div>
 
+<!-- EXERCISE LIST SCREEN (Settings sub-page) -->
+<div id="exerciseListScreen" class="hidden">
+  <div class="history-header">
+    <button class="back-btn" id="backFromExerciseListBtn">← Back to Settings</button>
+  </div>
+  <h1>Exercise List</h1>
+  <div class="exercise-list-add-row">
+    <input type="text" id="exerciseListNewInput" placeholder="New exercise name" maxlength="60">
+    <button class="pill-btn accent" id="exerciseListAddBtn">Add</button>
+  </div>
+  <div class="import-error hidden" id="exerciseListError"></div>
+  <div id="exerciseListItems"></div>
+</div>
+
 <div class="rest-timer-bar" id="restTimerBar">
   <div class="rest-timer-info">
     <div class="rest-timer-label" id="restTimerLabel"></div>
@@ -805,17 +873,21 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v25";
+  const APP_VERSION = "gym-app-cache-v28";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
   const HISTORY_KEY = "gymapp_history_v1";
+  const EXERCISE_LIST_KEY = "gymapp_exercise_list_v1";
 
-  // ---- Exercise Name Standardization ----
-  // Source-of-truth list of preferred/canonical exercise names. Hardcoded
-  // for now (per this session's scope) — expand this array to add more
-  // canonical names later; no other code needs to change when you do.
-  const CANONICAL_EXERCISES = [
+  // ---- Exercise Name Standardization / Exercise List Management ----
+  // The standardized exercise list now lives in localStorage (persisted,
+  // user-editable via Settings → Exercise List) instead of being
+  // hardcoded. This array is ONLY the one-time seed used the very first
+  // time the app runs with no saved list yet — after migration, it's
+  // never read again. Editing this array later has no effect once a
+  // user already has a saved list.
+  const MIGRATION_SEED_EXERCISES = [
     "Ab Roller", "Alternating DB Curls", "Back Extension", "Band Pull Apart",
     "Barbell Lunges", "Bench", "Bent Over Reverse DB Flye", "Cable Bicep Curls",
     "Cable External Rotation", "Cable Pullover", "Calf Machine", "Concentration Curls",
@@ -832,21 +904,70 @@
     "Tricep Kickbacks", "Tricep Pulldowns"
   ];
 
-  const CANONICAL_EXERCISES_SORTED = [...CANONICAL_EXERCISES].sort((a, b) => a.localeCompare(b));
   const CUSTOM_NAME_VALUE = "__custom__"; // sentinel <option> value meaning "not on the list"
+
+  function loadExerciseList() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(EXERCISE_LIST_KEY));
+      if (Array.isArray(saved)) return saved;
+    } catch (e) {}
+    return null; // null = not yet migrated, distinct from []
+  }
+  function saveExerciseList() {
+    localStorage.setItem(EXERCISE_LIST_KEY, JSON.stringify(exerciseList));
+  }
+
+  // The exercise list is kept sorted alphabetically at all times (every
+  // mutation re-sorts), so anything reading it can use it directly with
+  // no separate "_SORTED" copy to keep in sync.
+  let exerciseList = loadExerciseList();
+  if (exerciseList === null) {
+    // First run on this device, or an existing install updating to this
+    // version: migrate the old hardcoded list in as the starting point.
+    // Existing workout/history/queue data is untouched by this.
+    exerciseList = [...MIGRATION_SEED_EXERCISES].sort((a, b) => a.localeCompare(b));
+    saveExerciseList();
+  }
 
   function normalizeExerciseName(str) {
     return (str || "").toLowerCase().trim().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
   }
   // Exact (case/whitespace/punctuation-insensitive) lookup of a name
-  // against the canonical list — used to decide whether the dropdown
-  // should show a canonical entry selected or fall back to "+ New/Custom".
-  // Reusable against any list; swap CANONICAL_EXERCISES for a different
-  // array later and this needs no changes.
+  // against the exercise list — used to decide whether the dropdown
+  // should show a matching entry selected or fall back to "+ New/Custom".
   function findCanonicalMatch(name, list) {
     const norm = normalizeExerciseName(name);
     if (!norm) return null;
     return list.find(c => normalizeExerciseName(c) === norm) || null;
+  }
+  // Duplicate check for adding to the list: exact match ignoring case
+  // and surrounding whitespace only — deliberately NOT fuzzy (that's
+  // what the name-suggestion dropdown is for, not list management).
+  function isDuplicateExerciseName(name, list) {
+    const norm = (name || "").trim().toLowerCase();
+    if (!norm) return false;
+    return list.some(x => x.trim().toLowerCase() === norm);
+  }
+
+  // Adds a trimmed name to the standardized exercise list if it isn't
+  // an exact (case-insensitive) duplicate, re-sorting immediately.
+  // Returns { ok: true } or { ok: false, reason: "empty" | "duplicate" }.
+  function addExerciseToList(rawName) {
+    const name = (rawName || "").trim();
+    if (!name) return { ok: false, reason: "empty" };
+    if (isDuplicateExerciseName(name, exerciseList)) return { ok: false, reason: "duplicate" };
+    exerciseList.push(name);
+    exerciseList.sort((a, b) => a.localeCompare(b));
+    saveExerciseList();
+    return { ok: true };
+  }
+
+  // Removes an exercise from the standardized list only — never touches
+  // queue/history, so past or queued workouts that used this name are
+  // completely unaffected.
+  function removeExerciseFromList(name) {
+    exerciseList = exerciseList.filter(x => x !== name);
+    saveExerciseList();
   }
 
   const defaultExercises = [
@@ -1012,27 +1133,40 @@
 
   // Renders the exercise-name picker for editable cards.
   // Two states per exercise:
-  // - Editing a custom name (id is in customNameEditingIds): show a
-  //   plain free-text input only. Entered on picking "+ New / Custom
-  //   Name" from the dropdown, or when a brand-new exercise is added.
-  // - Otherwise: show a dropdown only. Its selected/visible text is
-  //   whatever name the exercise currently has — a canonical entry, or
-  //   (via a synthetic option) the custom name the user already typed.
-  //   "+ New / Custom Name" is just one option inside that dropdown,
-  //   not something displayed once a name has been chosen — it only
-  //   reappears if the user opens the list again.
+  // - Editing a custom name (id is in customNameEditingIds): a plain
+  //   free-text input, plus an "+ Add to Exercise List" button that
+  //   lets the user promote what they just typed into the standardized
+  //   list right from here (disabled while empty or an exact duplicate
+  //   of something already on the list). Entered on picking "+ New /
+  //   Custom Name" from the dropdown, or when a brand-new exercise is
+  //   added.
+  // - Otherwise: a dropdown only, listing the standardized exerciseList
+  //   alphabetically. Its selected/visible text is whatever name the
+  //   exercise currently has — a list entry, or (via a synthetic
+  //   option) the custom name the user already typed. "+ New / Custom
+  //   Name" is just one option inside that dropdown, not something
+  //   displayed once a name has been chosen — it only reappears if the
+  //   user opens the list again.
   function nameFieldHTML(ex) {
     if (customNameEditingIds.has(ex.id)) {
-      return `<input class="name-input" data-field="name" data-action="custom-name-input" value="${escapeAttr(ex.name)}" placeholder="Exercise name">`;
+      const trimmed = (ex.name || "").trim();
+      const dup = trimmed && isDuplicateExerciseName(trimmed, exerciseList);
+      const addDisabled = !trimmed || dup;
+      return `
+        <div class="name-field-wrap">
+          <input class="name-input" data-field="name" data-action="custom-name-input" value="${escapeAttr(ex.name)}" placeholder="Exercise name">
+          <button class="add-to-list-btn" type="button" data-action="add-to-exercise-list"${addDisabled ? " disabled" : ""}>${dup ? "Already on list" : "+ Add to Exercise List"}</button>
+        </div>
+      `;
     }
-    const matched = findCanonicalMatch(ex.name, CANONICAL_EXERCISES);
+    const matched = findCanonicalMatch(ex.name, exerciseList);
     const options = [`<option value="${CUSTOM_NAME_VALUE}">+ New / Custom Name</option>`];
     if (!matched && ex.name) {
       // Synthetic option so the select's own visible text is the user's
       // custom name, not the "+ New / Custom Name" placeholder label.
       options.push(`<option value="${escapeAttr(ex.name)}" selected>${escapeHtml(ex.name)}</option>`);
     }
-    options.push(...CANONICAL_EXERCISES_SORTED.map(n =>
+    options.push(...exerciseList.map(n =>
       `<option value="${escapeAttr(n)}"${matched === n ? " selected" : ""}>${escapeHtml(n)}</option>`
     ));
     return `<select class="name-select" data-action="name-select">${options.join("")}</select>`;
@@ -1276,10 +1410,18 @@
           <button class="pill-btn" id="settingsExportGymLogBtn">Export Gym Log</button>
         </div>
       </div>
+      <div class="settings-section">
+        <div class="settings-section-title">Exercise List</div>
+        <div class="program-bar-empty">${exerciseList.length} standardized exercise${exerciseList.length === 1 ? "" : "s"}.</div>
+        <div class="program-bar-actions">
+          <button class="pill-btn accent" id="settingsExerciseListBtn">Manage Exercise List</button>
+        </div>
+      </div>
     `;
     document.getElementById("settingsStartProgramBtn").addEventListener("click", openImportModal);
     if (program) document.getElementById("settingsEndProgramBtn").addEventListener("click", confirmEndProgram);
     document.getElementById("settingsExportGymLogBtn").addEventListener("click", openExportGymLogModal);
+    document.getElementById("settingsExerciseListBtn").addEventListener("click", () => showScreen("exerciseList"));
   }
 
   function formatDateDisplay(iso) {
@@ -1303,10 +1445,33 @@
     document.getElementById("queueScreen").classList.toggle("hidden", view !== "queue");
     document.getElementById("historyScreen").classList.toggle("hidden", view !== "history");
     document.getElementById("settingsScreen").classList.toggle("hidden", view !== "settings");
+    document.getElementById("exerciseListScreen").classList.toggle("hidden", view !== "exerciseList");
     if (view === "queue") { renderProgramBar(); renderQueueList(); }
     else if (view === "history") renderHistoryList();
     else if (view === "settings") renderSettings();
+    else if (view === "exerciseList") {
+      document.getElementById("exerciseListNewInput").value = "";
+      document.getElementById("exerciseListError").classList.add("hidden");
+      renderExerciseList();
+    }
     else render();
+  }
+
+  // Settings → Exercise List: full CRUD view over the standardized
+  // exercise list (exerciseList). Always shown alphabetically since the
+  // list is kept sorted at the data layer.
+  function renderExerciseList() {
+    const list = document.getElementById("exerciseListItems");
+    if (exerciseList.length === 0) {
+      list.innerHTML = `<div class="history-empty">No exercises yet — add one above.</div>`;
+      return;
+    }
+    list.innerHTML = exerciseList.map(name => `
+      <div class="exercise-list-item" data-name="${escapeAttr(name)}">
+        <span>${escapeHtml(name)}</span>
+        <button class="exercise-list-remove-btn" data-action="remove-exercise">Remove</button>
+      </div>
+    `).join("");
   }
 
   function escapeHtml(str) {
@@ -1523,17 +1688,42 @@
     }
   });
 
+  // Primary fix: stop "+ Add to Exercise List" from ever blurring the
+  // name input in the first place. A mousedown's default action is what
+  // shifts focus to the clicked element — preventing that default keeps
+  // focus (and the input/button) exactly where they are; the click
+  // event still fires normally afterward. This avoids the blur race
+  // entirely instead of just outrunning it, and is the standard fix for
+  // this exact "button next to a focused field" pattern.
+  container.addEventListener("mousedown", (e) => {
+    if (e.target.dataset.action === "add-to-exercise-list") {
+      e.preventDefault();
+    }
+  });
+
   // Finishing a custom name (leaving the field) switches back to the
   // dropdown view, now showing the typed name instead of "+ New /
   // Custom Name". Enter key does the same, via blur.
+  //
+  // Backstop for the mousedown fix above (e.g. keyboard-only focus
+  // changes): deferring with setTimeout(0) means if a click on
+  // "+ Add to Exercise List" is what caused this blur, that click's own
+  // handler (which runs first, synchronously, before any timer) gets to
+  // finish and clear customNameEditingIds itself — making this a no-op
+  // instead of a second, conflicting render that would remove the
+  // button out from under the pending click.
   container.addEventListener("focusout", (e) => {
     if (e.target.dataset.action !== "custom-name-input") return;
     const card = e.target.closest(".exercise");
     if (!card) return;
     const id = card.dataset.id;
     if (!customNameEditingIds.has(id)) return;
-    customNameEditingIds.delete(id);
-    renderExercises();
+    setTimeout(() => {
+      if (customNameEditingIds.has(id) && findExercise(id)) {
+        customNameEditingIds.delete(id);
+        renderExercises();
+      }
+    }, 0);
   });
   container.addEventListener("keydown", (e) => {
     if (e.target.dataset.action === "custom-name-input" && e.key === "Enter") {
@@ -1556,6 +1746,19 @@
 
     if (action === "start-timer") {
       startRestTimer(ex);
+      return;
+    }
+
+    if (action === "add-to-exercise-list") {
+      const trimmed = (ex.name || "").trim();
+      if (!trimmed) return;
+      const result = addExerciseToList(trimmed);
+      if (result.ok) {
+        ex.name = trimmed;
+        customNameEditingIds.delete(id);
+        saveActiveWorkout();
+        renderExercises();
+      }
       return;
     }
 
@@ -1675,6 +1878,13 @@
 
     if (field === "name") {
       ex.name = e.target.value;
+      const addBtn = card.querySelector('[data-action="add-to-exercise-list"]');
+      if (addBtn) {
+        const trimmed = ex.name.trim();
+        const dup = trimmed && isDuplicateExerciseName(trimmed, exerciseList);
+        addBtn.disabled = !trimmed || dup;
+        addBtn.textContent = dup ? "Already on list" : "+ Add to Exercise List";
+      }
     } else if (field === "rest") {
       ex.rest = restMinutesToSeconds(e.target.value);
     } else if (field === "sets" || field === "reps") {
@@ -2238,6 +2448,48 @@
   document.getElementById("backFromSettingsBtn").addEventListener("click", () => {
     setActiveToNextQueued();
     showScreen("workout");
+  });
+
+  document.getElementById("backFromExerciseListBtn").addEventListener("click", () => {
+    showScreen("settings");
+  });
+
+  function handleAddExerciseFromSettings() {
+    const input = document.getElementById("exerciseListNewInput");
+    const errEl = document.getElementById("exerciseListError");
+    errEl.classList.add("hidden");
+    const result = addExerciseToList(input.value);
+    if (!result.ok) {
+      errEl.textContent = result.reason === "duplicate"
+        ? "That exercise is already on the list."
+        : "Enter an exercise name.";
+      errEl.classList.remove("hidden");
+      return;
+    }
+    input.value = "";
+    renderExerciseList();
+    input.focus();
+  }
+  document.getElementById("exerciseListAddBtn").addEventListener("click", handleAddExerciseFromSettings);
+  document.getElementById("exerciseListNewInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleAddExerciseFromSettings();
+  });
+
+  document.getElementById("exerciseListItems").addEventListener("click", (e) => {
+    if (e.target.dataset.action !== "remove-exercise") return;
+    const item = e.target.closest(".exercise-list-item");
+    if (!item) return;
+    const name = item.dataset.name;
+    openConfirm(
+      "Remove this exercise?",
+      `"${name}" will be removed from the standardized list and stop showing up as a suggestion. It won't affect any workouts that already use it.`,
+      () => {
+        removeExerciseFromList(name);
+        renderExerciseList();
+      },
+      "Remove",
+      true
+    );
   });
 
   document.getElementById("editBtn").addEventListener("click", () => {

@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v25` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v28` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -50,6 +50,10 @@ navigation/UI reorganization. localStorage keys:
 - `gymapp_history_v1` — array of completed workouts, each:
   `{ id, programId, label, date, status: "completed", note, exercises }`
   (no `order` field — history is sorted by `date`, newest first).
+- `gymapp_exercise_list_v1` — flat array of strings, the standardized
+  exercise list (formerly the hardcoded `CANONICAL_EXERCISES`). Always
+  kept sorted alphabetically by the code that writes it. See "Exercise
+  List Management" below.
 - Each exercise: `{ id, name, sets, reps, weight, rpe, rest, notes, supersetId }`.
   `rest` is stored **in seconds** internally (see Rest Timer note below).
 
@@ -100,6 +104,10 @@ or hidden), set in `renderWorkoutHeader()`.
   "Start New Program" (reuses the existing JSON import flow/modal),
   "End Current Program" (only shown when a program is active)
 - **Data** — "Export Gym Log" button (opens the existing export modal)
+- **Exercise List** — count of standardized exercises + "Manage Exercise
+  List" button, opening the dedicated Exercise List sub-page
+  (`#exerciseListScreen`, back button returns to Settings). See
+  "Exercise List Management" below.
 
 ## Current features (as of this version)
 **Program & Queue**
@@ -191,39 +199,89 @@ or hidden), set in `renderWorkoutHeader()`.
 **Exercise Name Standardization**
 - Every editable exercise's name field shows exactly **one** control at
   a time — never both a dropdown and a text box together:
-  - Normally, a `<select>` (`nameFieldHTML()`) listing the hardcoded
-    canonical exercise list (`CANONICAL_EXERCISES`, top of the script)
-    in alphabetical order, with **"+ New / Custom Name"** pinned at the
-    top of the list. The dropdown's own visible text is whatever the
-    exercise is currently named — a canonical entry, or (via a
-    synthetic `<option>` inserted just for this) a custom name the user
-    already typed. "+ New / Custom Name" is only ever an option *inside*
-    the list, never the persistently displayed value.
-  - While actively entering a custom name, a plain free-text input
-    instead (no dropdown visible). Entered by picking "+ New / Custom
-    Name" from the dropdown (clears the name, focuses the input) or by
-    tapping "+ Add Exercise" (new exercises start blank, straight into
-    this text-entry state). Leaving the field (blur) or pressing Enter
-    exits back to the dropdown view, now showing whatever was typed.
+  - Normally, a `<select>` (`nameFieldHTML()`) listing the standardized
+    exercise list (`exerciseList`, persisted — see "Exercise List
+    Management" below) in alphabetical order, with **"+ New / Custom
+    Name"** pinned at the top of the list. The dropdown's own visible
+    text is whatever the exercise is currently named — a list entry, or
+    (via a synthetic `<option>` inserted just for this) a custom name
+    the user already typed. "+ New / Custom Name" is only ever an
+    option *inside* the list, never the persistently displayed value.
+  - While actively entering a custom name, a plain free-text input plus
+    an inline **"+ Add to Exercise List"** button (no dropdown visible).
+    Entered by picking "+ New / Custom Name" from the dropdown (clears
+    the name, focuses the input) or by tapping "+ Add Exercise" (new
+    exercises start blank, straight into this text-entry state).
+    Leaving the field (blur) or pressing Enter exits back to the
+    dropdown view, now showing whatever was typed; tapping "+ Add to
+    Exercise List" instead adds it to the standardized list (see below)
+    and also exits back to the dropdown view, now showing it selected.
   - Which state an exercise is in is tracked in `customNameEditingIds`
     (a `Set` of exercise ids), cleared on delete/undo-safe cleanup.
-- If an exercise's current name exactly matches a canonical entry
+- If an exercise's current name exactly matches a list entry
   (case/punctuation/whitespace-insensitive), the dropdown pre-selects
   that entry.
 - Read-only views (viewing a past workout without Edit active) are
   unaffected — still a plain disabled text field, no dropdown.
 - `findCanonicalMatch()` (exact-match lookup) is a small, reusable
-  helper decoupled from the list itself — swapping `CANONICAL_EXERCISES`
-  for a longer/different list later needs no other code changes.
-- `CANONICAL_EXERCISES` is currently hardcoded in `index.html` (57
-  entries, supplied by the user directly — replaced this session's
-  earlier placeholder list) — there's no in-app UI yet to view/edit
-  the list (see backlog).
+  helper decoupled from the list itself.
 - Note: an earlier version of this feature tried fuzzy "did you mean"
-  suggestions instead of a dropdown; that approach was replaced this
-  session in favor of the simpler, unambiguous picker above. A later
-  revision (this session) also removed the earlier design where the
-  dropdown and a text box were shown together at the same time.
+  suggestions instead of a dropdown; that approach was replaced with
+  the simpler, unambiguous picker above. A later revision removed the
+  earlier design where the dropdown and a text box were shown together
+  at the same time.
+
+**Exercise List Management**
+- The standardized exercise list is no longer hardcoded — it's
+  persisted in localStorage (`gymapp_exercise_list_v1`, a flat array of
+  strings) and fully user-editable. Managed via `exerciseList` (a
+  module-level array, always kept sorted alphabetically by every
+  function that mutates it — nothing downstream needs a separate
+  "_SORTED" copy).
+- **Migration**: on first load with no saved list yet, `exerciseList`
+  is seeded from `MIGRATION_SEED_EXERCISES` (the old hardcoded 57-entry
+  list), sorted, and saved. That seed constant is only ever read once,
+  on that first migration — editing it after a user already has a
+  saved list has no effect. Existing queue/history/program data is
+  untouched by this migration.
+- **Settings → Exercise List** (`#exerciseListScreen`): lists every
+  standardized exercise alphabetically, each with a "Remove" button (a
+  confirm modal warns that it won't affect past workouts using that
+  name), plus a text input + "Add" button at the top (also submits on
+  Enter). Inline error text covers empty/duplicate input.
+- **Add from today's workout**: while entering a custom exercise name
+  during a workout (see above), a "+ Add to Exercise List" button
+  promotes that name straight into the standardized list without
+  leaving the workout — it becomes available in the dropdown
+  immediately (same in-memory `exerciseList` array, no reload needed).
+- `addExerciseToList(rawName)` — trims whitespace, rejects empty input
+  and exact case-insensitive duplicates (`isDuplicateExerciseName()`),
+  otherwise pushes + re-sorts + persists. Returns
+  `{ ok: true }` or `{ ok: false, reason: "empty" | "duplicate" }` so
+  both the Settings page and the in-workout button can show the same
+  error handling.
+- `removeExerciseFromList(name)` — filters the name out of
+  `exerciseList` and persists; never touches `queue` or `history`, so
+  workouts (past or planned) that already used a removed name keep
+  their data exactly as-is. They just won't offer that name as a
+  dropdown suggestion going forward.
+- Deliberately **not fuzzy**: duplicate detection here is exact
+  (case/whitespace-insensitive only). The separate name-suggestion
+  dropdown (above) is what handles near-matches; list management stays
+  simple on purpose, per this feature's scope.
+- Fixed a bug where "+ Add to Exercise List" silently did nothing:
+  clicking it blurs the name input first, which fired the field's
+  `focusout` handler and collapsed it back to the dropdown *before*
+  the button's own click could register — removing the button out from
+  under the pending click. A first attempt just deferred that collapse
+  with `setTimeout(0)`, which wasn't reliable enough in practice. Fixed
+  properly by calling `preventDefault()` on the button's `mousedown`,
+  which stops the browser from shifting focus off the input at all —
+  so the blur/`focusout` never fires in the first place; the click
+  still fires normally afterward. The `setTimeout(0)` deferral is kept
+  as a backstop for non-mouse focus changes (e.g. keyboard Tab). Worth
+  keeping in mind for any future button placed inside a field that
+  also reacts to blur.
 
 **Rest Timer**
 - Each editable exercise has a ⏱ button that starts a rest timer using
@@ -296,8 +354,13 @@ or hidden), set in `renderWorkoutHeader()`.
   no single source of truth for the version string yet.
 
 ## Backlog / ideas not yet built
-- Manage `CANONICAL_EXERCISES` from within the app (currently hardcoded)
-- Optionally pre-filter/search within the dropdown for longer lists
+- Rename an existing standardized exercise (currently: remove + re-add)
+- Merge two standardized exercises into one
+- Aliases/synonyms for a standardized exercise
+- Search/filter within the Exercise List page or the name dropdown
+  (both currently just a plain alphabetical list)
+- Import/export the exercise list
+- Usage stats (how often each standardized exercise is used)
 - Search past workouts
 - Filter by exercise
 - Show personal records (natural next step on top of Recent Performance)
