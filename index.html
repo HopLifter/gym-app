@@ -873,7 +873,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v28";
+  const APP_VERSION = "gym-app-cache-v29";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -2327,7 +2327,10 @@
 
   // Queue screen interactions
   document.getElementById("addAdhocBtn").addEventListener("click", addAdhocWorkout);
-  document.getElementById("backFromQueueBtn").addEventListener("click", () => showScreen("workout"));
+  document.getElementById("backFromQueueBtn").addEventListener("click", () => {
+    setActiveToNextQueued();
+    showScreen("workout");
+  });
 
   document.getElementById("queueMenuBtn").addEventListener("click", (e) => {
     e.stopPropagation();
