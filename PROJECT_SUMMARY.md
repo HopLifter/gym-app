@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v28` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v35` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -57,48 +57,102 @@ navigation/UI reorganization. localStorage keys:
 - Each exercise: `{ id, name, sets, reps, weight, rpe, rest, notes, supersetId }`.
   `rest` is stored **in seconds** internally (see Rest Timer note below).
 
-## Navigation & screen structure (reorganized this session)
-The app is now organized around four workflows, each screen showing only
-what's relevant to it:
+## Navigation & screen structure (navigation model reworked this session)
+The app is organized around four workflows (Workout, Queue, History,
+Settings), each screen showing only what's relevant to it. This session
+replaced the old ad-hoc back-button/menu logic with one consistent model,
+built around a real back-navigation stack, and fixed several redundant
+or missing navigation paths.
 
-**Workout screen** — perform today's workout. Three sub-states depending on
-what's being viewed:
-- **Today's Workout** (the actual front-of-queue workout) — the default
-  landing view. No back button (it's home). Header ⋮ menu: View Queue,
-  View History, Finish Workout, Settings.
-- **Queued Workout** (peeked ahead at a future queue item, opened from the
-  Queue screen) — shows a "← Back to Queue" button. Finish Workout is
-  **not** offered here (you can't finish a workout out of order). Header ⋮
-  menu: View Queue, View History, Settings.
-- **Past Workout** (opened from History) — shows a "← Back to History"
-  button instead of the old ambiguous "Queue" button (which actually
-  jumped to today's workout, not the Queue screen — that mislabeled button
-  has been removed). Header ⋮ menu: View Queue, View History, Restore to
-  Queue, Delete Workout, Settings.
+**Navigation stack (`navStack`) — how back buttons find their way home**
+- `navigateTo(view)` — forward navigation; pushes the current screen onto
+  `navStack` before switching, so the destination screen knows where the
+  user actually came from.
+- `navigateBack()` — pops `navStack` and switches to whatever's on top
+  (falls back to `"workout"`/home if the stack is empty).
+- `goHome()` — jumps straight to Today's Workout from anywhere, bypassing
+  the stack entirely (also resets the active workout to the front of the
+  queue via `setActiveToNextQueued()`). Used by every "Today's Workout"
+  menu item.
+- `peekBack()` / `screenLabel()` — read the top of the stack (without
+  popping) to compute a screen's dynamic back-button label, e.g. "Back to
+  History" instead of a hardcoded destination.
+- `showScreen(view)` clears `navStack` whenever `view === "workout"` —
+  landing on home makes any prior path stale, so the next trip away from
+  home always starts a fresh path.
+- **The Workout screen's own back button (`#backNavBtn`, driven by
+  `backNavTarget`) is a separate, older mechanism that does NOT go
+  through `navStack`.** It's set directly in `renderWorkoutHeader()` from
+  `viewSource`/`isNext`: `"queue"` for a peeked Queued Workout, `"history"`
+  for a Past Workout, `null` (button hidden) for Today's Workout. The two
+  mechanisms are kept deliberately in sync — see the next point — but any
+  future change to one should be checked against the other.
 
-The contextual back button is a single element (`#backNavBtn`) whose label
-and destination change based on `backNavTarget` (`"queue"`, `"history"`,
-or hidden), set in `renderWorkoutHeader()`.
+**No redundant navigation — every screen can reach all 3 other
+destinations, each exactly one way**
+Every screen's ⋮ menu is built by skipping whichever destination the
+back button (if shown) already covers, so nothing is ever offered twice:
+- **Today's Workout** (home, no back button) — ⋮ menu: View Queue, View
+  History, Settings.
+- **Queued Workout** (peeked from Queue) — back button → "Back to Queue".
+  ⋮ menu: Today's Workout, View History, Settings, Delete from Queue
+  (View Queue is omitted — the back button already covers it).
+- **Past Workout** (from History) — back button → "Back to History". ⋮
+  menu: Edit/Save (top item), Today's Workout, View Queue, Restore to
+  Queue, Delete from History, Settings (View History omitted).
+- **Queue screen** — back button label is dynamic (goes wherever the user
+  actually came from: Today's Workout, History, or Settings). ⋮ menu:
+  Today's Workout, View History, Settings — each individually omitted if
+  it matches the back button's current target.
+- **History screen** — same pattern, mirrored (back button dynamic; ⋮
+  menu: Today's Workout, View Queue, Settings, same omission rule).
+- **Settings screen** — back button label is dynamic, same mechanism as
+  Queue/History. No ⋮ menu (kept as a single dead-end entry point).
+- **Exercise List** — the one screen that keeps a hardcoded back button
+  ("Back to Settings"), since it only ever has one parent.
+- This "omit if it matches the back target" rule is implemented inline
+  wherever each menu is built (`renderHeaderMenu()` for the Workout
+  screen; the `queueMenuBtn`/`historyMenuBtn` click handlers for
+  Queue/History) — there's no shared helper yet. Any new screen or menu
+  item added later should follow the same
+  `if (target !== thisDestination) show button` pattern by hand.
+
+**Header layout**
+- Every back button (Workout, Queue, History, Settings, Exercise List)
+  now shares one visual style — a bordered pill (`.back-btn` and
+  `.back-nav-btn` are now visually identical) — and always sits in the
+  screen's top-left corner. Arrow prefixes were removed; labels are plain
+  text ("Back to Queue", not "← Back to Queue").
+- The ⋮ menu button always sits in the top-right corner, including on
+  Today's Workout where no back button is shown. This needed a small CSS
+  fix: `.nav-right` has `margin-left: auto`, because `.top-nav`'s
+  `justify-content: space-between` would otherwise shove a lone remaining
+  flex child (the ⋮ menu) to the *left* once the hidden back button drops
+  out of layout. Worth remembering for any future header tweaks.
+- On the Workout screen, the eyebrow label ("Today's Workout" / "Queued
+  Workout" / "Past Workout · Read Only" / "Past Workout · Editing") no
+  longer shares a row with the back button — it's on its own row
+  (`.eyebrow-row`) directly below the top-nav, so the back button gets
+  the full top-left corner.
+- The standalone "Edit"/"Save" button that used to sit in the Past
+  Workout header is gone. It's now the **first item** in that screen's ⋮
+  menu (`toggle-edit` action), shown only when `viewSource === "history"`.
 
 **Queue screen** — plan future workouts.
-- Back button: "← Back to Today's Workout"
-- "Current Program" name shown at top (display-only now)
+- "Current Program" name shown at top (display-only)
 - "+ Add Ad-hoc Workout" directly below the program info, above the list
-- Queue item ⋮ menu: Move Up, Move Down, **Delete Workout** (renamed from
-  "Remove from Queue" — wording now matches the rest of the app)
-- Header ⋮ menu (new): Settings only
-- Program management (Start New Program / End Current Program) moved out
-  to Settings — no longer editable from here
+- Queue item ⋮ menu: Move Up, Move Down, **Delete from Queue**
+- Program management (Start New Program / End Current Program) lives in
+  Settings — no longer editable from here
 
 **History screen** — review completed workouts.
-- Back button: "← Back to Today's Workout"
 - Tapping an item opens it as a read-only Past Workout (Edit toggles
-  edit mode)
-- List item ⋮ menu: Restore to Queue
-- Header ⋮ menu (new): Settings only
+  edit mode via the ⋮ menu, see above)
+- List item ⋮ menu: Restore to Queue, **Delete from History** (added this
+  session — previously delete was only reachable by opening the workout)
 
-**Settings screen** (new) — infrequent admin actions, reached via
-"Settings" at the bottom of every screen's ⋮ menu:
+**Settings screen** — infrequent admin actions, reached via "Settings" in
+every screen's ⋮ menu:
 - **About** — app name, `APP_VERSION`, short description
 - **Program Management** — shows current program (or "No active program"),
   "Start New Program" (reuses the existing JSON import flow/modal),
@@ -109,6 +163,27 @@ or hidden), set in `renderWorkoutHeader()`.
   (`#exerciseListScreen`, back button returns to Settings). See
   "Exercise List Management" below.
 
+**Delete action naming and styling**
+- "Delete Workout" was ambiguous when it appeared in both Queue and
+  History contexts (different consequences — one just drops an unstarted
+  plan, the other permanently erases logged data). Renamed everywhere:
+  **"Delete from Queue"** (Queue item menu + header ⋮ menu on any
+  queue-sourced workout) vs. **"Delete from History"** (History item menu
+  + header ⋮ menu on a Past Workout). Confirm-modal titles match
+  ("Delete from queue?" / "Delete from history?").
+- Both entry points per destination share one confirm helper —
+  `confirmDeleteFromQueue(id, afterDelete)` and
+  `confirmDeleteFromHistory(id, afterDelete)` — so the list-item delete
+  and the in-workout delete behave identically; only the post-delete
+  navigation (`afterDelete` callback) differs.
+- All destructive "Delete"-style buttons across the app are styled red
+  (`var(--danger)`). There's no single shared class for this — each
+  screen's CSS explicitly lists every `data-action` value that should be
+  red (e.g. `.header-menu-dropdown button[data-action="delete-workout"],
+  [data-action="delete-queue-workout"], [data-action="end-program"]`).
+  **Any new delete-style button must be added to its screen's matching
+  CSS rule by hand, or it won't pick up the red styling automatically.**
+
 ## Current features (as of this version)
 **Program & Queue**
 - Import a program from JSON — now reached via Settings → Program
@@ -116,15 +191,11 @@ or hidden), set in `renderWorkoutHeader()`.
   `openImportModal()`; paste JSON or choose a file). Ask Claude to convert
   a spreadsheet/plan into the expected `{ program: { name }, workouts:
   [...] }` format.
-- Export the active program's queued + completed workouts back to JSON.
-  (The `exportProgram()` function still exists but has no UI entry point
-  — see "Export Gym Log" below, which replaced it as the workflow
-  actually used. Kept in code in case it's useful again later.)
 - "End Current Program" (Settings) clears its remaining queued workouts
   (completed ones stay in history) and annotates the last completed
   workout.
 - Queue screen lists all planned workouts in order; reorder (Move Up/Down),
-  Delete Workout, or add a one-off ad-hoc workout.
+  Delete from Queue, or add a one-off ad-hoc workout.
 - The active workout screen always shows the workout at the front of the
   queue ("Today's Workout") unless you've navigated into another queued or
   past workout to view/edit it ahead of time.
@@ -323,17 +394,20 @@ or hidden), set in `renderWorkoutHeader()`.
   Workouts and advancing to the next queued workout.
 - "Past Workouts" list (header ⋮ menu → View History), sorted newest first
 - Tapping a past workout opens it in the same workout view used for today
-- Past workouts open **read-only** by default; an "Edit" button (top nav)
-  toggles edit mode on — it becomes "Save" while active, and tapping it
-  saves and returns to read-only.
-- "Delete Workout" (header ⋮ menu, past workouts only) permanently removes
-  a workout after confirming in a custom in-app modal
+- Past workouts open **read-only** by default; "Edit" — now the top item
+  in the header ⋮ menu rather than a separate header button — toggles
+  edit mode on and becomes "Save" while active; tapping it again saves
+  and returns to read-only.
+- "Delete from History" (header ⋮ menu on a Past Workout, and the History
+  list's own per-item ⋮ menu) permanently removes a workout after
+  confirming in a custom in-app modal. Both entry points share
+  `confirmDeleteFromHistory()`.
 - "Restore to Queue" — available both from the Workout History list
   (⋮ menu on each entry) and from the header ⋮ menu while viewing a past
   workout. Moves a completed workout back into the active queue as a
   planned workout (status reset, date cleared), preserving all exercise
   data. Confirmed via the standard in-app modal.
-- "← Back to History" button (top nav) appears whenever viewing a past
+- "Back to History" button (top-left) appears whenever viewing a past
   workout, returns to the History list.
 
 **General**

@@ -45,11 +45,12 @@
     font-weight: 700;
   }
   .eyebrow.past { color: var(--text-dim); }
+  .eyebrow-row { margin-top: 10px; margin-bottom: 4px; }
   .header-menu-btn {
     background: none; border: none; color: var(--text-dim);
     font-size: 22px; cursor: pointer; padding: 2px 8px; line-height: 1;
   }
-  .nav-right { display: flex; align-items: center; gap: 4px; position: relative; }
+  .nav-right { display: flex; align-items: center; gap: 4px; position: relative; margin-left: auto; }
   .back-nav-btn {
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
@@ -62,23 +63,8 @@
     white-space: nowrap;
   }
   .back-nav-btn:active { border-color: var(--accent); }
-  .edit-btn {
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 13px;
-    font-weight: 700;
-    padding: 6px 12px;
-    cursor: pointer;
-  }
-  .edit-btn:active { border-color: var(--accent); }
-  .edit-btn.save-active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--bg);
-  }
   .header-menu-dropdown button[data-action="delete-workout"],
+  .header-menu-dropdown button[data-action="delete-queue-workout"],
   .header-menu-dropdown button[data-action="end-program"] { color: var(--danger); }
   .header-menu-dropdown button[data-action="restore-workout"],
   .item-menu-dropdown button[data-action="restore-to-queue"] { color: var(--accent); font-weight: 700; }
@@ -481,9 +467,17 @@
     margin-bottom: 20px;
   }
   .back-btn {
-    background: none; border: none; color: var(--accent);
-    font-size: 14px; font-weight: 700; cursor: pointer; padding: 4px 0;
+    background: var(--surface-2);
+    border: 1px solid var(--accent-dim);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 12px;
+    cursor: pointer;
+    white-space: nowrap;
   }
+  .back-btn:active { border-color: var(--accent); }
   .history-item {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -535,7 +529,8 @@
     font-size: 14px; padding: 10px 14px; cursor: pointer;
   }
   .item-menu-dropdown button:not(:last-child) { border-bottom: 1px solid var(--line); }
-  .item-menu-dropdown button[data-action="remove-queue"] { color: var(--danger); }
+  .item-menu-dropdown button[data-action="remove-queue"],
+  .item-menu-dropdown button[data-action="delete-from-history"] { color: var(--danger); }
 
   .program-bar {
     background: var(--surface);
@@ -712,14 +707,13 @@
 <!-- WORKOUT SCREEN (queue item, history item, or empty state) -->
 <div id="workoutScreen">
   <div class="top-nav">
-    <span class="eyebrow" id="eyebrow">Today's Workout</span>
+    <button class="back-nav-btn hidden" id="backNavBtn">Back</button>
     <div class="nav-right">
-      <button class="edit-btn hidden" id="editBtn">Edit</button>
-      <button class="back-nav-btn hidden" id="backNavBtn">← Back</button>
       <button class="header-menu-btn" id="headerMenuBtn">⋮</button>
       <div class="header-menu-dropdown" id="headerMenuDropdown"></div>
     </div>
   </div>
+  <div class="eyebrow-row"><span class="eyebrow" id="eyebrow">Today's Workout</span></div>
 
   <div id="workoutBody">
     <div class="title-row">
@@ -748,7 +742,7 @@
 <!-- QUEUE SCREEN -->
 <div id="queueScreen" class="hidden">
   <div class="history-header">
-    <button class="back-btn" id="backFromQueueBtn">← Back to Today's Workout</button>
+    <button class="back-btn" id="backFromQueueBtn">Back to Today's Workout</button>
     <div class="nav-right">
       <button class="header-menu-btn" id="queueMenuBtn">⋮</button>
       <div class="header-menu-dropdown" id="queueMenuDropdown"></div>
@@ -764,7 +758,7 @@
 <!-- HISTORY SCREEN -->
 <div id="historyScreen" class="hidden">
   <div class="history-header">
-    <button class="back-btn" id="backToTodayBtn">← Back to Today's Workout</button>
+    <button class="back-btn" id="backToTodayBtn">Back to Today's Workout</button>
     <div class="nav-right">
       <button class="header-menu-btn" id="historyMenuBtn">⋮</button>
       <div class="header-menu-dropdown" id="historyMenuDropdown"></div>
@@ -777,7 +771,7 @@
 <!-- SETTINGS SCREEN -->
 <div id="settingsScreen" class="hidden">
   <div class="history-header">
-    <button class="back-btn" id="backFromSettingsBtn">← Back</button>
+    <button class="back-btn" id="backFromSettingsBtn">Back</button>
   </div>
   <h1>Settings</h1>
   <div id="settingsList"></div>
@@ -786,7 +780,7 @@
 <!-- EXERCISE LIST SCREEN (Settings sub-page) -->
 <div id="exerciseListScreen" class="hidden">
   <div class="history-header">
-    <button class="back-btn" id="backFromExerciseListBtn">← Back to Settings</button>
+    <button class="back-btn" id="backFromExerciseListBtn">Back to Settings</button>
   </div>
   <h1>Exercise List</h1>
   <div class="exercise-list-add-row">
@@ -873,7 +867,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v29";
+  const APP_VERSION = "gym-app-cache-v35";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1042,6 +1036,35 @@
   let supersettingId = null;
   let customNameEditingIds = new Set(); // exercise ids currently showing the free-text name input instead of the dropdown
   let confirmAction = null;
+
+  // ---- Navigation stack (back-button consistency) ----
+  // Tracks the true path the user took to reach the current secondary
+  // screen (queue/history/settings/exerciseList), so every back button
+  // returns to where the user actually came from instead of a hardcoded
+  // destination. "workout" (Today's/Queued/Past Workout) is treated as
+  // home — landing back on it always clears the stack, since from there
+  // any onward navigation starts a fresh path.
+  let navStack = [];
+  const SCREEN_LABELS = { workout: "Today's Workout", queue: "Queue", history: "History", settings: "Settings", exerciseList: "Exercise List" };
+  function screenLabel(screen) { return SCREEN_LABELS[screen] || "Back"; }
+  function peekBack() { return navStack.length ? navStack[navStack.length - 1] : "workout"; }
+  // Forward navigation: remember where we came from, then switch screens.
+  function navigateTo(view) {
+    if (currentScreen !== view) navStack.push(currentScreen);
+    showScreen(view);
+  }
+  // Back navigation: pop the last screen off the stack (falling back to
+  // "workout"/home if the stack is empty) and switch to it.
+  function navigateBack() {
+    const target = navStack.length ? navStack.pop() : "workout";
+    showScreen(target);
+  }
+  // Jump straight home from anywhere, regardless of how deep the nav
+  // stack is — bypasses the stack entirely (showScreen clears it).
+  function goHome() {
+    setActiveToNextQueued();
+    showScreen("workout");
+  }
 
   function sortedQueue() {
     return [...queue].sort((a, b) => a.order - b.order);
@@ -1228,7 +1251,6 @@
     document.getElementById("eyebrow").classList.remove("past");
     backNavTarget = null;
     document.getElementById("backNavBtn").classList.add("hidden");
-    document.getElementById("editBtn").classList.add("hidden");
     renderHeaderMenu();
   }
 
@@ -1250,21 +1272,16 @@
     const backNavBtn = document.getElementById("backNavBtn");
     if (viewSource === "queue" && !isNext) {
       backNavTarget = "queue";
-      backNavBtn.textContent = "← Back to Queue";
+      backNavBtn.textContent = "Back to Queue";
       backNavBtn.classList.remove("hidden");
     } else if (viewSource === "history") {
       backNavTarget = "history";
-      backNavBtn.textContent = "← Back to History";
+      backNavBtn.textContent = "Back to History";
       backNavBtn.classList.remove("hidden");
     } else {
       backNavTarget = null;
       backNavBtn.classList.add("hidden");
     }
-
-    const editBtn = document.getElementById("editBtn");
-    editBtn.classList.toggle("hidden", viewSource !== "history");
-    editBtn.textContent = editMode ? "Save" : "Edit";
-    editBtn.classList.toggle("save-active", editMode);
 
     const titleInput = document.getElementById("dayTitle");
     if (document.activeElement !== titleInput) titleInput.value = workout.label;
@@ -1298,13 +1315,30 @@
   function renderHeaderMenu() {
     const dropdown = document.getElementById("headerMenuDropdown");
     dropdown.classList.toggle("open", headerMenuOpen);
-    let items = [`<button data-action="view-queue">View Queue</button>`, `<button data-action="view-history">View History</button>`];
+    // Skip any menu item whose destination is exactly where the back
+    // button (if shown) already goes — avoids offering the same
+    // destination two ways at once.
+    let items = [];
+    if (viewSource === "history") {
+      items.push(`<button data-action="toggle-edit">${editMode ? "Save" : "Edit"}</button>`);
+    }
+    // Home is only "already covered by the back button" when we're on
+    // Today's Workout itself (backNavTarget === null, no back button
+    // shown at all). On a peeked Queued/Past Workout, the back button
+    // only covers ONE of the other two destinations, so Home still needs
+    // its own menu item to stay directly reachable.
+    if (backNavTarget !== null) items.push(`<button data-action="home">Today's Workout</button>`);
+    if (backNavTarget !== "queue") items.push(`<button data-action="view-queue">View Queue</button>`);
+    if (backNavTarget !== "history") items.push(`<button data-action="view-history">View History</button>`);
     const isNextWorkout = viewSource === "queue" && sortedQueue()[0] && getActiveWorkout() && sortedQueue()[0].id === getActiveWorkout().id;
     if (viewSource === "queue" && isNextWorkout) {
       items.push(`<button data-action="complete">Finish Workout</button>`);
+    }
+    if (viewSource === "queue") {
+      items.push(`<button data-action="delete-queue-workout">Delete from Queue</button>`);
     } else if (viewSource === "history") {
       items.push(`<button data-action="restore-workout">Restore to Queue</button>`);
-      items.push(`<button data-action="delete-workout">Delete Workout</button>`);
+      items.push(`<button data-action="delete-workout">Delete from History</button>`);
     }
     items.push(`<button data-action="settings">Settings</button>`);
     dropdown.innerHTML = items.join("");
@@ -1359,7 +1393,7 @@
         <div class="item-menu-dropdown${openItemMenuId === w.id ? " open" : ""}">
           <button data-action="move-up">Move Up</button>
           <button data-action="move-down">Move Down</button>
-          <button data-action="remove-queue">Delete Workout</button>
+          <button data-action="remove-queue">Delete from Queue</button>
         </div>
       </div>
     `).join("");
@@ -1380,6 +1414,7 @@
         <button class="item-menu-btn" data-action="item-menu">⋮</button>
         <div class="item-menu-dropdown${openItemMenuId === w.id ? " open" : ""}">
           <button data-action="restore-to-queue">Restore to Queue</button>
+          <button data-action="delete-from-history">Delete from History</button>
         </div>
       </div>
     `).join("");
@@ -1441,15 +1476,23 @@
 
   function showScreen(view) {
     currentScreen = view;
+    // "workout" is home — once we land there, any prior path is stale.
+    if (view === "workout") navStack = [];
     document.getElementById("workoutScreen").classList.toggle("hidden", view !== "workout");
     document.getElementById("queueScreen").classList.toggle("hidden", view !== "queue");
     document.getElementById("historyScreen").classList.toggle("hidden", view !== "history");
     document.getElementById("settingsScreen").classList.toggle("hidden", view !== "settings");
     document.getElementById("exerciseListScreen").classList.toggle("hidden", view !== "exerciseList");
-    if (view === "queue") { renderProgramBar(); renderQueueList(); }
-    else if (view === "history") renderHistoryList();
-    else if (view === "settings") renderSettings();
-    else if (view === "exerciseList") {
+    if (view === "queue") {
+      document.getElementById("backFromQueueBtn").textContent = "Back to " + screenLabel(peekBack());
+      renderProgramBar(); renderQueueList();
+    } else if (view === "history") {
+      document.getElementById("backToTodayBtn").textContent = "Back to " + screenLabel(peekBack());
+      renderHistoryList();
+    } else if (view === "settings") {
+      document.getElementById("backFromSettingsBtn").textContent = "Back to " + screenLabel(peekBack());
+      renderSettings();
+    } else if (view === "exerciseList") {
       document.getElementById("exerciseListNewInput").value = "";
       document.getElementById("exerciseListError").classList.add("hidden");
       renderExerciseList();
@@ -1962,10 +2005,20 @@
     if (!action) return;
     headerMenuOpen = false;
 
-    if (action === "view-queue") {
-      showScreen("queue");
+    if (action === "toggle-edit") {
+      if (!editMode) {
+        editMode = true;
+      } else {
+        editMode = false;
+        saveActiveWorkout();
+      }
+      render();
+    } else if (action === "home") {
+      goHome();
+    } else if (action === "view-queue") {
+      navigateTo("queue");
     } else if (action === "view-history") {
-      showScreen("history");
+      navigateTo("history");
     } else if (action === "complete") {
       openConfirm(
         "Finish Workout?",
@@ -1988,21 +2041,17 @@
         false
       );
     } else if (action === "delete-workout") {
-      const workout = getActiveWorkout();
-      openConfirm(
-        "Delete this workout?",
-        `This will permanently delete "${workout.label || "this workout"}". This action cannot be undone.`,
-        () => {
-          history = history.filter(w => w.id !== viewId);
-          localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-          setActiveToNextQueued();
-          showScreen("workout");
-        },
-        "Delete",
-        true
-      );
+      confirmDeleteFromHistory(viewId, () => {
+        setActiveToNextQueued();
+        showScreen("workout");
+      });
+    } else if (action === "delete-queue-workout") {
+      confirmDeleteFromQueue(viewId, () => {
+        setActiveToNextQueued();
+        showScreen("workout");
+      });
     } else if (action === "settings") {
-      showScreen("settings");
+      navigateTo("settings");
     } else {
       renderHeaderMenu();
     }
@@ -2038,6 +2087,48 @@
     queue.push(w);
     saveHistory();
     saveQueue();
+  }
+
+  // Shared "Delete from Queue" flow — used both from the Queue list's
+  // per-item ⋮ menu and from the header ⋮ menu while viewing a queued
+  // workout (Today's or a peeked-ahead one), so both entry points
+  // confirm and delete identically. afterDelete() handles the
+  // difference in where each entry point lands afterward.
+  function confirmDeleteFromQueue(id, afterDelete) {
+    const w = queue.find(x => x.id === id);
+    if (!w) return;
+    openConfirm(
+      "Delete from queue?",
+      `"${w.label || "This workout"}" will be removed without being logged to history.`,
+      () => {
+        queue = queue.filter(x => x.id !== id);
+        saveQueue();
+        afterDelete();
+      },
+      "Delete",
+      true
+    );
+  }
+
+  // Shared "Delete from History" flow — used both from the History list's
+  // per-item ⋮ menu and from the header ⋮ menu while viewing a Past
+  // Workout, so both entry points confirm and delete identically.
+  // afterDelete() handles the difference in where each entry point lands
+  // afterward (History list stays put; Past Workout returns home).
+  function confirmDeleteFromHistory(id, afterDelete) {
+    const w = history.find(x => x.id === id);
+    if (!w) return;
+    openConfirm(
+      "Delete from history?",
+      `This will permanently delete "${w.label || "this workout"}" from your history. This action cannot be undone.`,
+      () => {
+        history = history.filter(x => x.id !== id);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        afterDelete();
+      },
+      "Delete",
+      true
+    );
   }
 
   function addAdhocWorkout() {
@@ -2199,37 +2290,6 @@
     showScreen("queue");
   }
 
-  function exportProgram() {
-    headerMenuOpen = false;
-    if (!program) return;
-    const pid = program.id;
-    const queued = sortedQueue().filter(w => w.programId === pid);
-    const completed = history.filter(w => w.programId === pid)
-      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
-    const exportData = {
-      program: { name: program.name, importedAt: program.importedAt, exportedAt: todayISO() },
-      workouts: [...queued, ...completed].map(w => ({
-        label: w.label,
-        status: w.status,
-        date: w.date || null,
-        note: w.note || "",
-        exercises: w.exercises.map(ex => ({
-          name: ex.name, sets: ex.sets, reps: ex.reps, weight: ex.weight,
-          rpe: ex.rpe, rest: ex.rest, notes: ex.notes
-        }))
-      }))
-    };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${program.name.replace(/[^a-z0-9]+/gi, "_")}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
   // ---- Export Gym Log ----
   // Produces tab-separated text matching the user's external Excel gym
   // log layout (Day, Lift, Sets, Reps, Weight, [blank — Volume is a
@@ -2328,23 +2388,35 @@
   // Queue screen interactions
   document.getElementById("addAdhocBtn").addEventListener("click", addAdhocWorkout);
   document.getElementById("backFromQueueBtn").addEventListener("click", () => {
-    setActiveToNextQueued();
-    showScreen("workout");
+    // Only reset to the front-of-queue workout if we're actually heading
+    // back to the Workout screen — if Queue was reached from History or
+    // Settings, back should return there instead.
+    if (peekBack() === "workout") setActiveToNextQueued();
+    navigateBack();
   });
 
   document.getElementById("queueMenuBtn").addEventListener("click", (e) => {
     e.stopPropagation();
     queueMenuOpen = !queueMenuOpen;
     const dropdown = document.getElementById("queueMenuDropdown");
-    dropdown.innerHTML = `<button data-action="settings">Settings</button>`;
+    // Skip any item whose destination is exactly where the back button
+    // already goes — avoids offering the same destination two ways.
+    const back = peekBack();
+    let items = [];
+    if (back !== "workout") items.push(`<button data-action="home">Today's Workout</button>`);
+    if (back !== "history") items.push(`<button data-action="view-history">View History</button>`);
+    if (back !== "settings") items.push(`<button data-action="settings">Settings</button>`);
+    dropdown.innerHTML = items.join("");
     dropdown.classList.toggle("open", queueMenuOpen);
   });
   document.getElementById("queueMenuDropdown").addEventListener("click", (e) => {
-    if (e.target.dataset.action === "settings") {
-      queueMenuOpen = false;
-      document.getElementById("queueMenuDropdown").classList.remove("open");
-      showScreen("settings");
-    }
+    const action = e.target.dataset.action;
+    if (!action) return;
+    queueMenuOpen = false;
+    document.getElementById("queueMenuDropdown").classList.remove("open");
+    if (action === "home") goHome();
+    else if (action === "view-history") navigateTo("history");
+    else if (action === "settings") navigateTo("settings");
   });
 
   document.getElementById("queueList").addEventListener("click", (e) => {
@@ -2375,19 +2447,10 @@
     }
     if (action === "remove-queue") {
       openItemMenuId = null;
-      const w = queue.find(x => x.id === id);
-      openConfirm(
-        "Delete this workout?",
-        `"${w.label || "This workout"}" will be removed without being logged to history.`,
-        () => {
-          queue = queue.filter(x => x.id !== id);
-          saveQueue();
-          if (viewId === id) setActiveToNextQueued();
-          renderQueueList();
-        },
-        "Delete",
-        true
-      );
+      confirmDeleteFromQueue(id, () => {
+        if (viewId === id) setActiveToNextQueued();
+        renderQueueList();
+      });
       return;
     }
     if (!action) {
@@ -2425,6 +2488,14 @@
       );
       return;
     }
+    if (action === "delete-from-history") {
+      openItemMenuId = null;
+      confirmDeleteFromHistory(id, () => {
+        if (viewSource === "history" && viewId === id) setActiveToNextQueued();
+        renderHistoryList();
+      });
+      return;
+    }
     if (action) return;
 
     viewSource = "history";
@@ -2437,20 +2508,32 @@
     e.stopPropagation();
     historyMenuOpen = !historyMenuOpen;
     const dropdown = document.getElementById("historyMenuDropdown");
-    dropdown.innerHTML = `<button data-action="settings">Settings</button>`;
+    // Skip any item whose destination is exactly where the back button
+    // already goes — avoids offering the same destination two ways.
+    const back = peekBack();
+    let items = [];
+    if (back !== "workout") items.push(`<button data-action="home">Today's Workout</button>`);
+    if (back !== "queue") items.push(`<button data-action="view-queue">View Queue</button>`);
+    if (back !== "settings") items.push(`<button data-action="settings">Settings</button>`);
+    dropdown.innerHTML = items.join("");
     dropdown.classList.toggle("open", historyMenuOpen);
   });
   document.getElementById("historyMenuDropdown").addEventListener("click", (e) => {
-    if (e.target.dataset.action === "settings") {
-      historyMenuOpen = false;
-      document.getElementById("historyMenuDropdown").classList.remove("open");
-      showScreen("settings");
-    }
+    const action = e.target.dataset.action;
+    if (!action) return;
+    historyMenuOpen = false;
+    document.getElementById("historyMenuDropdown").classList.remove("open");
+    if (action === "home") goHome();
+    else if (action === "view-queue") navigateTo("queue");
+    else if (action === "settings") navigateTo("settings");
   });
 
   document.getElementById("backFromSettingsBtn").addEventListener("click", () => {
-    setActiveToNextQueued();
-    showScreen("workout");
+    // Only reset to the front-of-queue workout if we're actually heading
+    // back to the Workout screen — if Settings was reached from Queue or
+    // History, back should return there instead.
+    if (peekBack() === "workout") setActiveToNextQueued();
+    navigateBack();
   });
 
   document.getElementById("backFromExerciseListBtn").addEventListener("click", () => {
@@ -2495,16 +2578,6 @@
     );
   });
 
-  document.getElementById("editBtn").addEventListener("click", () => {
-    if (!editMode) {
-      editMode = true;
-    } else {
-      editMode = false;
-      saveActiveWorkout();
-    }
-    render();
-  });
-
   document.getElementById("backNavBtn").addEventListener("click", () => {
     if (backNavTarget === "queue") {
       showScreen("queue");
@@ -2513,9 +2586,9 @@
     }
   });
   document.getElementById("backToTodayBtn").addEventListener("click", () => {
-    setActiveToNextQueued();
+    if (peekBack() === "workout") setActiveToNextQueued();
     editMode = false;
-    showScreen("workout");
+    navigateBack();
   });
   document.getElementById("emptyAddAdhocBtn").addEventListener("click", addAdhocWorkout);
   document.getElementById("emptyImportBtn").addEventListener("click", openImportModal);
