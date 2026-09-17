@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v46` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v47` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -41,6 +41,37 @@ no subscriptions.
   locale uses (often mm/dd/yyyy), and there's no way to force that. Any
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
+
+## New feature (this session): Backup All Data / Restore from Backup
+**Why**: this app has no accounts/cloud sync — all data lives only in
+this one browser/PWA's localStorage. Moving to a new phone had no
+code-free path: the PWA (installed via "Add to Home Screen") runs in a
+separate storage context from a regular Safari tab, so browser
+console/bookmarklet tricks run against the PWA can't see or write its
+actual data. A real in-app feature was the only way to reach it.
+**What was added** — Settings → Data:
+- **"Backup All Data"** — bundles all four localStorage keys (Program,
+  Queue, History, Exercise List) into one JSON file and downloads it
+  as `gym-data-yyyy-mm-dd.json` (date-stamped so old backups are easy
+  to tell apart).
+- **"Restore from Backup"** — opens a file picker, reads the chosen
+  JSON file, validates it looks like a real backup (checks it has at
+  least one of the expected keys and that each value is well-formed),
+  then — after a confirm modal (custom, not native, per this app's
+  usual pattern) warning it's a full, irreversible replace — overwrites
+  all four keys and reloads the app.
+- Import is a **full replace only** (whatever's in the file wins,
+  wholesale) — no merge option. A merge mode (combine instead of
+  overwrite) is listed in Backlog below as a possible future addition.
+- Deliberately kept as one flat JSON object keyed by the same
+  localStorage key names used internally — if cloud sync or another
+  storage backend is ever added later, the same shape can be POSTed
+  somewhere instead of downloaded as a file, without reworking this
+  logic. This feature is meant as a foundation for that, not just a
+  one-off fix for a single phone swap.
+- This is separate from **"Export Gym Log"**, which only exports
+  completed History as paste-ready text for an external spreadsheet —
+  Backup/Restore is the full app state, in the app's own JSON format.
 
 ## Bug fix (this session)
 - **"New Exercise" option was unresponsive on a brand-new exercise.** A
@@ -295,6 +326,15 @@ CSS — any new delete-style button needs to be added there too.
   "New Exercise"), not the free-text input — you can pick immediately
   without tapping away first.
 
+**Backup All Data / Restore from Backup**
+- Settings → "Backup All Data" downloads a single date-stamped JSON file
+  containing everything (Program, Queue, History, Exercise List).
+- Settings → "Restore from Backup" picks that file back up on any
+  device/browser and fully replaces current data with it, after a
+  confirm modal. Full replace only — see note above.
+- Intended primarily for moving to a new phone, but also works as a
+  periodic manual backup.
+
 **Export Gym Log**
 - Settings → "Export Gym Log" opens a modal generating tab-separated
   text of completed workouts, formatted to paste directly into the
@@ -402,6 +442,12 @@ structurally impossible rather than just unlikely**:
   each happens to be visible.
 
 ## Backlog / ideas not yet built
+- Restore from Backup: add a "merge" mode (combine with existing data)
+  as an alternative to the current full-replace-only behavior
+- Cloud backup/sync (e.g. auto-upload the same Backup JSON shape to a
+  cloud storage endpoint) — the Backup/Restore feature this session was
+  deliberately built with this in mind (same flat JSON shape, keyed by
+  the existing localStorage key names)
 - Rename an existing standardized exercise (currently: remove + re-add)
 - Merge two standardized exercises into one
 - Aliases/synonyms for a standardized exercise

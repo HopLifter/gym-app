@@ -843,6 +843,8 @@
   <div id="exerciseListItems"></div>
 </div>
 
+<input type="file" id="importAllDataFileInput" accept="application/json" class="hidden">
+
 <div class="bottom-nav" id="bottomNav">
   <button class="bottom-nav-btn" id="bottomNavHistory">History</button>
   <button class="bottom-nav-btn" id="bottomNavToday">Today</button>
@@ -926,7 +928,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v46";
+  const APP_VERSION = "gym-app-cache-v47";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1507,6 +1509,8 @@
         <div class="settings-section-title">Data</div>
         <div class="program-bar-actions">
           <button class="pill-btn" id="settingsExportGymLogBtn">Export Gym Log</button>
+          <button class="pill-btn accent" id="settingsExportAllDataBtn">Backup All Data</button>
+          <button class="pill-btn" id="settingsImportAllDataBtn">Restore from Backup</button>
         </div>
       </div>
       <div class="settings-section">
@@ -1520,6 +1524,8 @@
     document.getElementById("settingsStartProgramBtn").addEventListener("click", openImportModal);
     if (program) document.getElementById("settingsEndProgramBtn").addEventListener("click", confirmEndProgram);
     document.getElementById("settingsExportGymLogBtn").addEventListener("click", openExportGymLogModal);
+    document.getElementById("settingsExportAllDataBtn").addEventListener("click", exportAllData);
+    document.getElementById("settingsImportAllDataBtn").addEventListener("click", () => document.getElementById("importAllDataFileInput").click());
     document.getElementById("settingsExerciseListBtn").addEventListener("click", () => showScreen("exerciseList"));
   }
 
@@ -2596,6 +2602,98 @@
       info.textContent = "Copied to clipboard.";
     }
   });
+
+  // ---- Backup / Restore All Data ----
+  // Full, code-free way to move all app data (Program, Queue, History,
+  // Exercise List) to a new phone: exports everything as one downloadable
+  // JSON file, and can read that same file back in. This is a full
+  // replace only (no merge) — importing a backup overwrites whatever is
+  // currently on the device. Keeping the export as one flat JSON object
+  // keyed by the same localStorage key names means this same shape could
+  // later be sent to a cloud endpoint instead of a file, without
+  // reworking this logic — this is meant as a foundation for that, not
+  // just a one-off fix.
+  const ALL_DATA_KEYS = [PROGRAM_KEY, QUEUE_KEY, HISTORY_KEY, EXERCISE_LIST_KEY];
+
+  function exportAllData() {
+    const data = {};
+    ALL_DATA_KEYS.forEach(k => { data[k] = localStorage.getItem(k); });
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `gym-data-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Sanity-checks an imported file before touching localStorage: must be
+  // a plain object, must contain at least one of the four expected keys,
+  // and any present value must be null or a string that itself parses as
+  // JSON (each key's value is a JSON-encoded string, matching how
+  // localStorage stores it) — catches "wrong file" mistakes without
+  // being strict about which keys are present (e.g. a backup taken with
+  // no active program legitimately has a null program value).
+  function validateAllDataFile(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) return "Not a valid backup file.";
+    const present = ALL_DATA_KEYS.filter(k => k in data);
+    if (present.length === 0) return "This file doesn't look like a gym data backup.";
+    for (const k of present) {
+      const v = data[k];
+      if (v === null) continue;
+      if (typeof v !== "string") return "This file doesn't look like a gym data backup.";
+      try { JSON.parse(v); } catch (e) { return "This file doesn't look like a gym data backup."; }
+    }
+    return null;
+  }
+
+  // Full replace: any key present in the file overwrites the matching
+  // localStorage key; a null value (no data of that kind at export time,
+  // e.g. no active program) removes that key instead of writing "null".
+  // Reloads afterward rather than patching the in-memory state, since a
+  // restore touches all four keys at once and a fresh load is the
+  // simplest way to guarantee everything (program, queue, history,
+  // exercise list, and whichever workout is active) is consistent.
+  function doImportAllData(data) {
+    ALL_DATA_KEYS.forEach(k => {
+      if (data[k] === null || data[k] === undefined) localStorage.removeItem(k);
+      else localStorage.setItem(k, data[k]);
+    });
+    location.reload();
+  }
+
+  function handleImportAllDataFile(e) {
+    const file = e.target.files[0];
+    e.target.value = ""; // reset so re-selecting the same file re-fires change
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let data;
+      try {
+        data = JSON.parse(reader.result);
+      } catch (err) {
+        openConfirm("Import failed", "Invalid JSON — couldn't parse the file.", null, "OK", false);
+        return;
+      }
+      const validationError = validateAllDataFile(data);
+      if (validationError) {
+        openConfirm("Import failed", validationError, null, "OK", false);
+        return;
+      }
+      openConfirm(
+        "Replace all data?",
+        "This will replace your Program, Queue, History, and Exercise List with the contents of this file. This cannot be undone.",
+        () => doImportAllData(data),
+        "Replace All Data",
+        true
+      );
+    };
+    reader.readAsText(file);
+  }
+  document.getElementById("importAllDataFileInput").addEventListener("change", handleImportAllDataFile);
 
   // Queue screen interactions
   document.getElementById("addAdhocBtn").addEventListener("click", addAdhocWorkout);
