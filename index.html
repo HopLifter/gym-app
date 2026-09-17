@@ -16,7 +16,8 @@
     --accent-dim: #7A9A2E;
     --done: #3A4A2E;
     --danger: #E05C4E;
-    --bottom-nav-h: 58px;
+    --bottom-nav-h: 52px;
+    --bottom-nav-gap: 14px;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -24,48 +25,61 @@
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
-    padding: 20px 16px calc(var(--bottom-nav-h) + 100px);
+    padding: 20px 16px calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 100px);
     max-width: 480px;
     margin: 0 auto;
   }
   .hidden { display: none !important; }
 
-  /* Bottom tab bar — always-available switcher between the 4 top-level screens */
+  /* Bottom tab bar — always-available switcher between the 4 top-level
+     screens. The bar itself sits flush with the true bottom edge (so its
+     background/border always reach the edge and nothing scrolls behind
+     it); the label is lifted up for thumb reach via the button's own
+     bottom padding instead of an external gap, which would otherwise
+     leave a strip below the bar with nothing covering it. */
   .bottom-nav {
     position: fixed;
     left: 0; right: 0; bottom: 0;
     max-width: 480px; margin: 0 auto;
-    background: var(--surface);
-    border-top: 1px solid var(--line);
+    background: transparent;
     display: flex;
-    gap: 6px;
-    padding: 6px 6px 0 6px;
+    padding: 0 16px;
     z-index: 45;
-    padding-bottom: env(safe-area-inset-bottom, 0);
   }
   .bottom-nav-btn {
     flex: 1;
-    background: none;
-    border: 2px solid transparent;
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-bottom: none;
     border-radius: 14px 14px 0 0;
     color: var(--text-dim);
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.02em;
-    padding: 10px 4px 9px;
+    padding: 10px 4px calc(env(safe-area-inset-bottom, 0px) + var(--bottom-nav-gap));
     cursor: pointer;
   }
   .bottom-nav-btn.active { color: var(--accent); border-color: var(--accent); }
 
-  /* Top nav */
-  .top-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-    position: relative;
+  /* Sticky header — keeps the screen title/controls visible while the
+     list content below it scrolls. Used on Workout, Queue, and History.
+     margin-top/padding-top cancel out body's own 20px top padding and
+     move that space inside the sticky box itself — otherwise that gap
+     sits *before* the sticky element in the scroll flow and has to
+     scroll away first, causing a visible "runway" jump the moment you
+     start scrolling before the header actually locks in place. */
+  .sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    background: var(--bg);
+    margin-top: -20px;
+    padding-top: 20px;
   }
+  /* History has no trailing element (like a date badge or program bar)
+     to create natural spacing before the list, so add it explicitly —
+     matching the ~16px gap the Workout screen gets from its date badge. */
+  .sticky-header--gap { padding-bottom: 16px; }
   .eyebrow {
     font-size: 12px;
     letter-spacing: 0.12em;
@@ -80,7 +94,10 @@
     font-size: 22px; cursor: pointer; padding: 2px 8px; line-height: 1;
   }
   .nav-right { display: flex; align-items: center; gap: 4px; position: relative; margin-left: auto; }
-  .back-nav-btn {
+  /* Shared pill-button look for header-level actions — originally the
+     Workout screen's contextual back button, now reused for the
+     Edit/Save toggle that replaced it. */
+  .header-action-btn {
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
     border-radius: 8px;
@@ -90,8 +107,9 @@
     padding: 6px 12px;
     cursor: pointer;
     white-space: nowrap;
+    flex-shrink: 0;
   }
-  .back-nav-btn:active { border-color: var(--accent); }
+  .header-action-btn:active { border-color: var(--accent); }
   .header-menu-dropdown button[data-action="delete-from-history"],
   .header-menu-dropdown button[data-action="delete-queue-workout"],
   .header-menu-dropdown button[data-action="end-program"] { color: var(--danger); }
@@ -127,7 +145,7 @@
 
   .title-row {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
     margin: 6px 0 6px;
   }
@@ -419,7 +437,7 @@
   .rest-timer-bar {
     position: fixed;
     left: 16px; right: 16px;
-    bottom: calc(var(--bottom-nav-h) + 88px);
+    bottom: calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 88px);
     max-width: 448px; margin: 0 auto;
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
@@ -475,7 +493,7 @@
 
   .undo-banner {
     position: fixed;
-    bottom: calc(var(--bottom-nav-h) + 16px); left: 16px; right: 16px;
+    bottom: calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 16px); left: 16px; right: 16px;
     max-width: 448px; margin: 0 auto;
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
@@ -575,6 +593,7 @@
   }
   .program-bar-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; font-weight: 700; }
   .program-bar-name { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  .settings-title { margin-bottom: 18px; }
   .settings-section {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -740,25 +759,24 @@
 
 <!-- WORKOUT SCREEN (queue item, history item, or empty state) -->
 <div id="workoutScreen">
-  <div class="top-nav" id="topNav">
-    <button class="back-nav-btn hidden" id="backNavBtn">Back</button>
-  </div>
-  <div class="eyebrow-row" id="eyebrowRow">
-    <span class="eyebrow" id="eyebrow">Today's Workout</span>
-    <div class="nav-right" id="navRight">
-      <button class="header-menu-btn" id="headerMenuBtn">⋮</button>
-      <div class="header-menu-dropdown" id="headerMenuDropdown"></div>
+  <div class="sticky-header" id="workoutStickyHeader">
+    <div class="eyebrow-row" id="eyebrowRow">
+      <span class="eyebrow" id="eyebrow">Today's Workout</span>
+      <div class="nav-right" id="navRight">
+        <button class="header-menu-btn" id="headerMenuBtn">⋮</button>
+        <div class="header-menu-dropdown" id="headerMenuDropdown"></div>
+      </div>
     </div>
+    <div class="title-row" id="titleRow">
+      <input class="title-input" id="dayTitle" data-field="label" placeholder="Workout label">
+      <button class="header-action-btn hidden" id="editToggleBtn">Edit</button>
+    </div>
+    <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" class="date-input hidden" id="dateInput">
+    <div class="date-badge hidden" id="dateDisplay"></div>
   </div>
 
   <div id="workoutBody">
-    <div class="title-row">
-      <input class="title-input" id="dayTitle" data-field="label" placeholder="Workout label">
-    </div>
-    <input type="date" class="date-input hidden" id="dateInput">
-    <div class="date-badge hidden" id="dateDisplay"></div>
     <div class="workout-note hidden" id="workoutNote"></div>
-
     <div id="workout"></div>
     <button class="add-btn" id="addBtn">Add Exercise</button>
   </div>
@@ -767,7 +785,7 @@
     <h2>No workout queued</h2>
     <p>Add a one-off workout or import a program to get started.</p>
     <div class="empty-state-actions">
-      <button class="pill-btn accent" id="emptyAddAdhocBtn">Add Ad-hoc Workout</button>
+      <button class="pill-btn accent" id="emptyAddAdhocBtn">Add Workout</button>
       <button class="pill-btn" id="emptyImportBtn">Start New Program</button>
     </div>
   </div>
@@ -777,22 +795,26 @@
 
 <!-- QUEUE SCREEN -->
 <div id="queueScreen" class="hidden">
-  <h1>Queue</h1>
-  <div class="program-bar" id="programBar"></div>
-  <button class="add-btn" id="addAdhocBtn">Add Ad-hoc Workout</button>
+  <div class="sticky-header" id="queueStickyHeader">
+    <h1>Queue</h1>
+    <div class="program-bar" id="programBar"></div>
+  </div>
+  <button class="add-btn" id="addAdhocBtn">Add Workout</button>
   <div style="height:16px"></div>
   <div id="queueList"></div>
 </div>
 
 <!-- HISTORY SCREEN -->
 <div id="historyScreen" class="hidden">
-  <h1>History</h1>
+  <div class="sticky-header sticky-header--gap" id="historyStickyHeader">
+    <h1>History</h1>
+  </div>
   <div id="historyList"></div>
 </div>
 
 <!-- SETTINGS SCREEN -->
 <div id="settingsScreen" class="hidden">
-  <h1>Settings</h1>
+  <h1 class="settings-title">Settings</h1>
   <div id="settingsList"></div>
 </div>
 
@@ -860,11 +882,11 @@
     <div style="display:flex; gap:10px; margin-bottom:12px;">
       <div class="stat-field" style="flex:1;">
         <label>From (optional)</label>
-        <input type="date" class="date-input" id="exportGymLogFrom" style="width:100%; margin-bottom:0;">
+        <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" class="date-input" id="exportGymLogFrom" style="width:100%; margin-bottom:0;">
       </div>
       <div class="stat-field" style="flex:1;">
         <label>To (optional)</label>
-        <input type="date" class="date-input" id="exportGymLogTo" style="width:100%; margin-bottom:0;">
+        <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" class="date-input" id="exportGymLogTo" style="width:100%; margin-bottom:0;">
       </div>
     </div>
     <textarea class="import-textarea" id="exportGymLogTextarea" readonly></textarea>
@@ -893,7 +915,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v39";
+  const APP_VERSION = "gym-app-cache-v43";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1263,15 +1285,19 @@
     if (backNavTarget === null) {
       document.getElementById("eyebrowRow").appendChild(navRight);
     } else {
-      document.getElementById("topNav").appendChild(navRight);
+      document.getElementById("titleRow").appendChild(navRight);
     }
   }
 
   function renderEmptyHeader() {
     document.getElementById("eyebrow").textContent = "No Workout Queued";
     document.getElementById("eyebrow").classList.remove("past");
+    document.getElementById("eyebrowRow").classList.remove("hidden");
+    document.getElementById("titleRow").classList.add("hidden");
+    document.getElementById("editToggleBtn").classList.add("hidden");
+    document.getElementById("dateInput").classList.add("hidden");
+    document.getElementById("dateDisplay").classList.add("hidden");
     backNavTarget = null;
-    document.getElementById("backNavBtn").classList.add("hidden");
     positionHeaderMenu();
     renderHeaderMenu();
   }
@@ -1280,33 +1306,36 @@
     const editable = isEditable();
     const eyebrow = document.getElementById("eyebrow");
     const isNext = viewSource === "queue" && sortedQueue()[0] && sortedQueue()[0].id === workout.id;
-    if (viewSource === "queue") {
-      eyebrow.textContent = isNext ? "Today's Workout" : "Queued Workout";
+    // A "peek" view is anything other than today's actual active
+    // workout — a queued workout you've looked ahead to, or a Past
+    // Workout. These get a compact single-row header (title inline with
+    // the ⋮ menu, no eyebrow label) instead of the full Today's-Workout
+    // header, since there's no back button anymore to anchor a second row
+    // to — the bottom tab bar handles getting back to Queue/History.
+    const isPeekView = (viewSource === "queue" && !isNext) || viewSource === "history";
+
+    document.getElementById("titleRow").classList.remove("hidden");
+    document.getElementById("eyebrowRow").classList.toggle("hidden", isPeekView);
+    if (!isPeekView) {
+      eyebrow.textContent = "Today's Workout";
       eyebrow.classList.remove("past");
-    } else {
-      eyebrow.textContent = editMode ? "History · Editing" : "History · Read Only";
-      eyebrow.classList.add("past");
     }
 
-    // Contextual back button: only shown when viewing something other than
-    // today's active workout — a peeked-ahead queued workout goes back to
-    // the Queue, a past workout goes back to History. While editing a
-    // past workout, this same button becomes "Save" instead (saves and
-    // returns to read-only view on this same screen); it only navigates
-    // away once you're out of edit mode.
-    const backNavBtn = document.getElementById("backNavBtn");
-    if (viewSource === "queue" && !isNext) {
-      backNavTarget = "queue";
-      backNavBtn.textContent = "Back to Queue";
-      backNavBtn.classList.remove("hidden");
-    } else if (viewSource === "history") {
-      backNavTarget = "history";
-      backNavBtn.textContent = editMode ? "Save" : "Back to History";
-      backNavBtn.classList.remove("hidden");
+    // Edit/Save toggle — History only. Replaces the old ⋮ menu "Edit"
+    // item and the old back-button-as-Save behavior now that there's no
+    // back button on this screen.
+    const editBtn = document.getElementById("editToggleBtn");
+    if (viewSource === "history") {
+      editBtn.textContent = editMode ? "Save" : "Edit";
+      editBtn.classList.remove("hidden");
     } else {
-      backNavTarget = null;
-      backNavBtn.classList.add("hidden");
+      editBtn.classList.add("hidden");
     }
+
+    // backNavTarget no longer drives a visible back button (removed —
+    // the bottom tab bar's Queue/History tabs cover that); it's kept
+    // purely to decide where the ⋮ menu lives, see positionHeaderMenu().
+    backNavTarget = isPeekView ? (viewSource === "queue" ? "queue" : "history") : null;
     positionHeaderMenu();
 
     const titleInput = document.getElementById("dayTitle");
@@ -1318,7 +1347,7 @@
     if (viewSource === "history") {
       dateInput.classList.remove("hidden");
       dateDisplay.classList.add("hidden");
-      if (document.activeElement !== dateInput) dateInput.value = workout.date || "";
+      if (document.activeElement !== dateInput) dateInput.value = isoToDMY(workout.date);
       dateInput.disabled = !editable;
     } else if (viewSource === "queue" && isNext) {
       dateInput.classList.add("hidden");
@@ -1342,9 +1371,6 @@
     const dropdown = document.getElementById("headerMenuDropdown");
     dropdown.classList.toggle("open", headerMenuOpen);
     let items = [];
-    if (viewSource === "history" && !editMode) {
-      items.push(`<button data-action="toggle-edit">Edit</button>`);
-    }
     const isNextWorkout = viewSource === "queue" && sortedQueue()[0] && getActiveWorkout() && sortedQueue()[0].id === getActiveWorkout().id;
     if (viewSource === "queue" && isNextWorkout) {
       items.push(`<button data-action="complete">Finish Workout</button>`);
@@ -1494,7 +1520,39 @@
   // today's date without writing anything to the workout object.
   function formatDateBadge(iso) {
     const dt = iso ? (() => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); })() : new Date();
-    return `${pad2(dt.getDate())}/${pad2(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+    return isoToDMY(`${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`);
+  }
+
+  // ---- Custom dd/mm/yyyy date fields ----
+  // Native <input type="date"> pickers display in whatever format the
+  // phone's OS/browser locale uses (often mm/dd/yyyy) and there's no way
+  // to force that short of not using a native date input at all. These
+  // three helpers back a plain text field instead, so every date entry
+  // point in the app reads dd/mm/yyyy consistently regardless of locale.
+  // The underlying stored value is always the ISO "yyyy-mm-dd" string.
+  function isoToDMY(iso) {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    return `${pad2(d)}/${pad2(m)}/${y}`;
+  }
+  function parseDMYToISO(str) {
+    const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((str || "").trim());
+    if (!m) return null;
+    const d = Number(m[1]), mo = Number(m[2]), y = Number(m[3]);
+    if (mo < 1 || mo > 12) return null;
+    const daysInMonth = new Date(y, mo, 0).getDate();
+    if (d < 1 || d > daysInMonth) return null;
+    return `${y}-${pad2(mo)}-${pad2(d)}`;
+  }
+  // Live-formats a dd/mm/yyyy text field as the user types/pastes: strips
+  // everything but digits, caps at 8 (ddmmyyyy), and re-inserts the two
+  // slashes at the right positions.
+  function applyDateMask(el) {
+    const digits = el.value.replace(/\D/g, "").slice(0, 8);
+    let formatted = digits;
+    if (digits.length > 4) formatted = `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+    else if (digits.length > 2) formatted = `${digits.slice(0, 2)}/${digits.slice(2)}`;
+    el.value = formatted;
   }
 
   function showScreen(view) {
@@ -1548,8 +1606,8 @@
   }
 
   // Editing a Past Workout is meant to be a deliberate, bounded action —
-  // its back button becomes "Save" rather than navigating away (see
-  // renderWorkoutHeader/backNavBtn). The bottom tab bar is the only other
+  // the "Edit" button becomes "Save" rather than navigating away (see
+  // renderWorkoutHeader/editToggleBtn). The bottom tab bar is the only
   // way to leave the screen while mid-edit, so it's the one place this
   // guard needs to intercept: confirm before abandoning edit mode.
   function guardLeavingEdit(proceed) {
@@ -2077,11 +2135,27 @@
     w.label = e.target.value;
     saveActiveWorkout();
   });
-  document.getElementById("dateInput").addEventListener("change", (e) => {
+  document.getElementById("dateInput").addEventListener("input", (e) => applyDateMask(e.target));
+  document.getElementById("dateInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") e.target.blur();
+  });
+  document.getElementById("dateInput").addEventListener("blur", (e) => {
     const w = getActiveWorkout();
     if (!w) return;
-    w.date = e.target.value || todayISO();
-    saveActiveWorkout();
+    const raw = e.target.value.trim();
+    if (raw === "") {
+      w.date = todayISO();
+      saveActiveWorkout();
+    } else {
+      const iso = parseDMYToISO(raw);
+      if (iso) {
+        w.date = iso;
+        saveActiveWorkout();
+      }
+      // else: invalid/incomplete entry — leave the stored date as-is;
+      // the line below resyncs the field back to it either way.
+    }
+    e.target.value = isoToDMY(w.date);
   });
 
   document.getElementById("headerMenuBtn").addEventListener("click", (e) => {
@@ -2095,10 +2169,7 @@
     if (!action) return;
     headerMenuOpen = false;
 
-    if (action === "toggle-edit") {
-      editMode = true;
-      render();
-    } else if (action === "complete") {
+    if (action === "complete") {
       openConfirm(
         "Finish Workout?",
         "This will move today's workout into your history and make the next queued workout active.\n\nAre you sure you want to finish today's workout?",
@@ -2374,6 +2445,19 @@
   // exercise, in chronological / logged order. Read-only: never touches
   // `history`. Kept as its own function so the row-building logic stays
   // in one place if new fields are ever added to the exercise model.
+
+  // Decimal values (Weight, RPE, Rest) are exported with a comma
+  // separator, not JS's default period, because a bare period-decimal
+  // like "22.5" pasted into Excel under many European regional settings
+  // (where "." is the *date* separator, not decimal) gets silently
+  // misread as a date ("22 May") and stored as a date serial number
+  // instead of the number 22.5. Whole numbers (no fractional part) are
+  // unaffected either way, so this is safe to run on every value.
+  function formatDecimalForExport(value) {
+    if (value === "" || value === null || value === undefined) return "";
+    return String(value).replace(".", ",");
+  }
+
   function buildGymLogExportRows(fromDate, toDate) {
     let sorted = [...history].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     if (fromDate) sorted = sorted.filter(w => w.date && w.date >= fromDate);
@@ -2384,7 +2468,7 @@
       let nextLetter = 65; // 'A'
       for (const ex of w.exercises) {
         const mins = restSecondsToMinutes(ex.rest);
-        let restCell = mins === "" ? "" : String(mins);
+        let restCell = mins === "" ? "" : formatDecimalForExport(mins);
         if (ex.supersetId) {
           if (!supersetLetters.has(ex.supersetId)) {
             supersetLetters.set(ex.supersetId, String.fromCharCode(nextLetter++));
@@ -2397,11 +2481,11 @@
           ex.name || "",
           ex.sets === "" || ex.sets == null ? "" : ex.sets,
           ex.reps === "" || ex.reps == null ? "" : ex.reps,
-          ex.weight === "" || ex.weight == null ? "" : ex.weight,
+          ex.weight === "" || ex.weight == null ? "" : formatDecimalForExport(ex.weight),
           "", // Volume — left blank; it's a formula column in the target sheet
           ex.notes || "",
           restCell,
-          ex.rpe === "" || ex.rpe == null ? "" : ex.rpe
+          ex.rpe === "" || ex.rpe == null ? "" : formatDecimalForExport(ex.rpe)
         ]);
       }
     }
@@ -2413,8 +2497,8 @@
   }
 
   function refreshExportGymLogPreview(autoCopy) {
-    const from = document.getElementById("exportGymLogFrom").value || null;
-    const to = document.getElementById("exportGymLogTo").value || null;
+    const from = parseDMYToISO(document.getElementById("exportGymLogFrom").value) || null;
+    const to = parseDMYToISO(document.getElementById("exportGymLogTo").value) || null;
     const rows = buildGymLogExportRows(from, to);
     const textarea = document.getElementById("exportGymLogTextarea");
     const info = document.getElementById("exportGymLogInfo");
@@ -2442,6 +2526,8 @@
     refreshExportGymLogPreview(true);
   }
 
+  document.getElementById("exportGymLogFrom").addEventListener("input", (e) => applyDateMask(e.target));
+  document.getElementById("exportGymLogTo").addEventListener("input", (e) => applyDateMask(e.target));
   document.getElementById("exportGymLogFrom").addEventListener("change", () => refreshExportGymLogPreview(false));
   document.getElementById("exportGymLogTo").addEventListener("change", () => refreshExportGymLogPreview(false));
 
@@ -2592,20 +2678,14 @@
     );
   });
 
-  document.getElementById("backNavBtn").addEventListener("click", () => {
-    if (backNavTarget === "queue") {
-      showScreen("queue");
-    } else if (backNavTarget === "history") {
-      if (editMode) {
-        // Acting as "Save": exit edit mode and stay on this screen,
-        // rather than navigating away.
-        editMode = false;
-        saveActiveWorkout();
-        render();
-      } else {
-        showScreen("history");
-      }
+  document.getElementById("editToggleBtn").addEventListener("click", () => {
+    if (!editMode) {
+      editMode = true;
+    } else {
+      editMode = false;
+      saveActiveWorkout();
     }
+    render();
   });
   document.getElementById("emptyAddAdhocBtn").addEventListener("click", addAdhocWorkout);
   document.getElementById("emptyImportBtn").addEventListener("click", openImportModal);

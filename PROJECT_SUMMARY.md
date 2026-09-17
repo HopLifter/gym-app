@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v39` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v43` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -36,10 +36,15 @@ no subscriptions.
   destructive button (delete, end program, replace, leave without saving),
   `danger: false` gives an accent/primary button (restore, finish workout)
   for reversible or positive actions.
+- **Custom dd/mm/yyyy text fields instead of native `<input type="date">`**
+  — native date pickers display in whatever format the phone's OS/browser
+  locale uses (often mm/dd/yyyy), and there's no way to force that. Any
+  future date input should follow the same pattern (see "Date Handling"
+  below) rather than reaching for `type="date"`.
 
 ## Data model
-Unchanged this session — no data model or application logic changes, only
-navigation/UI reorganization and cosmetic fixes. localStorage keys:
+No data model changes this session — only navigation/UI reorganization,
+a date-format overhaul, and an export bugfix. localStorage keys:
 - `gymapp_program_v1` — the currently active imported program, if any:
   `{ id, name, importedAt }`. `null`/absent if no program is active.
 - `gymapp_queue_v1` — array of planned workouts, each:
@@ -51,412 +56,268 @@ navigation/UI reorganization and cosmetic fixes. localStorage keys:
   `{ id, programId, label, date, status: "completed", note, exercises }`
   (no `order` field — history is sorted by `date`, newest first).
 - `gymapp_exercise_list_v1` — flat array of strings, the standardized
-  exercise list (formerly the hardcoded `CANONICAL_EXERCISES`). Always
-  kept sorted alphabetically by the code that writes it. See "Exercise
-  List Management" below.
+  exercise list. Always kept sorted alphabetically by the code that writes it.
 - Each exercise: `{ id, name, sets, reps, weight, rpe, rest, notes, supersetId }`.
   `rest` is stored **in seconds** internally (see Rest Timer note below).
+  All date values in the data model are stored as ISO `yyyy-mm-dd` strings
+  regardless of how they're displayed (see "Date Handling" below).
 
-## Navigation & screen structure (reworked again this session — bottom tab bar)
-The previous session introduced a `navStack`-based back-button system with
-per-screen ⋮ menus offering "Today's Workout" / "View Queue" / "View
-History" / "Settings" everywhere. This session replaced all of that with a
-single, always-visible **bottom tab bar** and stripped out everything the
-tab bar made redundant. `navStack`, `navigateBack()`, `peekBack()`,
-`screenLabel()`, and `SCREEN_LABELS` are all gone — there's no navigation
-history to track anymore, since the tab bar means you're never more than
-one tap from any of the four top-level screens.
+## Date Handling (overhauled this session)
+Every date the app displays now reads **dd/mm/yyyy** consistently,
+regardless of the phone's OS/browser locale:
+- **Read-only display**: `isoToDMY(iso)` → `dd/mm/yyyy`, used by
+  `formatDateBadge()` (Today's Workout date badge). `formatDateDisplay()`
+  (History list, Recent Performance rows) uses the same day-first
+  convention but spells out the weekday/month (`Weekday, D Mon YYYY`).
+- **Editable date fields**: native `<input type="date">` was replaced
+  everywhere with a plain text field (`inputmode="numeric"`,
+  `placeholder="dd/mm/yyyy"`), since native date pickers render in
+  whatever format the phone's locale dictates and that can't be
+  overridden. Affects three fields: the Past Workout date editor
+  (`#dateInput`), and Export Gym Log's From/To range
+  (`#exportGymLogFrom` / `#exportGymLogTo`).
+- **Supporting helpers** (all reusable for any future date field):
+  - `isoToDMY(iso)` — ISO → `dd/mm/yyyy` display string.
+  - `parseDMYToISO(str)` — parses `dd/mm/yyyy` text back to ISO, with
+    real validation (month range, day-of-month range including leap
+    years); returns `null` if invalid/incomplete.
+  - `applyDateMask(el)` — live-formats a text field as the user types or
+    pastes: strips non-digits, caps at 8 digits, re-inserts the two `/`
+    separators. Wired to each field's `input` event.
+  - Each field also has a `blur` handler: empty → defaults sensibly
+    (e.g. today's date for the workout editor); valid `dd/mm/yyyy` →
+    parses and saves; invalid/incomplete → silently reverts the display
+    back to the last valid stored value, so bad input can't get saved.
+- **Known limitation removed**: previously the native date inputs were
+  documented as an unfixable locale limitation. They're now fully custom,
+  so that limitation no longer applies anywhere in the app.
 
-**Bottom tab bar** (`#bottomNav`) — History / Today / Queue / Settings, in
-that order, fixed to the bottom of the screen.
+## Export Gym Log — decimal bugfix (this session)
+**Bug**: weights like `22.5` were coming out as garbage numbers (e.g.
+`46159`) after pasting into the user's external Excel sheet.
+**Root cause**: `ex.weight`, `ex.rpe`, and the rest-in-minutes value were
+exported using JS's default period-decimal formatting (`"22.5"`). Under
+many European Excel regional settings, `.` is the *date* separator, not
+decimal — so a bare `22.5` gets silently parsed as "22 May" and stored as
+a date serial number instead of the number 22.5. This only happens inside
+Excel's own paste-parsing, which is why it couldn't be reproduced by
+inspecting the app's data directly.
+**Fix**: `formatDecimalForExport(value)` now formats every decimal export
+value (Weight, RPE, Rest-in-minutes) with a comma separator (`"22,5"`)
+instead of a period, matching the target sheet's regional format. Whole
+numbers are unaffected (no separator to misinterpret either way). Applied
+in `buildGymLogExportRows()`.
+**Assumption to flag**: this assumes the target Excel's regional settings
+use comma decimals, which is consistent with the bug report but hasn't
+been independently confirmed — worth a follow-up if the user's Excel
+turns out to expect periods after all.
+
+## Navigation & screen structure
+**Bottom tab bar** (`#bottomNav`) — History / Today / Queue / Settings,
+fixed to the bottom of the screen, the only way to switch between the
+four top-level screens (no back buttons or ⋮-menu shortcuts to them
+exist anymore anywhere in the app).
 - Visible on all four top-level screens (Workout, Queue, History,
-  Settings). Hidden only on the Exercise List sub-page
-  (`updateBottomNav()`, called at the end of every `showScreen()`).
-- Each button gets a top/left/right border (rounded top corners, 14px
-  radius — matching the radius used on exercise cards) that turns
-  accent-green when that tab is the active one; no border on the bottom
-  edge, since it sits flush against the bar.
-- "Today" always calls `goHome()` (resets to the front-of-queue workout).
-  Queue/History/Settings call `navigateTo(view)`, now a thin wrapper
-  around `showScreen(view)` with no stack bookkeeping.
-- **Active-tab logic reflects where the content actually lives, not just
-  which screen is showing** — see `updateBottomNav()`. While on the
-  Workout screen: peeking a **non-next** Queued Workout keeps **Queue**
-  highlighted (not Today); viewing a Past Workout keeps **History**
-  highlighted; only the actual next-queued workout (or the empty state)
-  highlights **Today**.
-- Tapping a tab while mid-edit on a Past Workout is intercepted — see
-  "Edit-mode guard" below.
+  Settings). Hidden only on the Exercise List sub-page.
+- **Buttons sit flush to the true bottom edge** (`bottom: 0`, no gap
+  below the bar) so the button background/border always reach the
+  screen edge and nothing scrolled ever shows through underneath. The
+  label itself is lifted up for thumb reach via the button's own
+  generous **bottom padding** (`calc(env(safe-area-inset-bottom) +
+  var(--bottom-nav-gap))`) rather than an external offset — an earlier
+  version used an external gap, which left a strip below the bar where
+  scrolled content was visible; fixed this session.
+- **Buttons touch edge-to-edge with no gap between them** and have a
+  flat, unrounded bottom edge (`border-radius: 14px 14px 0 0;
+  border-bottom: none`) — only the top corners round.
+- Active tab turns accent-green (border + text). Active-tab logic
+  reflects where the content actually lives, not just which screen is
+  showing: while on the Workout screen, peeking a **non-next** Queued
+  Workout keeps **Queue** highlighted (not Today), and viewing a Past
+  Workout keeps **History** highlighted.
+- "Today" always calls `goHome()` (resets to the front-of-queue
+  workout). Queue/History/Settings call `navigateTo(view)`, a thin
+  wrapper around `showScreen(view)`.
 
-**⋮ menus were removed from Queue, History, and Settings entirely** — they
-only ever held the four tab-bar destinations, so once those were always
-one tap away at the bottom, the menus had nothing left in them. All three
-screens now have **no back button and no ⋮ menu** — just their `<h1>` and
-content. (Settings already had no ⋮ menu; it lost its back button too.)
+**Sticky headers** (new this session) — the top part of Workout, Queue,
+and History stays fixed in place while the content below it scrolls.
+- Shared `.sticky-header` class (`position: sticky; top: 0`) used by all
+  three. **Important CSS detail**: it also cancels out the body's own
+  20px top padding via `margin-top: -20px; padding-top: 20px`, moving
+  that space *inside* the sticky box. Without this, the top padding sits
+  *before* the sticky element in the scroll flow and has to scroll away
+  first, causing a visible "jump" the instant you start scrolling before
+  the header actually locks — this was a real bug found and fixed this
+  session. Any new sticky header should reuse this class rather than
+  rolling its own `position: sticky` rule.
+- **Workout screen**: sticky zone = eyebrow row (label + ⋮ menu) + title
+  row + date badge/input, wrapped in `#workoutStickyHeader`.
+- **Queue screen**: sticky zone = `<h1>Queue</h1>` + the program-info
+  bar, wrapped in `#queueStickyHeader`. The "Add Workout" button and the
+  queue list scroll normally below it.
+- **History screen**: sticky zone = just `<h1>History</h1>`, wrapped in
+  `#historyStickyHeader` with the `.sticky-header--gap` modifier (adds
+  16px bottom padding, since History has no trailing element like a
+  date badge to create that gap naturally — matches the Workout screen's
+  spacing before its exercise list).
 
-**Workout screen** keeps its own ⋮ menu (`#headerMenuBtn` /
-`#headerMenuDropdown`, built by `renderHeaderMenu()`), now trimmed to only
-screen-specific actions since Today's Workout / View Queue / History /
-Settings are gone from it:
-- Today's Workout (no back button, empty state): **no items** → the ⋮
-  button hides itself (`headerMenuBtn` gets `.hidden` when
-  `items.length === 0`).
-- Today's Workout (front of queue): Finish Workout, Delete from Queue.
-- Peeked Queued Workout (not next): Delete from Queue.
-- Past Workout, not editing: Edit, Restore to Queue, Delete from History.
-- Past Workout, editing: Restore to Queue, Delete from History only —
-  **"Edit" is hidden while already editing, and there's no "Save" item
-  anymore** (Save moved to the back button — see below).
-- **⋮ menu position**: the same `#navRight` node (menu button + dropdown)
-  is reparented by `positionHeaderMenu()` depending on whether a back
-  button is showing — inline with the eyebrow label (`#eyebrowRow`) when
-  there's no back button (Today's Workout / empty state), or up in the
-  top-nav row next to the back button (`#topNav`) otherwise (peeked
-  Queued Workout / Past Workout). One menu, one set of listeners, just
-  moved between two containers — not two separate menus.
+**Workout screen header — no back button anymore.** Previously a
+contextual "Back to Queue" / "Back to History" button lived at the top
+of this screen; it's been removed entirely since the bottom tab bar's
+Queue/History tabs already do the same job. This changed the header
+layout for the two "peek" states (a non-next Queued Workout, or a Past
+Workout):
+- **Today's Workout / empty state** (`backNavTarget === null`): unchanged
+  two-row layout — eyebrow label + ⋮ menu on one row (`#eyebrowRow`),
+  editable title below it on its own row.
+- **Peeked Queued Workout / Past Workout** (`backNavTarget` set): the
+  eyebrow row is hidden entirely (no more "Queued Workout" / "History ·
+  Read Only" / "History · Editing" label text), and the title moves up
+  into a single row alongside the ⋮ menu: `[title (flex, fills space)]
+  [Edit/Save button, History only] [⋮ menu]`. `backNavTarget` is kept
+  internally purely to decide this layout and where the ⋮ menu node
+  lives — it no longer drives any visible button.
+- **`#navRight`** (the ⋮ menu button + dropdown) is a single DOM node
+  reparented by `positionHeaderMenu()` between `#eyebrowRow` (Today) and
+  `#titleRow` (peek views) — one menu, one set of listeners, just moved.
 
-**Contextual back button** (`#backNavBtn`, driven by `backNavTarget`) —
-unchanged in concept from before: shown only when viewing something other
-than today's active workout. `"queue"` for a peeked Queued Workout
-("Back to Queue", always navigates), `"history"` for a Past Workout,
-`null` (hidden) for Today's Workout / empty state.
-- **On a Past Workout, this button now doubles as Save.** While
-  `editMode` is true it reads **"Save"**; clicking it saves and returns
-  to read-only view *on the same screen* rather than navigating away.
-  Only once you're back in read-only mode does it revert to
-  **"Back to History"** and actually navigate on click.
+**Edit/Save toggle button** (`#editToggleBtn`, History only) — replaces
+both the old ⋮ menu "Edit" item and the old back-button-doubling-as-Save
+behavior, now that there's no back button to double up. Styled via the
+`.header-action-btn` class (same pill look the old back button used,
+class renamed since its role changed). Sits in `#titleRow` immediately
+to the left of the ⋮ menu. Reads "Edit" when not editing (click enters
+edit mode); reads "Save" while editing (click saves, exits edit mode,
+stays on the same screen — same underlying behavior as before, just
+triggered from this button instead of the back button). Hidden entirely
+for Queue workouts, which have no read-only/edit-mode concept (always
+fully editable).
 
-**Edit-mode guard** — editing a Past Workout is meant to be a bounded,
-deliberate action now that Save lives on the back button. The only way to
-leave the Workout screen while `viewSource === "history" && editMode` is
-the bottom tab bar (the ⋮ menu's Edit item is hidden while editing, and
-the back button *is* Save, not a nav action), so `guardLeavingEdit()`
-wraps all four bottom-nav click handlers: if you're mid-edit, it opens a
-confirm modal ("Leave without saving?") before proceeding; confirming
-exits edit mode and continues the navigation, cancelling leaves you where
-you were. Note: this does **not** guard the ⋮ menu's own Restore/Delete
-actions while mid-edit — those already have their own destructive-action
-confirm dialogs, so leaving via one of them isn't separately intercepted.
+**Edit-mode guard** — unchanged in concept: editing a Past Workout is a
+bounded, deliberate action. The only way to leave the Workout screen
+while `viewSource === "history" && editMode` is the bottom tab bar (the
+⋮ menu has no Edit item to interfere, and the Edit/Save button doesn't
+navigate), so `guardLeavingEdit()` wraps all four bottom-nav click
+handlers: mid-edit, it opens a "Leave without saving?" confirm before
+proceeding. Doesn't separately guard the ⋮ menu's own Restore/Delete
+actions while mid-edit — those already have their own confirm dialogs.
 
-**Delete/Restore action wiring is now unified** — previously the header
-⋮ menu and the matching list-item ⋮ menu used *different*
-`data-action` values for the same action (e.g. `delete-workout` vs.
-`delete-from-history`), so CSS and click-handler logic had to be
-duplicated per entry point. Both entry points now share one name each:
-`delete-queue-workout`, `delete-from-history`, `restore-to-queue`. Same
-underlying `confirmDeleteFromQueue()` / `confirmDeleteFromHistory()`
-helpers as before; just one wiring to maintain instead of two.
+**Queue screen wording** — "Add Ad-hoc Workout" renamed to **"Add
+Workout"** in both places it appears (Queue screen's button and the
+Workout screen's empty-state button), for brevity/consistency.
+
+**Settings screen** — added spacing between the `<h1>Settings</h1>`
+title and the first section box below it (`.settings-title { margin-
+bottom: 18px }`); previously they sat flush together.
 
 **Exercise List** — unchanged: still a Settings sub-page
 (`#exerciseListScreen`), reached only via Settings, with its own
 hardcoded "Back to Settings" button. Does **not** get the bottom tab bar
-(`updateBottomNav()` hides it specifically on this screen) — it's a
-deliberate single-parent dead end, not a top-level destination.
-
-**Terminology** — "History" is now used consistently everywhere it's
-referred to: the screen title (`<h1>History</h1>`), the bottom-nav label,
-the ⋮ menu item, and the Past Workout eyebrow ("History · Read Only" /
-"History · Editing"). Previously this varied between "History", "View
-History", "Past Workouts", and "Past Workout".
-
-**Program import button wording** — the Workout screen's empty-state
-button now says **"Start New Program"** (was "Import Program"), matching
-the wording of the identical button in Settings. Both call the same
-`openImportModal()`.
-
-## Current UI polish (this session)
-- **Dates are always day-first**, explicitly formatted rather than via
-  `toLocaleDateString()` (which follows the phone's region settings and
-  could silently render mm/dd/yyyy): the workout date badge now reads
-  `dd/mm/yyyy` (`formatDateBadge()`), and History list / Recent
-  Performance rows read `Weekday, D Mon YYYY` (`formatDateDisplay()`).
-  **Known limitation**: the native `<input type="date">` fields (editing
-  a Past Workout's date, Export Gym Log's From/To range) still render in
-  whatever format the phone's OS/browser locale uses — there's no way to
-  force those short of replacing them with a custom-built date picker,
-  which hasn't been done.
-- **"+" prefixes removed** from "Add Ad-hoc Workout" and "Add Exercise"
-  button labels (both instances of the former — Queue screen and the
-  Workout empty-state). "+ Add to Exercise List" is unchanged (not part
-  of this request).
-- **"Manage Exercise List" button** in Settings no longer uses accent
-  (green) styling — it's a plain `pill-btn` now, same as the other
-  Settings action buttons.
-- **Adding a new exercise now shows its name dropdown immediately** —
-  previously a newly-added exercise started in the free-text "custom
-  name" input, and you had to tap away from it once before the dropdown
-  of standardized exercise names became available. New exercises now
-  start directly in the dropdown state, focused, with the pinned first
-  option renamed from "+ New / Custom Name" to **"New Exercise"**.
-
-## Last-tapped exercise highlighting (new this session)
-Tapping any part of an exercise card gives it a green border, so it's
-easy to spot which exercise you're currently working on at a glance.
-- `lastActiveExerciseId` tracks the id; `setLastActiveExercise()` (called
-  from the exercise-container click handler, before any action
-  branching) updates it via a **direct DOM class toggle**, not a full
-  `renderExercises()` — re-rendering would rebuild the DOM including
-  whatever input/select the user just tapped into to focus it, stealing
-  focus back out immediately. `highlightTargetFor(id)` resolves which
-  actual DOM element to toggle the class on (see next point).
-- **Standalone exercise**: its own `.exercise` card gets `.last-active`
-  (`border-color: var(--accent)`).
-- **Superset pair**: only the shared `.superset-group` box gets
-  `.last-active` — the two individual `.exercise` cards inside it are
-  *not* separately highlighted. The group wrapper carries
-  `data-superset-id` so `highlightTargetFor()` can find it; on a full
-  `renderExercises()` (delete/move/pair/unpair, etc.) the group's
-  `last-active` class is recomputed from scratch based on whether either
-  member is `lastActiveExerciseId`, so it stays in sync. The group's
-  border is **neutral by default** (`var(--line)`, same weight as a
-  regular exercise card) and only turns accent when it's actually the
-  last-tapped group — it is *not* permanently accent-colored (an earlier
-  version of this feature had a bug where the superset border was always
-  on regardless of tap state; fixed).
-- `cardHTML()` only adds `.last-active` to an individual `.exercise` card
-  when `!ex.supersetId` — a superset member's own highlighting is always
-  suppressed in favor of the group-level highlight.
+or a sticky header — deliberate single-parent dead end.
 
 ## Screen-by-screen summary
+**Workout screen** (Today's Workout / peeked Queued Workout / Past
+Workout / empty state) — see "Navigation & screen structure" above for
+the full header behavior. Sticky header; exercises scroll beneath it.
+
 **Queue screen** — plan future workouts.
-- "Current Program" name shown at top (display-only)
-- "Add Ad-hoc Workout" directly below the program info, above the list
-- Queue item ⋮ menu: Move Up, Move Down, **Delete from Queue**
-- Program management (Start New Program / End Current Program) lives in
-  Settings — no longer editable from here
-- No back button, no screen-level ⋮ menu — use the bottom tab bar
+- Sticky: `<h1>Queue</h1>` + "Current Program" info bar.
+- Scrolls: "Add Workout" button + the queue list.
+- Queue item ⋮ menu: Move Up, Move Down, Delete from Queue.
+- No back button, no screen-level ⋮ menu — use the bottom tab bar.
 
 **History screen** — review completed workouts.
-- Tapping an item opens it as a read-only Past Workout (Edit toggles
-  edit mode via the ⋮ menu, see above)
-- List item ⋮ menu: Restore to Queue, **Delete from History**
-- No back button, no screen-level ⋮ menu — use the bottom tab bar
+- Sticky: `<h1>History</h1>` only, with a small gap before the list.
+- Tapping an item opens it as a read-only Past Workout.
+- List item ⋮ menu: Restore to Queue, Delete from History.
+- No back button, no screen-level ⋮ menu — use the bottom tab bar.
 
 **Settings screen** — infrequent admin actions, reached via the bottom
 tab bar's "Settings" button from anywhere:
 - **About** — app name, `APP_VERSION`, short description
-- **Program Management** — shows current program (or "No active program"),
-  "Start New Program" (reuses the existing JSON import flow/modal),
-  "End Current Program" (only shown when a program is active)
-- **Data** — "Export Gym Log" button (opens the existing export modal)
-- **Exercise List** — count of standardized exercises + "Manage Exercise
-  List" button (plain styling, not accented), opening the dedicated
-  Exercise List sub-page (`#exerciseListScreen`, back button returns to
-  Settings). See "Exercise List Management" below.
-- No back button — use the bottom tab bar
+- **Program Management** — current program (or "No active program"),
+  "Start New Program", "End Current Program" (only when active)
+- **Data** — "Export Gym Log" button
+- **Exercise List** — count of standardized exercises + "Manage
+  Exercise List" button (plain styling, not accented)
+- No back button, no ⋮ menu — use the bottom tab bar. Extra spacing now
+  separates the title from the first section (see above).
 
-**Delete action naming and styling**
-- "Delete Workout" was ambiguous when it appeared in both Queue and
-  History contexts (different consequences — one just drops an unstarted
-  plan, the other permanently erases logged data). Renamed everywhere:
-  **"Delete from Queue"** vs. **"Delete from History"**. Confirm-modal
-  titles match ("Delete from queue?" / "Delete from history?").
-- Both entry points per destination share one confirm helper AND (as of
-  this session) one `data-action` name each — see "Delete/Restore action
-  wiring is now unified" above.
-- All destructive "Delete"-style buttons across the app are styled red
-  (`var(--danger)`). There's no single shared class for this — each
-  screen's CSS explicitly lists every `data-action` value that should be
-  red (e.g. `.header-menu-dropdown button[data-action="delete-from-history"],
-  [data-action="delete-queue-workout"], [data-action="end-program"]`).
-  **Any new delete-style button must be added to its screen's matching
-  CSS rule by hand, or it won't pick up the red styling automatically.**
+**Delete action naming and styling** — unchanged: "Delete from Queue" /
+"Delete from History" everywhere, both entry points per destination
+sharing one confirm helper and one `data-action` name each. Every
+destructive button's red styling is still listed by hand per screen in
+CSS — any new delete-style button needs to be added there too.
 
 ## Current features (as of this version)
 **Program & Queue**
-- Import a program from JSON — reached via Settings → Program Management
-  → "Start New Program", or the Workout empty-state's "Start New Program"
-  button (same underlying flow/modal, `openImportModal()`; paste JSON or
-  choose a file). Ask Claude to convert a spreadsheet/plan into the
-  expected `{ program: { name }, workouts: [...] }` format.
-- "End Current Program" (Settings) clears its remaining queued workouts
-  (completed ones stay in history) and annotates the last completed
-  workout.
-- Queue screen lists all planned workouts in order; reorder (Move Up/Down),
-  Delete from Queue, or add a one-off ad-hoc workout.
-- The active workout screen always shows the workout at the front of the
-  queue ("Today's Workout") unless you've navigated into another queued or
-  past workout to view/edit it ahead of time.
+- Import a program from JSON — Settings → Program Management → "Start
+  New Program", or the Workout empty-state's "Start New Program" button
+  (same flow/modal, `openImportModal()`).
+- "End Current Program" clears remaining queued workouts (completed ones
+  stay in history) and annotates the last completed workout.
+- Queue screen lists all planned workouts in order; reorder, delete, or
+  add a one-off "Add Workout" ad-hoc entry.
+- The active workout screen always shows the front-of-queue workout
+  unless you've navigated into another queued or past workout to peek
+  at it.
 
 **Exercise editing**
-- Editable exercise fields: name, sets, reps, weight, RPE, rest time
-- Rest time is displayed and edited **in minutes** (e.g. 1.5), stored
-  internally in seconds — see Rest Timer note below for why.
-- **Decimal fields (Weight, RPE, Rest) accept both `.` and `,` as the
-  decimal separator** — some phones only offer a comma on the numeric
-  keyboard even in English layouts. These three fields are `type="text"`
-  (not `type="number"`, which silently blocks a typed comma on most
-  browsers) with `inputmode="decimal"` to still bring up a numeric
-  keyboard. All parsing routes through a single `parseDecimalInput()`
-  helper that swaps `,` → `.` before converting to a number, so both
-  `2.5` and `2,5` store identically. Sets/Reps stay integer-only
-  (`type="number"`, `inputmode="numeric"`) and are unaffected. Any new
-  decimal field should reuse `parseDecimalInput()` rather than parsing
-  `input.value` directly, to keep comma support automatic.
-- Auto-calculated Volume (sets × reps × weight)
-- Notes field per exercise
-- Add / delete exercises, with 6-second undo after delete. New exercises
-  start with their name field showing the dropdown (see "Current UI
-  polish" above), not the free-text input.
-- Reorder exercises (Move Up / Move Down)
-- Superset pairing: link two exercises, shown grouped with a visual badge
-  and a shared border, highlighted green as a group when it's the
-  last-tapped one (see "Last-tapped exercise highlighting" above)
+- Editable fields: name, sets, reps, weight, RPE, rest time (displayed/
+  edited in minutes, stored in seconds).
+- Decimal fields (Weight, RPE, Rest) accept both `.` and `,` as the
+  decimal separator on input (`parseDecimalInput()`), independent of the
+  export-formatting fix above (which only affects the Export Gym Log
+  output, not data entry).
+- Auto-calculated Volume (sets × reps × weight), Notes field, add/delete
+  (6s undo), reorder, superset pairing.
+- New exercises start directly in the name **dropdown** (first option
+  "New Exercise"), not the free-text input — you can pick immediately
+  without tapping away first.
 
 **Export Gym Log**
-- Settings → "Export Gym Log" opens a modal that generates tab-separated
-  text of completed workouts, formatted to paste directly into the user's
-  external Excel gym log with no reformatting.
-- Column order (matches the target sheet exactly, paste starting at
-  column C): Day, Lift, Sets, Reps, Weight, *(blank — Volume is a formula
-  column in the target sheet, intentionally left empty)*, Comments, Rest
-  Time (min), RPE.
-- One row per exercise (not per set) — sets/reps/weight changes mid-lift
-  are handled by the user logging them as separate exercise entries in
-  the app, so exercise order in a workout already matches row order
-  needed in the log. No per-set data model was needed for this.
-- Weight is exported as-is; assumes the user always logs in kg (matches
-  their external sheet).
-- Rows are sorted chronologically (oldest first) across ALL completed
-  workouts by default. Optional From/To date inputs in the modal narrow
-  the export to a specific range — both blank exports full history. These
-  two date inputs are native `<input type="date">` and follow the phone's
-  locale for their own display (see "Current UI polish" limitation above).
-- Superset pairs get a `(Superset A)`, `(Superset B)`... tag appended to
-  the Rest Time cell (letters assigned per workout, not globally).
-- Read-only: pulls from `history` only, never modifies stored data.
-- Tries to auto-copy to clipboard on open (and on the explicit "Copy to
-  Clipboard" button); the textarea itself is always shown as a manual
-  fallback since clipboard permissions can be unreliable in the
-  home-screen web app context.
+- Settings → "Export Gym Log" opens a modal generating tab-separated
+  text of completed workouts, formatted to paste directly into the
+  user's external Excel gym log.
+- Column order: Day, Lift, Sets, Reps, Weight, *(blank — Volume formula
+  column)*, Comments, Rest Time (min), RPE.
+- **Weight/RPE/Rest values now export with a comma decimal separator**
+  (see bugfix above) to prevent Excel misreading them as dates.
+- From/To range fields are now custom dd/mm/yyyy text fields (see "Date
+  Handling" above), not native date pickers.
+- Superset pairs get a `(Superset A/B/…)` tag on the Rest Time cell.
+- Read-only; tries to auto-copy to clipboard, textarea shown as fallback.
 
-**Recent Performance (Workout Context)**
-- Each exercise card has a 📊 "Recent" button (next to the timer button,
-  visible in edit and read-only modes alike) that expands an inline panel
-  showing the last 3 times an exercise with that name was logged in
-  history: date (`Weekday, D Mon YYYY`), sets×reps @ weight, RPE, rest
-  time (in minutes), and notes/comments (newest first). Notes are only
-  shown if present for that session.
-- Matches purely by exercise **name** (trimmed, case-insensitive) — there's
-  no shared ID linking the same exercise across different workouts/imports,
-  so renaming an exercise breaks the match to its own prior history. Worth
-  keeping in mind if this becomes confusing in practice.
-- No history for that name → panel shows "No history yet for this
-  exercise" instead of hiding the button.
-- Read-only and inline — no navigation away from the workout, no new
-  screen. Toggling is per-exercise (`expandedHistoryIds`, a Set of
-  exercise IDs), so multiple panels can be open at once.
-- Implemented via `getRecentPerformance(name, limit)`, a standalone
-  read-only lookup over `history` — reuse this helper for any future
-  "Workout Context" additions (PRs, 1RM trend, notes) rather than writing
-  a new history scan.
+**Recent Performance** — 📊 button on each exercise card, expands last 3
+logged instances of that exercise name (date, sets×reps@weight, RPE,
+rest, notes). Matches by trimmed/lowercased name only, no stable ID.
 
-**Exercise Name Standardization**
-- Every editable exercise's name field shows exactly **one** control at
-  a time — never both a dropdown and a text box together:
-  - Normally, a `<select>` (`nameFieldHTML()`) listing the standardized
-    exercise list (`exerciseList`, persisted — see "Exercise List
-    Management" below) in alphabetical order, with **"New Exercise"**
-    pinned at the top of the list. The dropdown's own visible text is
-    whatever the exercise is currently named — a list entry, or (via a
-    synthetic `<option>` inserted just for this) a custom name the user
-    already typed. "New Exercise" is only ever an option *inside* the
-    list, never the persistently displayed value.
-  - While actively entering a custom name, a plain free-text input plus
-    an inline **"+ Add to Exercise List"** button (no dropdown visible).
-    Entered by picking "New Exercise" from the dropdown (clears the
-    name, focuses the input), or automatically for a brand-new exercise
-    added via "Add Exercise" (see "Current UI polish" above — this
-    changed this session: new exercises now start in the *dropdown*
-    state, not this custom-text state, so this path is only reached by
-    explicitly picking "New Exercise").
-    Leaving the field (blur) or pressing Enter exits back to the
-    dropdown view, now showing whatever was typed; tapping "+ Add to
-    Exercise List" instead adds it to the standardized list (see below)
-    and also exits back to the dropdown view, now showing it selected.
-  - Which state an exercise is in is tracked in `customNameEditingIds`
-    (a `Set` of exercise ids), cleared on delete/undo-safe cleanup.
-- If an exercise's current name exactly matches a list entry
-  (case/punctuation/whitespace-insensitive), the dropdown pre-selects
-  that entry.
-- Read-only views (viewing a past workout without Edit active) are
-  unaffected — still a plain disabled text field, no dropdown.
-- `findCanonicalMatch()` (exact-match lookup) is a small, reusable
-  helper decoupled from the list itself.
+**Exercise Name Standardization** — dropdown of the standardized list
+(`exerciseList`, persisted) with "New Exercise" pinned first; picking it
+switches to a free-text input + "+ Add to Exercise List" button.
+Read-only views stay a plain disabled text field.
 
-**Exercise List Management**
-- The standardized exercise list is persisted in localStorage
-  (`gymapp_exercise_list_v1`, a flat array of strings) and fully
-  user-editable. Managed via `exerciseList` (a module-level array, always
-  kept sorted alphabetically by every function that mutates it — nothing
-  downstream needs a separate "_SORTED" copy).
-- **Migration**: on first load with no saved list yet, `exerciseList` is
-  seeded from `MIGRATION_SEED_EXERCISES` (the old hardcoded 57-entry
-  list), sorted, and saved. That seed constant is only ever read once, on
-  that first migration. Existing queue/history/program data is untouched.
-- **Settings → Exercise List** (`#exerciseListScreen`): lists every
-  standardized exercise alphabetically, each with a "Remove" button (a
-  confirm modal warns that it won't affect past workouts using that
-  name), plus a text input + "Add" button at the top (also submits on
-  Enter). Inline error text covers empty/duplicate input.
-- **Add from today's workout**: while entering a custom exercise name
-  during a workout, a "+ Add to Exercise List" button promotes that name
-  straight into the standardized list without leaving the workout.
-- `addExerciseToList(rawName)` — trims whitespace, rejects empty input
-  and exact case-insensitive duplicates (`isDuplicateExerciseName()`),
-  otherwise pushes + re-sorts + persists. Returns `{ ok: true }` or
-  `{ ok: false, reason: "empty" | "duplicate" }`.
-- `removeExerciseFromList(name)` — filters the name out of `exerciseList`
-  and persists; never touches `queue` or `history`.
-- Deliberately **not fuzzy**: duplicate detection here is exact
-  (case/whitespace-insensitive only).
+**Exercise List Management** — Settings → Exercise List sub-page: full
+CRUD over the standardized list, exact-duplicate detection (not fuzzy).
 
-**Rest Timer**
-- Each editable exercise has a ⏱ button that starts a rest timer using
-  that exercise's configured rest duration.
-- A single persistent floating timer bar is visible across all screens
-  without blocking interaction, positioned just above the bottom tab bar.
-- Controls: Pause / Resume / Reset (back to the original duration) /
-  Dismiss.
-- Only one timer can run at a time; starting a new one replaces the
-  current one.
-- At zero: shows "Rest complete" with a pulse animation. No sound/vibration.
-- **Timestamp-based, so it stays accurate through backgrounding** — the
-  countdown is calculated from a fixed start time + duration vs. the
-  current time, so it self-corrects if you switch apps, lock your phone,
-  or take a call. A `visibilitychange` listener forces an immediate
-  recheck on return. Doesn't survive the app being fully closed/killed
-  (in-memory only) — known limitation, no background notifications
-  either.
+**Rest Timer** — per-exercise ⏱ button, single persistent floating timer
+bar above the bottom tab bar, timestamp-based so it survives
+backgrounding. Doesn't survive the app being fully closed.
 
-**Active workout date**
-- Today's Workout shows today's date as a read-only badge, formatted
-  `dd/mm/yyyy` — informational only, not stored, since queued workouts
-  don't get a real date until they're completed.
-- Other queued/future workouts don't show a date badge.
+**Active workout date** — Today's Workout shows a read-only `dd/mm/yyyy`
+date badge (informational only, not stored until the workout completes).
 
-**Workout history**
-- Editable workout name and date on the current workout
-- "Finish Workout" (⋮ menu, only when viewing today's actual active
-  workout) asks for confirmation first before saving a full copy into
-  History and advancing to the next queued workout.
-- Tapping a past workout opens it in the same workout view used for today
-- Past workouts open **read-only** by default; "Edit" (⋮ menu, only shown
-  when not already editing) enters edit mode. **Saving now happens via
-  the back button, which becomes "Save" while editing** (see "Navigation
-  & screen structure" above) — there is no separate Save item in the ⋮
-  menu anymore, and navigating away via the bottom tab bar while mid-edit
-  triggers a "Leave without saving?" confirmation.
-- "Delete from History" (⋮ menu on a Past Workout, and the History list's
-  own per-item ⋮ menu) permanently removes a workout after confirming.
-  Both entry points share `confirmDeleteFromHistory()` and the same
-  `data-action="delete-from-history"`.
-- "Restore to Queue" — available from both the History list and the ⋮
-  menu while viewing a past workout, sharing `data-action="restore-to-queue"`.
-  Moves a completed workout back into the active queue (status reset,
-  date cleared), preserving all exercise data.
-- "Back to History" / "Save" button (top-left) appears whenever viewing
-  a past workout.
+**Workout history** — editable workout name/date; "Finish Workout" (⋮
+menu) moves today's workout into History; Past Workouts open read-only
+by default, "Edit" (now a dedicated button, see above) enters edit mode,
+same button becomes "Save" to exit; "Delete from History" / "Restore to
+Queue" available from both the History list and the Workout screen's ⋮
+menu, sharing the same underlying actions.
+
+**Last-tapped exercise highlighting** — tapping an exercise gives it a
+green border (or highlights the shared box for a superset pair, not the
+individual members) via direct DOM class toggle, not a full re-render,
+so it doesn't steal focus from a field you just tapped into.
 
 **General**
 - Installable as a home screen shortcut via browser (Add to Home Screen)
@@ -469,41 +330,38 @@ tab bar's "Settings" button from anywhere:
 - The rest timer doesn't survive the app being fully closed/killed (only
   brief backgrounding); no background notifications.
 - Export Gym Log assumes weight is always entered in kg — no unit
-  conversion. If the target sheet's column order/layout ever changes,
-  update the column list inside `buildGymLogExportRows()` to match.
+  conversion. The comma-decimal export fix assumes the target sheet's
+  regional settings use comma decimals — flagged to the user as an
+  assumption pending their confirmation.
 - `APP_VERSION` (shown on Settings → About) is a separate constant from
-  `CACHE_NAME` in `sw.js` — both must be bumped together by hand, there's
-  no single source of truth for the version string yet.
-- Native `<input type="date">` fields (editing a Past Workout's date,
-  Export Gym Log's From/To range) display in whatever format the phone's
-  OS/browser locale uses — can't be forced to dd/mm/yyyy without
-  replacing them with a custom date picker (not done).
+  `CACHE_NAME` in `sw.js` — both must be bumped together by hand.
 - The edit-mode "leave without saving?" guard only covers the bottom tab
   bar. The ⋮ menu's Restore to Queue / Delete from History actions while
-  mid-edit on a Past Workout aren't separately intercepted by this guard
-  (they have their own confirm dialogs already).
+  mid-edit on a Past Workout aren't separately intercepted (they have
+  their own confirm dialogs already).
+- Queue workouts have no Edit/read-only concept (always fully editable),
+  so the Edit/Save button pattern used on Past Workouts doesn't apply
+  there — confirmed as intentional this session.
 
 ## Backlog / ideas not yet built
 - Rename an existing standardized exercise (currently: remove + re-add)
 - Merge two standardized exercises into one
 - Aliases/synonyms for a standardized exercise
 - Search/filter within the Exercise List page or the name dropdown
-  (both currently just a plain alphabetical list)
 - Import/export the exercise list
 - Usage stats (how often each standardized exercise is used)
-- Search past workouts
-- Filter by exercise
-- Show personal records (natural next step on top of Recent Performance)
-- Estimated 1RM / volume trends (natural next step on top of Recent Performance)
-- Match recent performance by a stable exercise ID instead of name, so
-  renaming an exercise doesn't break its history match
+- Search past workouts / filter by exercise
+- Show personal records / estimated 1RM / volume trends (natural next
+  steps on top of Recent Performance)
+- Match recent performance by a stable exercise ID instead of name
 - Bulk export of all workout history (not tied to a single program)
 - Automatic timer start after completing a set
 - Audio/vibration alert when the rest timer finishes
-- Custom-built date picker for the two native date inputs, if
-  dd/mm/yyyy consistency there ever becomes worth the extra complexity
 - Extend the "leave without saving?" edit-mode guard to the ⋮ menu's
   Restore/Delete actions, if that gap ever causes confusion in practice
+- Confirm with the user whether the Export Gym Log's target sheet
+  actually expects comma decimals (see Known limitations above) and
+  adjust `formatDecimalForExport()` if not
 
 ## How to resume work in a new chat
 1. Upload the current `index.html` and `sw.js`
@@ -516,6 +374,8 @@ tab bar's "Settings" button from anywhere:
 - If anything is ambiguous, ask clarifying questions before proceeding.
 - Prefer custom in-app modals/banners over native `window.confirm()` /
   `alert()` / `prompt()` for any new confirmation UI (see note above).
+- Prefer custom dd/mm/yyyy text fields over native `<input type="date">`
+  for any new date input (see "Date Handling" above).
 - **When wrapping up a session, all hand-over docs must be updated before
   ending, without being asked:**
   1. Provide a git commit message for the session's changes.
