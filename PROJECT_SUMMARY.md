@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v43` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v46` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -42,9 +42,29 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
+## Bug fix (this session)
+- **"New Exercise" option was unresponsive on a brand-new exercise.** A
+  freshly added exercise has `name: ""`, and the name dropdown always
+  lists "New Exercise" as its first `<option>` — so with nothing else
+  selected, the browser auto-selects it by default. Tapping "New
+  Exercise" again therefore didn't change the `<select>`'s value, which
+  means it never fired a `change` event, so the code that opens the
+  free-text input (`customNameEditingIds`) never ran. Net effect: right
+  after adding an exercise, choosing "New Exercise" silently did
+  nothing, with no way to type a custom name.
+  **Fix**: `nameFieldHTML()` now gives a nameless exercise a hidden,
+  disabled placeholder `<option value="">` as its true starting
+  selection (instead of "New Exercise" itself). Picking an existing
+  exercise from the list still works exactly as before; picking "New
+  Exercise" is now always a real value change from `""` → `__custom__`,
+  so it reliably opens the text input. Only affects the moment right
+  after adding an exercise — everything else about the name field is
+  unchanged.
+
 ## Data model
-No data model changes this session — only navigation/UI reorganization,
-a date-format overhaul, and an export bugfix. localStorage keys:
+No data model changes this session — only a dropdown-selection bugfix,
+a rest timer/undo banner repositioning, and a cosmetic label tweak.
+localStorage keys:
 - `gymapp_program_v1` — the currently active imported program, if any:
   `{ id, name, importedAt }`. `null`/absent if no program is active.
 - `gymapp_queue_v1` — array of planned workouts, each:
@@ -62,7 +82,7 @@ a date-format overhaul, and an export bugfix. localStorage keys:
   All date values in the data model are stored as ISO `yyyy-mm-dd` strings
   regardless of how they're displayed (see "Date Handling" below).
 
-## Date Handling (overhauled this session)
+## Date Handling
 Every date the app displays now reads **dd/mm/yyyy** consistently,
 regardless of the phone's OS/browser locale:
 - **Read-only display**: `isoToDMY(iso)` → `dd/mm/yyyy`, used by
@@ -92,7 +112,7 @@ regardless of the phone's OS/browser locale:
   documented as an unfixable locale limitation. They're now fully custom,
   so that limitation no longer applies anywhere in the app.
 
-## Export Gym Log — decimal bugfix (this session)
+## Export Gym Log — decimal bugfix
 **Bug**: weights like `22.5` were coming out as garbage numbers (e.g.
 `46159`) after pasting into the user's external Excel sheet.
 **Root cause**: `ex.weight`, `ex.rpe`, and the rest-in-minutes value were
@@ -294,7 +314,7 @@ rest, notes). Matches by trimmed/lowercased name only, no stable ID.
 
 **Exercise Name Standardization** — dropdown of the standardized list
 (`exerciseList`, persisted) with "New Exercise" pinned first; picking it
-switches to a free-text input + "+ Add to Exercise List" button.
+switches to a free-text input + "Add to Exercise List" button.
 Read-only views stay a plain disabled text field.
 
 **Exercise List Management** — Settings → Exercise List sub-page: full
@@ -342,6 +362,44 @@ so it doesn't steal focus from a field you just tapped into.
 - Queue workouts have no Edit/read-only concept (always fully editable),
   so the Edit/Save button pattern used on Past Workouts doesn't apply
   there — confirmed as intentional this session.
+
+## Minor tweak (this session)
+- "+ Add to Exercise List" button (shown when typing a custom exercise
+  name) renamed to **"Add to Exercise List"** — dropped the leading "+"
+  for a cleaner look. Purely cosmetic; behavior, disabled state, and
+  "Already on list" wording unchanged.
+
+## Rest timer / undo banner repositioning (this session)
+**Problem**: the rest timer bar floated well above the bottom nav
+(`bottom: nav-h + gap + 88px`), covering content lower on the page — the
+"Add Exercise" button on the Workout screen, the last item in the Queue
+list, and (by the same logic) the bottom of the History list.
+**Fix, chosen to make an overlap between the timer and the undo banner
+structurally impossible rather than just unlikely**:
+- **Rest timer bar** now sits just above the bottom nav
+  (`bottom: nav-h + gap + 16px`, same clearance the undo banner used to
+  use). Body bottom padding bumped slightly (100px → 110px, on top of
+  nav-h + gap) so scrolled content on every screen — Workout, Queue, and
+  History all share the same `body` as their scroll container — clears
+  it fully instead of being covered.
+- **Undo banner** moved from the bottom (where it used to sit right next
+  to the timer's old position) to the *top* of the screen, just under
+  whichever sticky header is currently showing. New `positionUndoBanner()`
+  reads that header's rendered `offsetHeight` and sets the banner's `top`
+  inline via JS each time it's shown (`STICKY_HEADER_ID_BY_SCREEN` maps
+  `workout`/`queue`/`history` to their sticky header element IDs; also
+  repositions on window resize while visible). This relies on the sticky
+  header's existing margin/padding trick (see "Sticky headers" below)
+  that keeps it pinned at the true top of the viewport from the start —
+  so the header's height alone is enough to place the banner correctly,
+  no scroll-position tracking needed.
+- The undo banner is currently only ever triggered from the Workout
+  screen (deleting an exercise), but the screen→header mapping already
+  covers Queue and History too, so no further work is needed if an
+  undo-able action is ever added there.
+- Net effect: the timer lives at the bottom, the undo banner lives at
+  the top — they can never occupy the same space, regardless of when
+  each happens to be visible.
 
 ## Backlog / ideas not yet built
 - Rename an existing standardized exercise (currently: remove + re-add)

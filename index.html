@@ -25,7 +25,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
-    padding: 20px 16px calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 100px);
+    padding: 20px 16px calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 110px);
     max-width: 480px;
     margin: 0 auto;
   }
@@ -437,7 +437,12 @@
   .rest-timer-bar {
     position: fixed;
     left: 16px; right: 16px;
-    bottom: calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 88px);
+    /* Sits just above the bottom nav, same clearance the undo banner used
+       to use — previously floated much higher (+88px), which covered
+       content lower on the page (the Add Exercise button, the last
+       Queue/History item) since the body's reserved bottom padding
+       didn't extend that far up. */
+    bottom: calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 16px);
     max-width: 448px; margin: 0 auto;
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
@@ -491,9 +496,14 @@
     font-size: 18px; cursor: pointer; padding: 2px 4px; line-height: 1;
   }
 
+  /* Positioned via JS (see positionUndoBanner()), just under whichever
+     sticky header is showing for the current screen — top is a fallback
+     only, overwritten before the banner ever becomes visible. Moved up
+     here (was pinned above the bottom nav) so it can never overlap the
+     rest timer bar, which now lives in that bottom spot instead. */
   .undo-banner {
     position: fixed;
-    bottom: calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 16px); left: 16px; right: 16px;
+    top: 76px; left: 16px; right: 16px;
     max-width: 448px; margin: 0 auto;
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
@@ -503,6 +513,7 @@
     align-items: center;
     justify-content: space-between;
     font-size: 14px;
+    z-index: 26;
   }
   .undo-banner.visible { display: flex; }
   .undo-banner button {
@@ -915,7 +926,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v43";
+  const APP_VERSION = "gym-app-cache-v46";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1185,7 +1196,7 @@
   // Renders the exercise-name picker for editable cards.
   // Two states per exercise:
   // - Editing a custom name (id is in customNameEditingIds): a plain
-  //   free-text input, plus an "+ Add to Exercise List" button that
+  //   free-text input, plus an "Add to Exercise List" button that
   //   lets the user promote what they just typed into the standardized
   //   list right from here (disabled while empty or an exact duplicate
   //   of something already on the list). Entered on picking "New
@@ -1206,12 +1217,23 @@
       return `
         <div class="name-field-wrap">
           <input class="name-input" data-field="name" data-action="custom-name-input" value="${escapeAttr(ex.name)}" placeholder="Exercise name">
-          <button class="add-to-list-btn" type="button" data-action="add-to-exercise-list"${addDisabled ? " disabled" : ""}>${dup ? "Already on list" : "+ Add to Exercise List"}</button>
+          <button class="add-to-list-btn" type="button" data-action="add-to-exercise-list"${addDisabled ? " disabled" : ""}>${dup ? "Already on list" : "Add to Exercise List"}</button>
         </div>
       `;
     }
     const matched = findCanonicalMatch(ex.name, exerciseList);
-    const options = [`<option value="${CUSTOM_NAME_VALUE}">New Exercise</option>`];
+    const options = [];
+    if (!ex.name) {
+      // Brand-new exercise (no name yet): make the select start on an
+      // invisible placeholder value, NOT on "New Exercise" itself. If
+      // "New Exercise" were already the selected option, tapping it
+      // again fires no "change" event (the value wouldn't actually
+      // change), so the free-text input would never open. Starting on
+      // a distinct placeholder guarantees picking "New Exercise" is a
+      // real value change every time.
+      options.push(`<option value="" selected disabled hidden></option>`);
+    }
+    options.push(`<option value="${CUSTOM_NAME_VALUE}">New Exercise</option>`);
     if (!matched && ex.name) {
       // Synthetic option so the select's own visible text is the user's
       // custom name, not the "New Exercise" placeholder label.
@@ -1859,7 +1881,7 @@
     }
   });
 
-  // Primary fix: stop "+ Add to Exercise List" from ever blurring the
+  // Primary fix: stop "Add to Exercise List" from ever blurring the
   // name input in the first place. A mousedown's default action is what
   // shifts focus to the clicked element — preventing that default keeps
   // focus (and the input/button) exactly where they are; the click
@@ -1878,7 +1900,7 @@
   //
   // Backstop for the mousedown fix above (e.g. keyboard-only focus
   // changes): deferring with setTimeout(0) means if a click on
-  // "+ Add to Exercise List" is what caused this blur, that click's own
+  // "Add to Exercise List" is what caused this blur, that click's own
   // handler (which runs first, synchronously, before any timer) gets to
   // finish and clear customNameEditingIds itself — making this a no-op
   // instead of a second, conflicting render that would remove the
@@ -2070,7 +2092,7 @@
         const trimmed = ex.name.trim();
         const dup = trimmed && isDuplicateExerciseName(trimmed, exerciseList);
         addBtn.disabled = !trimmed || dup;
-        addBtn.textContent = dup ? "Already on list" : "+ Add to Exercise List";
+        addBtn.textContent = dup ? "Already on list" : "Add to Exercise List";
       }
     } else if (field === "rest") {
       ex.rest = restMinutesToSeconds(e.target.value);
@@ -2086,9 +2108,36 @@
     saveActiveWorkout();
   });
 
+  // Maps each top-level screen to the sticky header it should sit just
+  // below. The undo banner is currently only ever shown from the
+  // Workout screen (deleting an exercise), but this is written to cover
+  // Queue/History too in case a future undo-able action is added there.
+  const STICKY_HEADER_ID_BY_SCREEN = {
+    workout: "workoutStickyHeader",
+    queue: "queueStickyHeader",
+    history: "historyStickyHeader"
+  };
+  // The sticky header's own margin/padding trick (see .sticky-header CSS)
+  // keeps it pinned at the very top of the viewport from the start, not
+  // just once scrolled — so its rendered height alone (not scroll
+  // position) tells us exactly where content starts underneath it. This
+  // is what lets the undo banner sit right under the header without
+  // tracking scroll at all.
+  function positionUndoBanner() {
+    const banner = document.getElementById("undoBanner");
+    const headerId = STICKY_HEADER_ID_BY_SCREEN[currentScreen];
+    const header = headerId ? document.getElementById(headerId) : null;
+    const gap = 12;
+    banner.style.top = `${(header ? header.offsetHeight : 64) + gap}px`;
+  }
+  window.addEventListener("resize", () => {
+    if (document.getElementById("undoBanner").classList.contains("visible")) positionUndoBanner();
+  });
+
   function showUndo(name) {
     const banner = document.getElementById("undoBanner");
     document.getElementById("undoText").textContent = `"${name}" deleted`;
+    positionUndoBanner();
     banner.classList.add("visible");
     clearTimeout(undoTimer);
     undoTimer = setTimeout(() => {
