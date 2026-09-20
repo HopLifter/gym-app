@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v47` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v48` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -42,38 +42,51 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
-## New feature (this session): Backup All Data / Restore from Backup
-**Why**: this app has no accounts/cloud sync — all data lives only in
-this one browser/PWA's localStorage. Moving to a new phone had no
-code-free path: the PWA (installed via "Add to Home Screen") runs in a
-separate storage context from a regular Safari tab, so browser
-console/bookmarklet tricks run against the PWA can't see or write its
-actual data. A real in-app feature was the only way to reach it.
-**What was added** — Settings → Data:
-- **"Backup All Data"** — bundles all four localStorage keys (Program,
-  Queue, History, Exercise List) into one JSON file and downloads it
-  as `gym-data-yyyy-mm-dd.json` (date-stamped so old backups are easy
-  to tell apart).
-- **"Restore from Backup"** — opens a file picker, reads the chosen
-  JSON file, validates it looks like a real backup (checks it has at
-  least one of the expected keys and that each value is well-formed),
-  then — after a confirm modal (custom, not native, per this app's
-  usual pattern) warning it's a full, irreversible replace — overwrites
-  all four keys and reloads the app.
-- Import is a **full replace only** (whatever's in the file wins,
-  wholesale) — no merge option. A merge mode (combine instead of
-  overwrite) is listed in Backlog below as a possible future addition.
-- Deliberately kept as one flat JSON object keyed by the same
-  localStorage key names used internally — if cloud sync or another
-  storage backend is ever added later, the same shape can be POSTed
-  somewhere instead of downloaded as a file, without reworking this
-  logic. This feature is meant as a foundation for that, not just a
-  one-off fix for a single phone swap.
-- This is separate from **"Export Gym Log"**, which only exports
-  completed History as paste-ready text for an external spreadsheet —
-  Backup/Restore is the full app state, in the app's own JSON format.
+## New/changed this session: Superset State Consistency and Group Behavior
+**Why**: supersets had three related problems — removing a superset left
+the *other* exercise's `supersetId` stale (so it kept showing "Remove
+Superset" even though it was no longer paired), the two exercises'
+rest times were fully independent even though they rest together in
+practice, and reordering only moved one exercise at a time, which could
+separate a pair or interleave it with another pair.
 
-## Bug fix (this session)
+**Architecture note**: no data-model change was needed. Supersets are
+still just a shared `supersetId` string on each exercise, with adjacency
+in the `exercises` array being what makes them render as a paired group.
+Only pairs are supported (matches existing scope — nothing creates
+groups of 3+).
+
+**What changed** — all in `index.html`'s exercise-card click/input
+handlers:
+- **Removing a superset** (⋮ menu → "Remove Superset") now looks up the
+  partner exercise (`findSupersetPartner()`, matches by `supersetId`,
+  excludes self) and clears `supersetId` on both, in one save. Fixes the
+  bug where the remaining exercise kept showing "Remove Superset" after
+  its partner was un-paired.
+- **Shared rest time**: pairing two exercises (`pairSuperset()`) now
+  copies the first exercise's rest onto the second immediately, so they
+  start identical. After that, editing rest on either exercise's input
+  finds the partner and mirrors the new value onto both the partner's
+  data *and* its on-screen input (direct DOM update, not a re-render, so
+  it doesn't steal focus from whatever field is being typed in). Works
+  through the existing `parseDecimalInput()`/comma-decimal path
+  unchanged — no new input-parsing logic.
+- **Group reordering**: Move Up / Move Down on a superset member now
+  moves both exercises together as one 2-item block
+  (`moveSupersetGroup()`), preserving their internal order. It detects
+  whether the adjacent slot is a lone exercise or another superset pair
+  and hops over the correct number of items either way, so two adjacent
+  supersets swap places cleanly instead of interleaving. Non-superset
+  exercises reorder exactly as before (single-item move).
+- Since Today's Workout, a peeked Queued Workout, and an editing Past
+  Workout all render through the same `cardHTML()`/`renderExercises()`
+  and share one set of container-level event listeners, all three fixes
+  apply everywhere superset editing is possible — no per-screen
+  duplication was needed.
+- No changes to `supersetId` storage format, no data migration, no
+  changes to historical workout records.
+
+## Bug fix (previous session)
 - **"New Exercise" option was unresponsive on a brand-new exercise.** A
   freshly added exercise has `name: ""`, and the name dropdown always
   lists "New Exercise" as its first `<option>` — so with nothing else
@@ -93,9 +106,9 @@ actual data. A real in-app feature was the only way to reach it.
   unchanged.
 
 ## Data model
-No data model changes this session — only a dropdown-selection bugfix,
-a rest timer/undo banner repositioning, and a cosmetic label tweak.
-localStorage keys:
+No data model changes this session — the superset fixes are purely
+behavioral (how `supersetId`/`rest` get read, synced, and reordered),
+not structural. localStorage keys:
 - `gymapp_program_v1` — the currently active imported program, if any:
   `{ id, name, importedAt }`. `null`/absent if no program is active.
 - `gymapp_queue_v1` — array of planned workouts, each:
@@ -110,6 +123,12 @@ localStorage keys:
   exercise list. Always kept sorted alphabetically by the code that writes it.
 - Each exercise: `{ id, name, sets, reps, weight, rpe, rest, notes, supersetId }`.
   `rest` is stored **in seconds** internally (see Rest Timer note below).
+  For superset pairs, both exercises' `rest` values are now kept equal
+  by the app's code whenever either is edited or the pair is first
+  created — but this isn't structurally enforced (no schema-level
+  shared field), so anything that writes to `rest` outside the normal
+  UI flow (e.g. a hand-edited import file) could still leave them
+  mismatched until one is edited again.
   All date values in the data model are stored as ISO `yyyy-mm-dd` strings
   regardless of how they're displayed (see "Date Handling" below).
 
@@ -177,7 +196,7 @@ exist anymore anywhere in the app).
   generous **bottom padding** (`calc(env(safe-area-inset-bottom) +
   var(--bottom-nav-gap))`) rather than an external offset — an earlier
   version used an external gap, which left a strip below the bar where
-  scrolled content was visible; fixed this session.
+  scrolled content was visible; fixed in a previous session.
 - **Buttons touch edge-to-edge with no gap between them** and have a
   flat, unrounded bottom edge (`border-radius: 14px 14px 0 0;
   border-bottom: none`) — only the top corners round.
@@ -190,17 +209,16 @@ exist anymore anywhere in the app).
   workout). Queue/History/Settings call `navigateTo(view)`, a thin
   wrapper around `showScreen(view)`.
 
-**Sticky headers** (new this session) — the top part of Workout, Queue,
-and History stays fixed in place while the content below it scrolls.
+**Sticky headers** — the top part of Workout, Queue, and History stays
+fixed in place while the content below it scrolls.
 - Shared `.sticky-header` class (`position: sticky; top: 0`) used by all
   three. **Important CSS detail**: it also cancels out the body's own
   20px top padding via `margin-top: -20px; padding-top: 20px`, moving
   that space *inside* the sticky box. Without this, the top padding sits
   *before* the sticky element in the scroll flow and has to scroll away
   first, causing a visible "jump" the instant you start scrolling before
-  the header actually locks — this was a real bug found and fixed this
-  session. Any new sticky header should reuse this class rather than
-  rolling its own `position: sticky` rule.
+  the header actually locks. Any new sticky header should reuse this
+  class rather than rolling its own `position: sticky` rule.
 - **Workout screen**: sticky zone = eyebrow row (label + ⋮ menu) + title
   row + date badge/input, wrapped in `#workoutStickyHeader`.
 - **Queue screen**: sticky zone = `<h1>Queue</h1>` + the program-info
@@ -212,13 +230,12 @@ and History stays fixed in place while the content below it scrolls.
   date badge to create that gap naturally — matches the Workout screen's
   spacing before its exercise list).
 
-**Workout screen header — no back button anymore.** Previously a
-contextual "Back to Queue" / "Back to History" button lived at the top
-of this screen; it's been removed entirely since the bottom tab bar's
-Queue/History tabs already do the same job. This changed the header
+**Workout screen header — no back button.** A contextual "Back to
+Queue" / "Back to History" button was removed; the bottom tab bar's
+Queue/History tabs already do the same job. This changes the header
 layout for the two "peek" states (a non-next Queued Workout, or a Past
 Workout):
-- **Today's Workout / empty state** (`backNavTarget === null`): unchanged
+- **Today's Workout / empty state** (`backNavTarget === null`):
   two-row layout — eyebrow label + ⋮ menu on one row (`#eyebrowRow`),
   editable title below it on its own row.
 - **Peeked Queued Workout / Past Workout** (`backNavTarget` set): the
@@ -239,15 +256,13 @@ behavior, now that there's no back button to double up. Styled via the
 class renamed since its role changed). Sits in `#titleRow` immediately
 to the left of the ⋮ menu. Reads "Edit" when not editing (click enters
 edit mode); reads "Save" while editing (click saves, exits edit mode,
-stays on the same screen — same underlying behavior as before, just
-triggered from this button instead of the back button). Hidden entirely
-for Queue workouts, which have no read-only/edit-mode concept (always
-fully editable).
+stays on the same screen). Hidden entirely for Queue workouts, which
+have no read-only/edit-mode concept (always fully editable).
 
-**Edit-mode guard** — unchanged in concept: editing a Past Workout is a
-bounded, deliberate action. The only way to leave the Workout screen
-while `viewSource === "history" && editMode` is the bottom tab bar (the
-⋮ menu has no Edit item to interfere, and the Edit/Save button doesn't
+**Edit-mode guard** — editing a Past Workout is a bounded, deliberate
+action. The only way to leave the Workout screen while
+`viewSource === "history" && editMode` is the bottom tab bar (the ⋮ menu
+has no Edit item to interfere, and the Edit/Save button doesn't
 navigate), so `guardLeavingEdit()` wraps all four bottom-nav click
 handlers: mid-edit, it opens a "Leave without saving?" confirm before
 proceeding. Doesn't separately guard the ⋮ menu's own Restore/Delete
@@ -255,26 +270,31 @@ actions while mid-edit — those already have their own confirm dialogs.
 
 **Queue screen wording** — "Add Ad-hoc Workout" renamed to **"Add
 Workout"** in both places it appears (Queue screen's button and the
-Workout screen's empty-state button), for brevity/consistency.
+Workout screen's empty-state button).
 
-**Settings screen** — added spacing between the `<h1>Settings</h1>`
+**Settings screen** — spacing added between the `<h1>Settings</h1>`
 title and the first section box below it (`.settings-title { margin-
-bottom: 18px }`); previously they sat flush together.
+bottom: 18px }`).
 
-**Exercise List** — unchanged: still a Settings sub-page
-(`#exerciseListScreen`), reached only via Settings, with its own
-hardcoded "Back to Settings" button. Does **not** get the bottom tab bar
-or a sticky header — deliberate single-parent dead end.
+**Exercise List** — still a Settings sub-page (`#exerciseListScreen`),
+reached only via Settings, with its own hardcoded "Back to Settings"
+button. Does **not** get the bottom tab bar or a sticky header —
+deliberate single-parent dead end.
 
 ## Screen-by-screen summary
 **Workout screen** (Today's Workout / peeked Queued Workout / Past
 Workout / empty state) — see "Navigation & screen structure" above for
 the full header behavior. Sticky header; exercises scroll beneath it.
+Superset ⋮ menu items ("Superset" / "Remove Superset", Move Up/Down) now
+operate on the pair as a unit where relevant (see this session's
+changes above).
 
 **Queue screen** — plan future workouts.
 - Sticky: `<h1>Queue</h1>` + "Current Program" info bar.
 - Scrolls: "Add Workout" button + the queue list.
-- Queue item ⋮ menu: Move Up, Move Down, Delete from Queue.
+- Queue item ⋮ menu: Move Up, Move Down, Delete from Queue. (This is
+  queue-*workout* ordering, unrelated to the in-workout superset
+  reordering above.)
 - No back button, no screen-level ⋮ menu — use the bottom tab bar.
 
 **History screen** — review completed workouts.
@@ -288,17 +308,16 @@ tab bar's "Settings" button from anywhere:
 - **About** — app name, `APP_VERSION`, short description
 - **Program Management** — current program (or "No active program"),
   "Start New Program", "End Current Program" (only when active)
-- **Data** — "Export Gym Log" button
+- **Data** — "Export Gym Log", "Backup All Data", "Restore from Backup"
 - **Exercise List** — count of standardized exercises + "Manage
   Exercise List" button (plain styling, not accented)
-- No back button, no ⋮ menu — use the bottom tab bar. Extra spacing now
-  separates the title from the first section (see above).
+- No back button, no ⋮ menu — use the bottom tab bar.
 
-**Delete action naming and styling** — unchanged: "Delete from Queue" /
-"Delete from History" everywhere, both entry points per destination
-sharing one confirm helper and one `data-action` name each. Every
-destructive button's red styling is still listed by hand per screen in
-CSS — any new delete-style button needs to be added there too.
+**Delete action naming and styling** — "Delete from Queue" / "Delete
+from History" everywhere, both entry points per destination sharing one
+confirm helper and one `data-action` name each. Every destructive
+button's red styling is still listed by hand per screen in CSS — any
+new delete-style button needs to be added there too.
 
 ## Current features (as of this version)
 **Program & Queue**
@@ -326,12 +345,27 @@ CSS — any new delete-style button needs to be added there too.
   "New Exercise"), not the free-text input — you can pick immediately
   without tapping away first.
 
+**Supersets** (updated this session)
+- Pair two exercises via the ⋮ menu's "Superset" action, then tap the
+  exercise to pair with; they render in a shared bordered group.
+- Removing a superset (⋮ menu → "Remove Superset") now correctly clears
+  the pairing on **both** exercises — previously the partner exercise
+  was left in a stale paired state.
+- The two exercises in a pair **share one rest time**: set on either
+  one, it updates on both immediately (data and, if visible, the
+  on-screen field).
+- Move Up / Move Down on a superset member now moves **both** exercises
+  together as one block, preserving their internal order, and correctly
+  steps over a neighboring single exercise or another adjacent superset
+  pair.
+- Still pairs only (no 3+ groupings) — matches existing scope.
+
 **Backup All Data / Restore from Backup**
 - Settings → "Backup All Data" downloads a single date-stamped JSON file
   containing everything (Program, Queue, History, Exercise List).
 - Settings → "Restore from Backup" picks that file back up on any
   device/browser and fully replaces current data with it, after a
-  confirm modal. Full replace only — see note above.
+  confirm modal. Full replace only.
 - Intended primarily for moving to a new phone, but also works as a
   periodic manual backup.
 
@@ -341,10 +375,10 @@ CSS — any new delete-style button needs to be added there too.
   user's external Excel gym log.
 - Column order: Day, Lift, Sets, Reps, Weight, *(blank — Volume formula
   column)*, Comments, Rest Time (min), RPE.
-- **Weight/RPE/Rest values now export with a comma decimal separator**
-  (see bugfix above) to prevent Excel misreading them as dates.
-- From/To range fields are now custom dd/mm/yyyy text fields (see "Date
-  Handling" above), not native date pickers.
+- Weight/RPE/Rest values export with a comma decimal separator to
+  prevent Excel misreading them as dates.
+- From/To range fields are custom dd/mm/yyyy text fields, not native
+  date pickers.
 - Superset pairs get a `(Superset A/B/…)` tag on the Rest Time cell.
 - Read-only; tries to auto-copy to clipboard, textarea shown as fallback.
 
@@ -362,17 +396,19 @@ CRUD over the standardized list, exact-duplicate detection (not fuzzy).
 
 **Rest Timer** — per-exercise ⏱ button, single persistent floating timer
 bar above the bottom tab bar, timestamp-based so it survives
-backgrounding. Doesn't survive the app being fully closed.
+backgrounding. Doesn't survive the app being fully closed. Starting the
+timer still reads whichever rest value is currently on that exercise
+(now kept in sync with its superset partner, if any).
 
 **Active workout date** — Today's Workout shows a read-only `dd/mm/yyyy`
 date badge (informational only, not stored until the workout completes).
 
 **Workout history** — editable workout name/date; "Finish Workout" (⋮
 menu) moves today's workout into History; Past Workouts open read-only
-by default, "Edit" (now a dedicated button, see above) enters edit mode,
-same button becomes "Save" to exit; "Delete from History" / "Restore to
-Queue" available from both the History list and the Workout screen's ⋮
-menu, sharing the same underlying actions.
+by default, "Edit" (dedicated button) enters edit mode, same button
+becomes "Save" to exit; "Delete from History" / "Restore to Queue"
+available from both the History list and the Workout screen's ⋮ menu,
+sharing the same underlying actions.
 
 **Last-tapped exercise highlighting** — tapping an exercise gives it a
 green border (or highlights the shared box for a superset pair, not the
@@ -384,9 +420,15 @@ so it doesn't steal focus from a field you just tapped into.
 - Works fully offline after first load, including all history/queue features
 
 ## Known limitations / things to know
-- No login/accounts — data is local to one phone only, not backed up anywhere.
-- Superset pairing reorders the exercise list (paired exercises are moved
-  next to each other automatically).
+- No login/accounts — data is local to one phone only, not backed up
+  anywhere unless you use Backup All Data.
+- Superset pairing still supports pairs only (no 3+ groupings) — by
+  design, matches current scope.
+- Shared superset rest time is enforced by app code on every edit/pair
+  action, not by the storage schema — a `rest` mismatch could in theory
+  be introduced by editing raw exported/imported JSON by hand outside
+  the app; it would self-correct the next time either exercise's rest
+  is edited in-app.
 - The rest timer doesn't survive the app being fully closed/killed (only
   brief backgrounding); no background notifications.
 - Export Gym Log assumes weight is always entered in kg — no unit
@@ -401,53 +443,18 @@ so it doesn't steal focus from a field you just tapped into.
   their own confirm dialogs already).
 - Queue workouts have no Edit/read-only concept (always fully editable),
   so the Edit/Save button pattern used on Past Workouts doesn't apply
-  there — confirmed as intentional this session.
-
-## Minor tweak (this session)
-- "+ Add to Exercise List" button (shown when typing a custom exercise
-  name) renamed to **"Add to Exercise List"** — dropped the leading "+"
-  for a cleaner look. Purely cosmetic; behavior, disabled state, and
-  "Already on list" wording unchanged.
-
-## Rest timer / undo banner repositioning (this session)
-**Problem**: the rest timer bar floated well above the bottom nav
-(`bottom: nav-h + gap + 88px`), covering content lower on the page — the
-"Add Exercise" button on the Workout screen, the last item in the Queue
-list, and (by the same logic) the bottom of the History list.
-**Fix, chosen to make an overlap between the timer and the undo banner
-structurally impossible rather than just unlikely**:
-- **Rest timer bar** now sits just above the bottom nav
-  (`bottom: nav-h + gap + 16px`, same clearance the undo banner used to
-  use). Body bottom padding bumped slightly (100px → 110px, on top of
-  nav-h + gap) so scrolled content on every screen — Workout, Queue, and
-  History all share the same `body` as their scroll container — clears
-  it fully instead of being covered.
-- **Undo banner** moved from the bottom (where it used to sit right next
-  to the timer's old position) to the *top* of the screen, just under
-  whichever sticky header is currently showing. New `positionUndoBanner()`
-  reads that header's rendered `offsetHeight` and sets the banner's `top`
-  inline via JS each time it's shown (`STICKY_HEADER_ID_BY_SCREEN` maps
-  `workout`/`queue`/`history` to their sticky header element IDs; also
-  repositions on window resize while visible). This relies on the sticky
-  header's existing margin/padding trick (see "Sticky headers" below)
-  that keeps it pinned at the true top of the viewport from the start —
-  so the header's height alone is enough to place the banner correctly,
-  no scroll-position tracking needed.
-- The undo banner is currently only ever triggered from the Workout
-  screen (deleting an exercise), but the screen→header mapping already
-  covers Queue and History too, so no further work is needed if an
-  undo-able action is ever added there.
-- Net effect: the timer lives at the bottom, the undo banner lives at
-  the top — they can never occupy the same space, regardless of when
-  each happens to be visible.
+  there — intentional.
 
 ## Backlog / ideas not yet built
+- Superset groups of more than two exercises
+- Dedicated superset-level editing controls (e.g. editing rest once at
+  the group level instead of via either member's field)
 - Restore from Backup: add a "merge" mode (combine with existing data)
   as an alternative to the current full-replace-only behavior
 - Cloud backup/sync (e.g. auto-upload the same Backup JSON shape to a
-  cloud storage endpoint) — the Backup/Restore feature this session was
-  deliberately built with this in mind (same flat JSON shape, keyed by
-  the existing localStorage key names)
+  cloud storage endpoint) — the Backup/Restore feature was deliberately
+  built with this in mind (same flat JSON shape, keyed by the existing
+  localStorage key names)
 - Rename an existing standardized exercise (currently: remove + re-add)
 - Merge two standardized exercises into one
 - Aliases/synonyms for a standardized exercise
@@ -464,8 +471,8 @@ structurally impossible rather than just unlikely**:
 - Extend the "leave without saving?" edit-mode guard to the ⋮ menu's
   Restore/Delete actions, if that gap ever causes confusion in practice
 - Confirm with the user whether the Export Gym Log's target sheet
-  actually expects comma decimals (see Known limitations above) and
-  adjust `formatDecimalForExport()` if not
+  actually expects comma decimals and adjust `formatDecimalForExport()`
+  if not
 
 ## How to resume work in a new chat
 1. Upload the current `index.html` and `sw.js`

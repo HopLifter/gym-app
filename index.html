@@ -928,7 +928,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v47";
+  const APP_VERSION = "gym-app-cache-v48";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1725,6 +1725,16 @@
     return w ? w.exercises.find(e => e.id === id) : null;
   }
 
+  // Only pairs are supported (see project scope), so an exercise's
+  // superset partner is just "the other exercise sharing this
+  // supersetId" in the active workout.
+  function findSupersetPartner(ex) {
+    if (!ex.supersetId) return null;
+    const w = getActiveWorkout();
+    if (!w) return null;
+    return w.exercises.find(x => x.supersetId === ex.supersetId && x.id !== ex.id) || null;
+  }
+
   // ---- Rest Timer (app-level, single active instance) ----
   // Reads an exercise's configured rest duration (ex.rest, in seconds) at
   // start time; nothing is written back onto the exercise. Uses a
@@ -2015,13 +2025,17 @@
     if (action === "move-up" || action === "move-down") {
       openMenuId = null;
       const exs = getActiveWorkout().exercises;
-      const index = exs.findIndex(x => x.id === id);
-      const target = action === "move-up" ? index - 1 : index + 1;
-      if (target >= 0 && target < exs.length) {
-        const [moved] = exs.splice(index, 1);
-        exs.splice(target, 0, moved);
-        saveActiveWorkout();
+      if (ex.supersetId) {
+        moveSupersetGroup(exs, ex.supersetId, action === "move-up" ? -1 : 1);
+      } else {
+        const index = exs.findIndex(x => x.id === id);
+        const target = action === "move-up" ? index - 1 : index + 1;
+        if (target >= 0 && target < exs.length) {
+          const [moved] = exs.splice(index, 1);
+          exs.splice(target, 0, moved);
+        }
       }
+      saveActiveWorkout();
       renderExercises();
       return;
     }
@@ -2029,7 +2043,12 @@
     if (action === "superset") {
       openMenuId = null;
       if (ex.supersetId) {
+        // Clear the relationship on BOTH members — previously only the
+        // clicked exercise's supersetId was cleared, leaving the partner
+        // with a stale supersetId that still showed "Remove Superset".
+        const partner = findSupersetPartner(ex);
         ex.supersetId = null;
+        if (partner) partner.supersetId = null;
         saveActiveWorkout();
         renderExercises();
       } else {
@@ -2050,6 +2069,9 @@
     const groupId = exA.supersetId || newId("grp");
     exA.supersetId = groupId;
     exB.supersetId = groupId;
+    // Superset members share one rest time — the exercise being paired
+    // in (B) adopts A's current rest value so they start identical.
+    exB.rest = exA.rest;
     const indexB = exs.findIndex(x => x.id === idB);
     const [moved] = exs.splice(indexB, 1);
     const indexA = exs.findIndex(x => x.id === idA);
@@ -2058,6 +2080,49 @@
     document.getElementById("selectBanner").classList.remove("visible");
     saveActiveWorkout();
     renderExercises();
+  }
+
+  // Moves a superset pair up or down as a single unit, preserving their
+  // internal order (the exercise that was first stays first). Only pairs
+  // are supported, matching the rest of the superset implementation.
+  // The pair hops over whatever occupies the adjacent slot — a lone
+  // exercise (block size 1), or another superset pair (block size 2, so
+  // two groups swap places cleanly instead of interleaving).
+  function moveSupersetGroup(exs, supersetId, direction) {
+    const indices = [];
+    exs.forEach((x, i) => { if (x.supersetId === supersetId) indices.push(i); });
+    if (indices.length !== 2) return;
+    const start = Math.min(...indices);
+    const end = Math.max(...indices);
+    if (end !== start + 1) return; // not adjacent — shouldn't happen, bail safely
+
+    if (direction < 0) {
+      if (start === 0) return; // already at the top
+      const neighbor = exs[start - 1];
+      const blockSize = supersetBlockSizeEndingAt(exs, neighbor, start - 1);
+      const pair = exs.splice(start, 2);
+      exs.splice(start - blockSize, 0, ...pair);
+    } else {
+      if (end === exs.length - 1) return; // already at the bottom
+      const neighbor = exs[end + 1];
+      const blockSize = supersetBlockSizeStartingAt(exs, neighbor, end + 1);
+      const pair = exs.splice(start, 2);
+      exs.splice(start + blockSize, 0, ...pair);
+    }
+  }
+  // Is the exercise at `index` the tail end of a superset pair? If so
+  // the neighboring block is 2 exercises wide, not 1.
+  function supersetBlockSizeEndingAt(exs, ex, index) {
+    if (!ex.supersetId) return 1;
+    const partnerIndex = exs.findIndex(x => x.supersetId === ex.supersetId && x.id !== ex.id);
+    return partnerIndex === index - 1 ? 2 : 1;
+  }
+  // Is the exercise at `index` the head of a superset pair? If so the
+  // neighboring block is 2 exercises wide, not 1.
+  function supersetBlockSizeStartingAt(exs, ex, index) {
+    if (!ex.supersetId) return 1;
+    const partnerIndex = exs.findIndex(x => x.supersetId === ex.supersetId && x.id !== ex.id);
+    return partnerIndex === index + 1 ? 2 : 1;
   }
 
   document.getElementById("cancelSelectBtn").addEventListener("click", () => {
@@ -2102,6 +2167,18 @@
       }
     } else if (field === "rest") {
       ex.rest = restMinutesToSeconds(e.target.value);
+      // Superset members share one rest time: mirror the new value onto
+      // the partner's data, and — if the partner's card is on screen —
+      // its input too (direct DOM update, not a re-render, so we don't
+      // steal focus from whichever field the user is actively typing in).
+      const partner = findSupersetPartner(ex);
+      if (partner) {
+        partner.rest = ex.rest;
+        const partnerInput = container.querySelector(`.exercise[data-id="${partner.id}"] input[data-field="rest"]`);
+        if (partnerInput && document.activeElement !== partnerInput) {
+          partnerInput.value = restSecondsToMinutes(partner.rest);
+        }
+      }
     } else if (field === "sets" || field === "reps") {
       ex[field] = e.target.value === "" ? "" : Number(e.target.value);
       card.querySelector(".volume-value").textContent = calcVolume(ex);
