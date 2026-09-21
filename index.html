@@ -18,6 +18,7 @@
     --danger: #E05C4E;
     --bottom-nav-h: 52px;
     --bottom-nav-gap: 14px;
+    --hist-superset: #4B524C;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -188,6 +189,14 @@
     font-weight: 600;
     font-size: 13px;
     padding: 6px 10px;
+    margin-bottom: 16px;
+  }
+  /* Plain (no box) date text used by the condensed History presentation
+     — unlike .date-badge (Today's Workout) this isn't meant to look
+     like a UI control, just plain read-only text under the title. */
+  .date-text {
+    font-size: 12px;
+    color: var(--text-dim);
     margin-bottom: 16px;
   }
   .workout-note {
@@ -764,6 +773,94 @@
     padding: 4px 6px;
     flex-shrink: 0;
   }
+
+  /* ================= Condensed History (Past Workout) view =================
+     Read-only, compact table shown for a completed workout opened from
+     History while not being edited — optimized for seeing the whole
+     workout at a glance and taking a screenshot. Pressing "Edit"
+     switches back to the regular exercise cards above (isEditable()
+     becomes true, editMode true); this view never edits anything. */
+  .condensed-entry {
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .condensed-entry:last-child { border-bottom: none; }
+  .condensed-cols {
+    display: grid;
+    grid-template-columns: 2.3fr 0.95fr 0.7fr 0.55fr 0.85fr;
+    column-gap: 4px;
+    align-items: center;
+  }
+  .condensed-thead {
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 2px;
+    align-items: end;
+  }
+  .condensed-thead span {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-dim);
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: left;
+  }
+  /* Plain wrapping only, on purpose — a long exercise name wraps to a
+     second line with no indent/hanging-tab and no extra styling. Rows
+     stay visually distinct from each other purely via the border-bottom
+     on .condensed-entry, not via indentation, since indenting a wrapped
+     line only gets more awkward the longer the name is. The name sits
+     flush at the left edge of the table like every other column — no
+     left padding/margin here or on .condensed-cols. */
+  .condensed-ex-name {
+    font-size: 13.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    text-align: left;
+  }
+  .condensed-row span {
+    font-size: 12.5px;
+    text-align: left;
+    color: var(--text);
+  }
+  .condensed-missing { color: var(--text-dim); }
+  .condensed-wt { font-weight: 700; }
+  /* The note is nested INSIDE its own exercise's .condensed-entry,
+     directly after the stat row in the same block — never a sibling
+     div at the table level — so it always renders underneath its own
+     exercise's stats and can't be mistaken for belonging to the
+     exercise above or below it. */
+  .condensed-note-row { margin-top: 4px; }
+  .condensed-note-text {
+    display: block;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-style: italic;
+    text-align: left;
+  }
+  /* Superset pairing indicator: a thin line drawn in the page's own
+     right-hand padding gutter, as an absolutely-positioned overlay
+     rather than border/padding on the row itself — so it never changes
+     the row's width and can't knock the columns out of alignment with
+     the rest of the table. */
+  .condensed-superset-wrap { position: relative; }
+  .condensed-superset-wrap .condensed-entry { border-bottom: 1px dashed var(--line); }
+  .condensed-superset-wrap .condensed-entry:last-child { border-bottom: 1px solid var(--line); }
+  .condensed-superset-wrap::after {
+    content: "";
+    position: absolute;
+    top: 2px; bottom: 2px; right: -9px;
+    width: 3px;
+    background: var(--hist-superset);
+    border-radius: 2px;
+  }
+  .condensed-empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 24px 0;
+  }
 </style>
 </head>
 <body>
@@ -784,11 +881,13 @@
     </div>
     <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" class="date-input hidden" id="dateInput">
     <div class="date-badge hidden" id="dateDisplay"></div>
+    <div class="date-text hidden" id="dateText"></div>
   </div>
 
   <div id="workoutBody">
     <div class="workout-note hidden" id="workoutNote"></div>
     <div id="workout"></div>
+    <div id="condensedTable" class="hidden"></div>
     <button class="add-btn" id="addBtn">Add Exercise</button>
   </div>
 
@@ -928,7 +1027,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v48";
+  const APP_VERSION = "gym-app-cache-v49";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1135,6 +1234,15 @@
     return false;
   }
 
+  // The condensed, read-only presentation used for a completed workout
+  // opened from History while it's not currently being edited. Pressing
+  // "Edit" flips editMode to true, which makes this false and falls
+  // back to the regular card-based layout (see render()) — this view
+  // never edits anything itself.
+  function isCondensedHistoryView() {
+    return viewSource === "history" && !editMode;
+  }
+
   function saveQueue() {
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
     flashSaved();
@@ -1295,7 +1403,12 @@
     }
     if (!workout) { setActiveToNextQueued(); render(); return; }
     renderWorkoutHeader(workout);
-    renderExercises();
+    if (isCondensedHistoryView()) {
+      renderCondensedExercises();
+    } else {
+      renderExercises();
+    }
+    toggleCondensedVisibility();
     renderHeaderMenu();
   }
 
@@ -1368,18 +1481,25 @@
 
     const dateInput = document.getElementById("dateInput");
     const dateDisplay = document.getElementById("dateDisplay");
+    const dateText = document.getElementById("dateText");
+    dateInput.classList.add("hidden");
+    dateDisplay.classList.add("hidden");
+    dateText.classList.add("hidden");
     if (viewSource === "history") {
-      dateInput.classList.remove("hidden");
-      dateDisplay.classList.add("hidden");
-      if (document.activeElement !== dateInput) dateInput.value = isoToDMY(workout.date);
-      dateInput.disabled = !editable;
+      if (editMode) {
+        // Editing: same editable dd/mm/yyyy field as always.
+        dateInput.classList.remove("hidden");
+        if (document.activeElement !== dateInput) dateInput.value = isoToDMY(workout.date);
+        dateInput.disabled = !editable;
+      } else {
+        // Condensed view: plain read-only text, not a boxed input —
+        // matches the rest of the condensed presentation.
+        dateText.classList.remove("hidden");
+        dateText.textContent = formatDateDisplay(workout.date);
+      }
     } else if (viewSource === "queue" && isNext) {
-      dateInput.classList.add("hidden");
       dateDisplay.classList.remove("hidden");
       dateDisplay.textContent = formatDateBadge(workout.date);
-    } else {
-      dateInput.classList.add("hidden");
-      dateDisplay.classList.add("hidden");
     }
 
     const noteEl = document.getElementById("workoutNote");
@@ -1432,6 +1552,80 @@
         i += 1;
       }
     }
+  }
+
+  // ---- Condensed History (Past Workout) presentation ----
+  // A completed workout opened from History renders as this compact,
+  // read-only table instead of the regular exercise cards — built for
+  // seeing the whole workout at a glance and taking a screenshot.
+  // Pressing "Edit" switches back to the regular renderExercises() cards
+  // above (see render()); this table never edits anything itself, and
+  // the underlying exercise data/model is untouched — it's purely a
+  // different presentation of the same `exercises` array.
+  const DASH = "–";
+  function fmtOrDash(v) {
+    return (v === "" || v === null || v === undefined) ? DASH : v;
+  }
+
+  function condensedRowHTML(ex) {
+    const setsReps = `${fmtOrDash(ex.sets)}×${fmtOrDash(ex.reps)}`;
+    const weightMissing = ex.weight === "" || ex.weight === null || ex.weight === undefined;
+    const rpeVal = fmtOrDash(ex.rpe);
+    const restVal = fmtOrDash(restSecondsToMinutes(ex.rest));
+    let inner = `
+      <div class="condensed-cols condensed-row">
+        <span class="condensed-ex-name">${escapeHtml(ex.name)}</span>
+        <span>${setsReps}</span>
+        <span class="condensed-wt${weightMissing ? " condensed-missing" : ""}">${fmtOrDash(ex.weight)}</span>
+        <span${rpeVal === DASH ? ' class="condensed-missing"' : ""}>${rpeVal}</span>
+        <span${restVal === DASH ? ' class="condensed-missing"' : ""}>${restVal}</span>
+      </div>
+    `;
+    // The note is nested INSIDE this same entry, directly after the
+    // stat row — not a sibling div at the table level — so it's always
+    // structurally tied to its own exercise and can never render as if
+    // it belonged to the exercise above or below it.
+    if (ex.notes && ex.notes.trim()) {
+      inner += `<div class="condensed-note-row"><span class="condensed-note-text">"${escapeHtml(ex.notes.trim())}"</span></div>`;
+    }
+    return `<div class="condensed-entry">${inner}</div>`;
+  }
+
+  function renderCondensedExercises() {
+    const container = document.getElementById("condensedTable");
+    const workout = getActiveWorkout();
+    const exs = workout ? workout.exercises : [];
+    if (exs.length === 0) {
+      container.innerHTML = `<div class="condensed-empty">No exercises logged.</div>`;
+      return;
+    }
+    let html = `
+      <div class="condensed-cols condensed-thead">
+        <span>Exercise</span><span>Sets ×<br>Reps</span><span>Wt<br>(kg)</span><span>RPE</span><span>Rest<br>(min)</span>
+      </div>
+    `;
+    let i = 0;
+    while (i < exs.length) {
+      const ex = exs[i];
+      const next = exs[i + 1];
+      if (ex.supersetId && next && next.supersetId === ex.supersetId) {
+        html += `<div class="condensed-superset-wrap">${condensedRowHTML(ex)}${condensedRowHTML(next)}</div>`;
+        i += 2;
+      } else {
+        html += condensedRowHTML(ex);
+        i += 1;
+      }
+    }
+    container.innerHTML = html;
+  }
+
+  // Shows the condensed table (and hides the regular exercise cards), or
+  // vice versa, matching isCondensedHistoryView(). Called from render()
+  // after the right one has been populated.
+  function toggleCondensedVisibility() {
+    const condensed = isCondensedHistoryView();
+    document.getElementById("workout").classList.toggle("hidden", condensed);
+    document.getElementById("condensedTable").classList.toggle("hidden", !condensed);
   }
 
   function renderProgramBar() {
