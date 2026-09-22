@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v51` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v52` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -42,7 +42,76 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
-## Bug fix this session: Unsaved History Edits Persisted After "Leave"
+## New/changed this session: Removed Automatic-Save Notice, Added Animated Save Indicator
+**Why**: the permanent "Changes save automatically on this phone" line at
+the bottom of the Workout screen was no longer needed and just added
+visual clutter. But its replacement — a brief "Saved just now" text flash
+— was easy to miss, since it appeared at the bottom of the screen, far
+from where most edits happen (the exercise cards / header area).
+
+**What changed** — all in `index.html`:
+- **Removed the default autosave text.** The `#status` div now starts
+  empty and `hidden` instead of showing "Changes save automatically on
+  this phone". Since `.hidden` is `display: none`, the div's own
+  `margin-top: 24px` collapses to nothing when empty — no leftover gap
+  at the bottom of the page.
+- **`flashSaved()` no longer writes text at all.** Every save
+  (`saveQueue()`/`saveHistory()`) now triggers a small animated
+  **save indicator icon** instead — a floppy-disk icon, in the accent
+  green color, that flashes (fades in/out) three times over 1.2 seconds
+  via a CSS `@keyframes` animation (`saveIndicatorFlash`), then returns
+  to fully transparent. Rapid saves restart the flash cleanly (remove
+  the animation class, force a reflow, re-add it — the standard way to
+  restart a CSS animation).
+- **Icon placement**: the icon (`#saveIndicator`, an inline `<svg>`)
+  lives in the header controls, always at a fixed 16px width in the flex
+  row (only its opacity changes), so it never shifts the ⋮ menu or Edit
+  button when it flashes — nothing has to be pushed out of the way.
+  - **Today's Workout / a peeked Queued Workout**: sits immediately to
+    the left of the ⋮ menu button, inside `#navRight`.
+  - **A History subpage** (viewing or editing a Past Workout): sits
+    immediately to the left of the **Edit/Save** button instead — a
+    deliberate swap from the default position, since the Edit/Save
+    button is the more relevant thing to have the indicator's attention
+    land near there. The ⋮ menu still follows after Edit/Save, same as
+    before.
+  - New **`positionSaveIndicator()`** helper decides which slot the icon
+    belongs in (based on `viewSource === "history"`) and moves the
+    existing DOM node there — mirrors the existing `positionHeaderMenu()`
+    pattern used to relocate `#navRight` itself. Called right after
+    `positionHeaderMenu()` in both `renderWorkoutHeader()` and
+    `renderEmptyHeader()`.
+- **The "Editing — press Save to keep changes" status message is
+  unaffected** — it still uses the same `#status` div as before, still
+  shows while a History edit is in progress, still hides once editing
+  ends. Only the *default idle* text and the *save confirmation* text
+  were removed/replaced; this message was never part of either.
+
+**Architecture note**: no new state was introduced — this is a
+presentation-only change. The icon's visibility is driven purely by a
+CSS class (`.flashing`) toggled by `flashSaved()`, the same function
+every save path already called. `.status.saved` (the old CSS class used
+to color the "Saved just now" text) is now dead/unused CSS — left in
+place since removing it has no functional effect and isn't worth the
+risk of touching adjacent styles.
+
+**Testing performed**: edited a field on Today's Workout → icon flashes
+three times next to the ⋮ menu, ⋮ menu position unchanged before/during/
+after. Edited a field while editing a Past Workout → icon flashes next
+to the Edit/Save button (not the ⋮ menu), button positions unchanged.
+Rapid consecutive edits → flash restarts cleanly each time, no stuck
+half-flashed state. Left History edit mode (Leave without saving) →
+"Editing…" text disappears as before, unaffected by the icon change.
+Confirmed no residual "Changes save automatically" text anywhere and no
+blank gap at the bottom of the Workout screen when idle.
+
+**Limitations**: the save indicator (like the old status line) only
+exists inside `#workoutScreen` — a save triggered while viewing Queue/
+History/Settings still fires the flash, but it's invisible until the
+user returns to the Workout screen (same limitation the old text status
+had; not a regression).
+
+## Bug fix (previous session): Unsaved History Edits Persisted After "Leave"
 **Why**: editing a completed (History) workout and then choosing "Leave
 without saving" on the unsaved-changes prompt didn't actually discard
 anything — the workout kept whatever changes had been made.
@@ -80,10 +149,12 @@ with nothing left to discard.
   draft, and everything typed into it, is simply thrown away. The real
   `history` entry was never touched, so it's already back to its
   pre-edit state with no extra work.
-- Status line ("Changes save automatically on this phone") now shows
-  "Editing — press Save to keep changes" while a History edit is in
-  progress, since autosave genuinely isn't happening until Save is
-  pressed — reverts automatically once editing ends.
+- Status line — at the time this was written, showed "Changes save
+  automatically on this phone" by default; now shows nothing by default
+  (see "Removed Automatic-Save Notice" above) — still shows "Editing —
+  press Save to keep changes" while a History edit is in progress,
+  since autosave genuinely isn't happening until Save is pressed —
+  reverts automatically once editing ends.
 
 **Architecture note**: no new data model or storage key — this is
 purely an in-memory isolation layer between the UI and `history`/
@@ -110,7 +181,7 @@ to Queue / Delete from History actions while mid-edit (these have their
 own separate confirms already, but won't offer to discard/keep the
 in-progress draft). Not addressed here — same scope boundary as before.
 
-## New/changed this session: Timer Reset Automatically Restarts
+## New/changed (previous session): Timer Reset Automatically Restarts
 **Why**: pressing Reset on the rest timer used to just zero the clock and
 stop — you then had to tap Resume/Start separately to actually begin
 resting again. That's an extra tap every time you want to restart a
@@ -150,7 +221,7 @@ correctly via the existing `visibilitychange` handler.
 **Limitations**: none identified — this was a small, isolated change to
 one function.
 
-## New/changed this session: Condensed History (Past Workout) View
+## New/changed (previous session): Condensed History (Past Workout) View
 **Why**: opening a completed workout from History reused the same
 card-based layout as Today/Queue — editable-looking input boxes, one tall
 card per exercise, lots of scrolling for anything but the shortest
@@ -237,13 +308,13 @@ block) instead of as a table-level sibling, and switching the
 match the exercise name column. The exercise name itself has no
 left padding/indent — it sits flush with the other columns' left edge.
 
-**Data model**: no changes. This is purely a new presentation layer over
-the existing `exercises` array — the empty-string states for
-sets/reps/weight/rpe/rest that the data model already supported are just
-formatted differently (as "–") for display now, nothing new was added to
-support it.
+**Data model**: no changes were needed for the condensed History view —
+it's purely a new read-only presentation layer over the existing
+`exercises` array. The empty-string states for sets/reps/weight/rpe/rest
+that the data model already supported are just formatted differently
+(as "–") for display, nothing new was added to support it.
 
-## Feature added (previous session): Superset State Consistency and Group Behavior
+## Feature added (2 sessions ago): Superset State Consistency and Group Behavior
 **Why**: supersets had three related problems — removing a superset left
 the *other* exercise's `supersetId` stale (so it kept showing "Remove
 Superset" even though it was no longer paired), the two exercises'
@@ -279,7 +350,7 @@ handlers:
   and share one set of container-level event listeners, all three fixes
   apply everywhere superset editing is possible.
 
-## Bug fix (2 sessions ago)
+## Bug fix (3 sessions ago)
 - **"New Exercise" option was unresponsive on a brand-new exercise.** A
   freshly added exercise has `name: ""`, and the name dropdown always
   lists "New Exercise" as its first `<option>` — so with nothing else
@@ -292,9 +363,7 @@ handlers:
   Exercise" is always a real value change from `""` → `__custom__`.
 
 ## Data model
-No data model changes this session — the condensed History view is
-purely a new read-only presentation over the existing `exercises` array.
-localStorage keys:
+No data model changes this session. localStorage keys:
 - `gymapp_program_v1` — the currently active imported program, if any:
   `{ id, name, importedAt }`. `null`/absent if no program is active.
 - `gymapp_queue_v1` — array of planned workouts, each:
@@ -310,10 +379,8 @@ localStorage keys:
 - Each exercise: `{ id, name, sets, reps, weight, rpe, rest, notes, supersetId }`.
   `rest` is stored **in seconds** internally (see Rest Timer note below).
   `sets`/`reps`/`weight`/`rpe`/`rest` can individually be `""` (an empty
-  field the user cleared) — the condensed History view now renders any
-  of these as "–" rather than leaving a blank cell; this state already
-  existed in the data model before this session, just wasn't specially
-  formatted anywhere.
+  field the user cleared) — the condensed History view renders any of
+  these as "–" rather than leaving a blank cell.
   For superset pairs, both exercises' `rest` values are kept equal by
   the app's code whenever either is edited or the pair is first created
   — but this isn't structurally enforced (no schema-level shared field),
@@ -330,7 +397,7 @@ Every date the app displays now reads **dd/mm/yyyy** consistently,
 regardless of the phone's OS/browser locale:
 - **Read-only display**: `isoToDMY(iso)` → `dd/mm/yyyy`, used by
   `formatDateBadge()` (Today's Workout date badge). `formatDateDisplay()`
-  (History list, Recent Performance rows, and now the condensed History
+  (History list, Recent Performance rows, and the condensed History
   view's date line) uses the same day-first convention but spells out
   the weekday/month (`Weekday, D Mon YYYY`).
 - **Editable date fields**: native `<input type="date">` was replaced
@@ -401,7 +468,8 @@ the two "peek" states (a non-next Queued Workout, or a Past Workout):
 - **Peeked Queued Workout / Past Workout** (`backNavTarget` set): the
   eyebrow row is hidden entirely, and the title moves up into a single
   row alongside the ⋮ menu: `[title (flex, fills space)]
-  [Edit/Save button, History only] [⋮ menu]`. This same row layout is
+  [save indicator, History only] [Edit/Save button, History only]
+  [save indicator, non-History peek] [⋮ menu]`. This same row layout is
   what the condensed History view uses too — no separate "History ·
   Completed" label, just the title inline with Edit and ⋮.
 - Below the title row: while editing a Past Workout, the existing
@@ -413,13 +481,22 @@ the two "peek" states (a non-next Queued Workout, or a Past Workout):
   reparented by `positionHeaderMenu()` between `#eyebrowRow` (Today) and
   `#titleRow` (peek views/condensed History) — one menu, one set of
   listeners, just moved.
+- **`#saveIndicator`** (the small animated save icon, see "Removed
+  Automatic-Save Notice" above) is a separate single DOM node reparented
+  by `positionSaveIndicator()` — sits just before the ⋮ menu button
+  normally (Today's Workout, a peeked Queued Workout), or just before
+  the Edit/Save button on any History subpage. Called right after
+  `positionHeaderMenu()` in both `renderWorkoutHeader()` and
+  `renderEmptyHeader()`, so it always resolves to the correct slot
+  whenever the header re-renders.
 
 **Edit/Save toggle button** (`#editToggleBtn`, History only) — sits in
-`#titleRow` immediately to the left of the ⋮ menu. Reads "Edit" when
-showing the condensed presentation (click enters edit mode, switching to
-the regular editable cards); reads "Save" while editing (click saves,
-exits edit mode, returns to the condensed presentation). Hidden entirely
-for Queue workouts, which have no read-only/edit-mode concept.
+`#titleRow`, with the save indicator immediately to its left and the ⋮
+menu immediately after it. Reads "Edit" when showing the condensed
+presentation (click enters edit mode, switching to the regular editable
+cards); reads "Save" while editing (click saves, exits edit mode,
+returns to the condensed presentation). Hidden entirely for Queue
+workouts, which have no read-only/edit-mode concept.
 
 **Edit-mode guard** — editing a Past Workout is a bounded, deliberate
 action. The only way to leave the Workout screen while
@@ -511,7 +588,7 @@ confirm helper and one `data-action` name each.
   together as one block.
 - Still pairs only (no 3+ groupings) — matches existing scope.
 
-**Condensed History (Past Workout) View** (new this session)
+**Condensed History (Past Workout) View**
 - Opening a completed workout from History shows a compact, read-only
   table instead of the regular exercise cards — title inline with Edit
   and the ⋮ menu, plain-text date below, then a table of Exercise /
@@ -523,6 +600,15 @@ confirm helper and one `data-action` name each.
   without scrolling to read a longer workout.
 - "Edit" switches to the regular, already-editable card layout; "Save"
   returns to the condensed view. No separate editing UI was built.
+
+**Save Indicator** (new this session)
+- Replaces the old permanent "Changes save automatically on this phone"
+  text and its "Saved just now" flash. A small floppy-disk icon in the
+  accent green color flashes three times over 1.2 seconds next to the
+  header controls whenever a change is saved.
+- Sits next to the ⋮ menu on Today's Workout / a peeked Queued Workout;
+  sits next to the Edit/Save button instead on any History subpage.
+  Reserves a fixed slot so nothing shifts when it appears.
 
 **Backup All Data / Restore from Backup**
 - Settings → "Backup All Data" downloads a single date-stamped JSON file
@@ -557,7 +643,8 @@ CRUD over the standardized list, exact-duplicate detection (not fuzzy).
 
 **Rest Timer** — per-exercise ⏱ button, single persistent floating timer
 bar above the bottom tab bar, timestamp-based so it survives
-backgrounding. Doesn't survive the app being fully closed.
+backgrounding. Doesn't survive the app being fully closed. Reset
+immediately restarts the countdown at the last-used duration.
 
 **Active workout date** — Today's Workout shows a read-only `dd/mm/yyyy`
 date badge (informational only, not stored until the workout completes).
@@ -599,12 +686,19 @@ green border via direct DOM class toggle (editable card view only).
   own right-hand padding (a 16px gutter) — if that body padding is ever
   reduced significantly, the offset would need revisiting so the line
   doesn't get clipped or collide with the page edge.
+- The save indicator (like the old status text before it) only exists
+  inside the Workout screen's DOM — a save triggered while on Queue/
+  History/Settings still fires, but isn't visible until returning to
+  the Workout screen.
+- `.status.saved` (CSS) is now dead/unused, left in place from before
+  the save-indicator rework — harmless, but a candidate for cleanup if
+  the stylesheet is ever tidied up.
 
 ## Backlog / ideas not yet built
 - **Unit conversion (kg ⇄ lb) toggle in Settings** — all weight data is
   currently assumed/stored in kg with no stored unit; a Settings-level
   toggle to display (and enter) everything in lb was floated as a
-  future idea during this session's work, not built.
+  future idea, not built.
 - Superset groups of more than two exercises
 - Dedicated superset-level editing controls (e.g. editing rest once at
   the group level instead of via either member's field)
@@ -630,8 +724,8 @@ green border via direct DOM class toggle (editable card view only).
   actually expects comma decimals and adjust `formatDecimalForExport()`
   if not
 - Dedicated workout-sharing/export image, custom screenshot themes, or
-  GymLog branding on top of the new condensed History view (explicitly
-  out of scope for this session, may be revisited later)
+  GymLog branding on top of the condensed History view
+- Remove the now-unused `.status.saved` CSS rule as routine cleanup
 
 ## How to resume work in a new chat
 1. Upload the current `index.html` and `sw.js`

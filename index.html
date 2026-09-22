@@ -95,6 +95,25 @@
     font-size: 22px; cursor: pointer; padding: 2px 8px; line-height: 1;
   }
   .nav-right { display: flex; align-items: center; gap: 4px; position: relative; margin-left: auto; }
+  /* Small "saved" checkmark shown briefly to the left of the ⋮ menu
+     whenever a change is persisted. Reserves a fixed, constant slot in
+     the flex row (via fixed width) so it never shifts the ⋮ button when
+     it appears/disappears — it's just invisible (opacity: 0) the rest
+     of the time. */
+  .save-indicator {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    fill: var(--accent);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .save-indicator.flashing { animation: saveIndicatorFlash 1.2s ease-in-out; }
+  @keyframes saveIndicatorFlash {
+    0%, 100% { opacity: 0; }
+    15%, 45%, 75% { opacity: 1; }
+    30%, 60%, 90% { opacity: 0; }
+  }
   /* Shared pill-button look for header-level actions — originally the
      Workout screen's contextual back button, now reused for the
      Edit/Save toggle that replaced it. */
@@ -871,6 +890,9 @@
     <div class="eyebrow-row" id="eyebrowRow">
       <span class="eyebrow" id="eyebrow">Today's Workout</span>
       <div class="nav-right" id="navRight">
+        <svg class="save-indicator" id="saveIndicator" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+          <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+        </svg>
         <button class="header-menu-btn" id="headerMenuBtn">⋮</button>
         <div class="header-menu-dropdown" id="headerMenuDropdown"></div>
       </div>
@@ -900,7 +922,7 @@
     </div>
   </div>
 
-  <div class="status" id="status">Changes save automatically on this phone</div>
+  <div class="status hidden" id="status"></div>
 </div>
 
 <!-- QUEUE SCREEN -->
@@ -1027,7 +1049,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v51";
+  const APP_VERSION = "gym-app-cache-v52";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1288,16 +1310,21 @@
     historyEditDraft = null;
     saveHistory();
   }
+  // Briefly flashes the small checkmark icon next to the ⋮ menu
+  // whenever a change is saved. Restarting mid-flash (rapid edits)
+  // removes the animation class, forces a reflow, then re-adds it —
+  // the standard way to restart a CSS animation from the start rather
+  // than letting the new call be ignored because the class never
+  // technically "changed".
   function flashSaved() {
-    const status = document.getElementById("status");
-    status.textContent = "Saved just now";
-    status.classList.add("saved");
-    clearTimeout(flashSaved._t);
-    flashSaved._t = setTimeout(() => {
-      status.textContent = "Changes save automatically on this phone";
-      status.classList.remove("saved");
-    }, 1200);
+    const icon = document.getElementById("saveIndicator");
+    icon.classList.remove("flashing");
+    void icon.offsetWidth;
+    icon.classList.add("flashing");
   }
+  document.getElementById("saveIndicator").addEventListener("animationend", (e) => {
+    e.target.classList.remove("flashing");
+  });
 
   function calcVolume(ex) {
     const s = Number(ex.sets) || 0;
@@ -1446,6 +1473,24 @@
   // in the top-nav row next to the back button otherwise (peeked Queued
   // Workout / Past Workout) — reparenting the same node rather than
   // duplicating it keeps a single set of listeners/state.
+  // The save indicator's slot depends on context: on a History subpage
+  // (where the Edit/Save toggle is shown) it sits to the LEFT of that
+  // button rather than its usual spot next to the ⋮ menu — swapped from
+  // the default order. Everywhere else (Today's Workout, a peeked Queued
+  // Workout) it stays in its default spot immediately before the ⋮ menu
+  // button, inside #navRight. Moves the existing node rather than
+  // cloning, so its listeners/animation state carry over untouched.
+  function positionSaveIndicator() {
+    const icon = document.getElementById("saveIndicator");
+    if (viewSource === "history") {
+      const editBtn = document.getElementById("editToggleBtn");
+      editBtn.parentNode.insertBefore(icon, editBtn);
+    } else {
+      const headerBtn = document.getElementById("headerMenuBtn");
+      headerBtn.parentNode.insertBefore(icon, headerBtn);
+    }
+  }
+
   function positionHeaderMenu() {
     const navRight = document.getElementById("navRight");
     if (backNavTarget === null) {
@@ -1465,6 +1510,7 @@
     document.getElementById("dateDisplay").classList.add("hidden");
     backNavTarget = null;
     positionHeaderMenu();
+    positionSaveIndicator();
     renderHeaderMenu();
   }
 
@@ -1503,6 +1549,7 @@
     // purely to decide where the ⋮ menu lives, see positionHeaderMenu().
     backNavTarget = isPeekView ? (viewSource === "queue" ? "queue" : "history") : null;
     positionHeaderMenu();
+    positionSaveIndicator();
 
     const titleInput = document.getElementById("dayTitle");
     if (document.activeElement !== titleInput) titleInput.value = workout.label;
@@ -1534,9 +1581,10 @@
     const status = document.getElementById("status");
     if (viewSource === "history" && editMode) {
       status.textContent = "Editing — press Save to keep changes";
-      status.classList.remove("saved");
+      status.classList.remove("saved", "hidden");
     } else if (status.textContent === "Editing — press Save to keep changes") {
-      status.textContent = "Changes save automatically on this phone";
+      status.textContent = "";
+      status.classList.add("hidden");
     }
 
     const noteEl = document.getElementById("workoutNote");
