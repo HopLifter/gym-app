@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v50` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v51` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -41,6 +41,74 @@ no subscriptions.
   locale uses (often mm/dd/yyyy), and there's no way to force that. Any
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
+
+## Bug fix this session: Unsaved History Edits Persisted After "Leave"
+**Why**: editing a completed (History) workout and then choosing "Leave
+without saving" on the unsaved-changes prompt didn't actually discard
+anything — the workout kept whatever changes had been made.
+
+**Root cause**: every field-input handler called `saveActiveWorkout()`
+on every keystroke, which wrote straight through to the real `history`
+array and `localStorage`, regardless of `editMode`. `editMode` only
+controlled which UI was shown (editable cards vs. condensed table) — it
+never isolated the data itself. So by the time "Leave" was pressed, the
+edits were already saved; "Leave" only reset `editMode` back to `false`,
+with nothing left to discard.
+
+**What changed** — all in `index.html`:
+- New `historyEditDraft` variable: a deep copy of the workout, created
+  only when entering edit mode on a Past Workout.
+- `getActiveWorkout()` now returns `historyEditDraft` instead of the
+  real `history` entry whenever `viewSource === "history" && editMode`.
+  Every existing read/write path (name/sets/reps/weight/rpe/rest/notes
+  inputs, add/delete/reorder, superset pairing, title, date) already
+  goes through `getActiveWorkout()`/`findExercise()`, so this one change
+  isolates all of them automatically — no per-field changes needed.
+- `saveActiveWorkout()` now no-ops for History while `editMode` is true
+  (the draft is already mutated in place by reference; nothing to
+  persist yet).
+- New `commitHistoryEditDraft()`: writes the draft back into the real
+  `history` array by id and calls `saveHistory()`. Only called from the
+  Save path.
+- **Edit** button: now snapshots `history.find(...)` into
+  `historyEditDraft` (deep copy via `JSON.parse(JSON.stringify(...))`)
+  before setting `editMode = true`.
+- **Save** button: calls `commitHistoryEditDraft()` (persists the draft)
+  before setting `editMode = false`.
+- **Leave** (in the existing `guardLeavingEdit()` "Leave without
+  saving?" confirm): now also clears `historyEditDraft = null` — so the
+  draft, and everything typed into it, is simply thrown away. The real
+  `history` entry was never touched, so it's already back to its
+  pre-edit state with no extra work.
+- Status line ("Changes save automatically on this phone") now shows
+  "Editing — press Save to keep changes" while a History edit is in
+  progress, since autosave genuinely isn't happening until Save is
+  pressed — reverts automatically once editing ends.
+
+**Architecture note**: no new data model or storage key — this is
+purely an in-memory isolation layer between the UI and `history`/
+localStorage during History edit mode. Today's Workout and Queue
+editing are untouched (they still autosave on every change, as
+intended — only History edit mode ever needed "discardable" edits, per
+the Edit/Save toggle design already in place).
+
+**Testing performed**: edited weight on a past workout, chose Leave,
+reopened — original weight intact. Edited notes, chose Leave — original
+notes intact. Made several edits across multiple fields (name, sets,
+rest, added/deleted an exercise, paired a superset) in one edit
+session, chose Leave — all discarded, workout identical to before
+editing. Chose Stay after the warning — edits still present, still
+editable. Edited then chose Save — change persisted after navigating
+away and reopening. Edited nothing, then navigated away via bottom nav
+— no warning shown (unchanged from before). Confirmed Today's Workout
+and Queue editing still autosave exactly as before (unaffected by this
+change, since they don't go through `historyEditDraft`).
+
+**Limitations**: unchanged pre-existing gap — the edit-mode guard still
+only covers the bottom tab bar, not the header ⋮ menu's Restore
+to Queue / Delete from History actions while mid-edit (these have their
+own separate confirms already, but won't offer to discard/keep the
+in-progress draft). Not addressed here — same scope boundary as before.
 
 ## New/changed this session: Timer Reset Automatically Restarts
 **Why**: pressing Reset on the rest timer used to just zero the clock and

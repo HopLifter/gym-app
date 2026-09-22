@@ -1027,7 +1027,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v50";
+  const APP_VERSION = "gym-app-cache-v51";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1195,6 +1195,14 @@
   let customNameEditingIds = new Set(); // exercise ids currently showing the free-text name input instead of the dropdown
   let lastActiveExerciseId = null; // most recently tapped exercise card, highlighted so it's easy to spot which one you're on
   let confirmAction = null;
+  // Deep-copy working draft used while editing a Past Workout
+  // (viewSource === "history" && editMode). All edits made in edit mode
+  // read/write this object instead of the real entry in `history`, so
+  // nothing touches saved data or localStorage until the user explicitly
+  // presses Save. Set when entering edit mode, cleared (without being
+  // written back) when leaving without saving, and committed into
+  // `history` on Save. null whenever not actively editing a history item.
+  let historyEditDraft = null;
 
   // Forward navigation, used by the bottom tab bar.
   function navigateTo(view) {
@@ -1224,7 +1232,12 @@
 
   function getActiveWorkout() {
     if (viewSource === "queue") return queue.find(w => w.id === viewId);
-    if (viewSource === "history") return history.find(w => w.id === viewId);
+    if (viewSource === "history") {
+      // While actively editing, every read/write should go through the
+      // isolated draft, not the saved history entry.
+      if (editMode && historyEditDraft && historyEditDraft.id === viewId) return historyEditDraft;
+      return history.find(w => w.id === viewId);
+    }
     return null;
   }
 
@@ -1257,7 +1270,23 @@
   }
   function saveActiveWorkout() {
     if (viewSource === "queue") saveQueue();
-    else if (viewSource === "history") saveHistory();
+    else if (viewSource === "history") {
+      // Edits made while editMode is true live only on historyEditDraft
+      // (already mutated in place by the caller, since getActiveWorkout()
+      // returned that same object) — nothing to persist until Save.
+      if (editMode) return;
+      saveHistory();
+    }
+  }
+
+  // Copies the in-progress edit draft back into the real `history` array
+  // and persists it. Called only when the user explicitly presses Save.
+  function commitHistoryEditDraft() {
+    if (!historyEditDraft) return;
+    const idx = history.findIndex(w => w.id === historyEditDraft.id);
+    if (idx !== -1) history[idx] = historyEditDraft;
+    historyEditDraft = null;
+    saveHistory();
   }
   function flashSaved() {
     const status = document.getElementById("status");
@@ -1500,6 +1529,14 @@
     } else if (viewSource === "queue" && isNext) {
       dateDisplay.classList.remove("hidden");
       dateDisplay.textContent = formatDateBadge(workout.date);
+    }
+
+    const status = document.getElementById("status");
+    if (viewSource === "history" && editMode) {
+      status.textContent = "Editing — press Save to keep changes";
+      status.classList.remove("saved");
+    } else if (status.textContent === "Editing — press Save to keep changes") {
+      status.textContent = "Changes save automatically on this phone";
     }
 
     const noteEl = document.getElementById("workoutNote");
@@ -1837,7 +1874,7 @@
       openConfirm(
         "Leave without saving?",
         "You're still editing this workout. Leaving now exits edit mode without an explicit save.",
-        () => { editMode = false; proceed(); },
+        () => { editMode = false; historyEditDraft = null; proceed(); },
         "Leave",
         true
       );
@@ -3063,6 +3100,7 @@
     viewSource = "history";
     viewId = id;
     editMode = false;
+    historyEditDraft = null;
     showScreen("workout");
   });
 
@@ -3110,10 +3148,14 @@
 
   document.getElementById("editToggleBtn").addEventListener("click", () => {
     if (!editMode) {
+      // Enter edit mode on an isolated deep copy so nothing written
+      // while editing touches the saved history entry until Save.
+      const original = history.find(w => w.id === viewId);
+      historyEditDraft = original ? JSON.parse(JSON.stringify(original)) : null;
       editMode = true;
     } else {
+      commitHistoryEditDraft();
       editMode = false;
-      saveActiveWorkout();
     }
     render();
   });
