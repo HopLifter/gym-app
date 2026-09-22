@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v49` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v50` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -41,6 +41,46 @@ no subscriptions.
   locale uses (often mm/dd/yyyy), and there's no way to force that. Any
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
+
+## New/changed this session: Timer Reset Automatically Restarts
+**Why**: pressing Reset on the rest timer used to just zero the clock and
+stop — you then had to tap Resume/Start separately to actually begin
+resting again. That's an extra tap every time you want to restart a
+timer (e.g. you moved too soon and want to redo the rest period).
+
+**What changed** — all in `index.html`'s `resetRestTimer()`:
+- Reset now immediately begins a fresh countdown instead of leaving the
+  timer stopped: it re-arms the timestamp-based interval
+  (`runRestTimerInterval()`) the same way `startRestTimer()` does,
+  rather than only resetting `remaining` and setting `running = false`.
+- The duration Reset restarts at is `restTimer.duration` — this already
+  held the duration of whichever exercise's timer was **most recently
+  started** (it's set once inside `startRestTimer(ex)` and nothing else
+  touches it afterward), so no new state was needed to "remember" the
+  last-used duration. Starting a different exercise's timer replaces
+  `restTimer` entirely, which naturally updates what Reset uses next.
+- A 0-second duration still resets to the immediate "Rest complete"
+  state rather than starting a countdown, matching `startRestTimer()`'s
+  existing handling of that edge case.
+
+**Architecture note**: no new data structure or persistent state was
+needed — `restTimer.duration` was already exactly "the last-started
+timer's duration" by construction, since the whole `restTimer` object is
+replaced on every `startRestTimer()` call. The existing timestamp-based
+countdown (`endAt` computed from `Date.now()`) is untouched; Reset just
+calls the same re-arming path Start already uses. Pause and completion
+behavior are unchanged — only Reset's own behavior changed.
+
+**Testing performed**: started a 90s timer → Reset → restarted counting
+from 90s immediately; started a 120s timer on a second exercise → Reset
+→ restarted from 120s; reset while running; reset after completion
+(rest complete → Reset → fresh countdown); paused then reset (goes
+straight to a running countdown, not paused); backgrounded/foregrounded
+mid-restarted-timer and confirmed the remaining time still recalculates
+correctly via the existing `visibilitychange` handler.
+
+**Limitations**: none identified — this was a small, isolated change to
+one function.
 
 ## New/changed this session: Condensed History (Past Workout) View
 **Why**: opening a completed workout from History reused the same

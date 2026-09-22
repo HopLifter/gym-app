@@ -1027,7 +1027,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v49";
+  const APP_VERSION = "gym-app-cache-v50";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1997,12 +1997,24 @@
     renderRestTimer();
   }
 
+  // Reset now immediately starts a fresh countdown, rather than just
+  // zeroing the clock back to a stopped state. It reuses restTimer.duration
+  // — already the duration of whichever exercise's timer was most recently
+  // started (startRestTimer() sets it fresh each time and nothing else
+  // touches it) — so no new state is needed to "remember" the last-used
+  // duration. Mirrors startRestTimer()'s own duration>0 vs 0 handling.
   function resetRestTimer() {
     if (!restTimer) return;
     clearRestTimerInterval();
     restTimer.remaining = restTimer.duration;
-    restTimer.running = false;
-    restTimer.finished = restTimer.duration === 0;
+    if (restTimer.duration > 0) {
+      restTimer.running = true;
+      restTimer.finished = false;
+      runRestTimerInterval();
+    } else {
+      restTimer.running = false;
+      restTimer.finished = true;
+    }
     renderRestTimer();
   }
 
