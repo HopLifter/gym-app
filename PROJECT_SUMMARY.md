@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v52` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v53` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -42,7 +42,45 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
-## New/changed this session: Removed Automatic-Save Notice, Added Animated Save Indicator
+## New/changed this session: Rest Timer Overtime Display
+**Why**: a PWA can't notify the user when the timer ends while another app
+is in the foreground, so the timer now shows how long ago it finished when
+the user comes back to GymLog.
+
+**Behavior** (after the countdown reaches zero; all derived from
+`Date.now() - restTimer.endAt`, where `endAt` is the completion timestamp):
+- 0-15s: `Rest Complete` (existing pulse animation, accent border).
+- 15s to <5:00: red `+MM:SS`, the *total* time since completion (not since
+  the 15s mark), red border, pulse stops.
+- 5:00 and later: red `Over 5:00`, counter stops. Stays until Reset, a new
+  timer, or dismissing the bar.
+- Correct immediately after backgrounding/locking, since nothing depends on
+  interval ticks having run.
+
+**What changed** - all in `index.html`'s rest timer code:
+- New constants `REST_COMPLETE_GRACE_MS` (15000) and
+  `REST_OVERTIME_LIMIT_MS` (300000).
+- `tickRestTimer()` no longer clears the interval at zero. It keeps `endAt`
+  as the completion time and only stops the interval at the 5:00 cap.
+- `renderRestTimer()` picks the text/state from elapsed time since `endAt`
+  and toggles a new `.overtime` CSS class (red border and time text, pulse
+  off).
+- `visibilitychange` handler now also ticks while `finished`, not only while
+  `running`.
+- New `finishRestTimerNow()`: a 0-second timer (from Start or Reset) counts
+  as completed "now" and starts the overtime flow like any other.
+- Start/Reset needed no overtime-specific code: both rebuild or reset the
+  timer state, so previous overtime never carries over.
+- "Rest complete" text is now "Rest Complete".
+
+**Architecture note**: no new state fields; `endAt` already held the
+completion time once the countdown ended.
+
+**Limitations**: no background notification, sound, or vibration (still in
+the backlog). Overtime is not persisted, so it's lost if the app is fully
+closed (same as the rest of the timer).
+
+## New/changed (previous session): Removed Automatic-Save Notice, Added Animated Save Indicator
 **Why**: the permanent "Changes save automatically on this phone" line at
 the bottom of the Workout screen was no longer needed and just added
 visual clutter. But its replacement — a brief "Saved just now" text flash
@@ -601,7 +639,7 @@ confirm helper and one `data-action` name each.
 - "Edit" switches to the regular, already-editable card layout; "Save"
   returns to the condensed view. No separate editing UI was built.
 
-**Save Indicator** (new this session)
+**Save Indicator**
 - Replaces the old permanent "Changes save automatically on this phone"
   text and its "Saved just now" flash. A small floppy-disk icon in the
   accent green color flashes three times over 1.2 seconds next to the
@@ -644,7 +682,9 @@ CRUD over the standardized list, exact-duplicate detection (not fuzzy).
 **Rest Timer** — per-exercise ⏱ button, single persistent floating timer
 bar above the bottom tab bar, timestamp-based so it survives
 backgrounding. Doesn't survive the app being fully closed. Reset
-immediately restarts the countdown at the last-used duration.
+immediately restarts the countdown at the last-used duration. After
+  it hits zero: `Rest Complete` for 15s, then a red `+MM:SS` overtime
+  counter, then `Over 5:00` at the 5-minute cap.
 
 **Active workout date** — Today's Workout shows a read-only `dd/mm/yyyy`
 date badge (informational only, not stored until the workout completes).

@@ -501,6 +501,10 @@
     font-variant-numeric: tabular-nums;
   }
   .rest-timer-bar.finished .rest-timer-time { color: var(--text); font-size: 16px; }
+  /* Overtime: 15s+ after the countdown hit zero. Declared after .finished
+     so it wins; animation: none stops the pulse once overtime begins. */
+  .rest-timer-bar.overtime { border-color: var(--danger); animation: none; }
+  .rest-timer-bar.overtime .rest-timer-time { color: var(--danger); }
   .rest-timer-progress-track {
     height: 4px; background: var(--surface); border-radius: 2px; overflow: hidden; margin-top: 6px;
   }
@@ -1049,7 +1053,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v52";
+  const APP_VERSION = "gym-app-cache-v53";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -2019,6 +2023,14 @@
   // start time; nothing is written back onto the exercise. Uses a
   // timestamp-based countdown (rather than a naive per-tick decrement) so
   // it stays accurate through brief backgrounding/screen-lock.
+  // After the countdown reaches zero (restTimer.endAt is that moment),
+  // the display is derived from Date.now() - endAt:
+  //   < 15s            -> "Rest Complete"
+  //   15s .. < 5:00    -> red "+MM:SS" (total time since completion)
+  //   >= 5:00          -> red "Over 5:00" (counter stops)
+  const REST_COMPLETE_GRACE_MS = 15000;
+  const REST_OVERTIME_LIMIT_MS = 300000;
+
   let restTimer = null; // { exerciseName, duration, remaining, running, finished, endAt, intervalId }
 
   function clearRestTimerInterval() {
@@ -2044,9 +2056,19 @@
       restTimer.running = true;
       runRestTimerInterval();
     } else {
-      restTimer.finished = true;
+      finishRestTimerNow();
     }
     renderRestTimer();
+  }
+
+  // Used only for 0-second timers: treats "now" as the completion time
+  // and keeps the interval running so overtime can count up.
+  function finishRestTimerNow() {
+    clearRestTimerInterval();
+    restTimer.running = false;
+    restTimer.finished = true;
+    restTimer.endAt = Date.now();
+    restTimer.intervalId = setInterval(tickRestTimer, 250);
   }
 
   function runRestTimerInterval() {
@@ -2056,12 +2078,19 @@
   }
 
   function tickRestTimer() {
-    if (!restTimer || !restTimer.running) return;
-    const remaining = Math.max(0, Math.ceil((restTimer.endAt - Date.now()) / 1000));
-    restTimer.remaining = remaining;
-    if (remaining <= 0) {
-      restTimer.running = false;
-      restTimer.finished = true;
+    if (!restTimer) return;
+    if (restTimer.running) {
+      const remaining = Math.max(0, Math.ceil((restTimer.endAt - Date.now()) / 1000));
+      restTimer.remaining = remaining;
+      if (remaining <= 0) {
+        // endAt is left untouched: it is now the completion timestamp.
+        restTimer.running = false;
+        restTimer.finished = true;
+      }
+    }
+    // Interval keeps running after completion (for the overtime counter)
+    // and stops only once the 5:00 cap has been reached.
+    if (restTimer.finished && Date.now() - restTimer.endAt >= REST_OVERTIME_LIMIT_MS) {
       clearRestTimerInterval();
     }
     renderRestTimer();
@@ -2097,8 +2126,7 @@
       restTimer.finished = false;
       runRestTimerInterval();
     } else {
-      restTimer.running = false;
-      restTimer.finished = true;
+      finishRestTimerNow();
     }
     renderRestTimer();
   }
@@ -2118,14 +2146,29 @@
   function renderRestTimer() {
     const bar = document.getElementById("restTimerBar");
     if (!restTimer) {
-      bar.classList.remove("visible", "finished");
+      bar.classList.remove("visible", "finished", "overtime");
       return;
     }
     bar.classList.add("visible");
     bar.classList.toggle("finished", restTimer.finished);
     document.getElementById("restTimerLabel").textContent = restTimer.exerciseName;
-    document.getElementById("restTimerTime").textContent =
-      restTimer.finished ? "Rest complete" : formatTimerClock(restTimer.remaining);
+    let timeText = formatTimerClock(restTimer.remaining);
+    let isOvertime = false;
+    if (restTimer.finished) {
+      const sinceMs = Date.now() - restTimer.endAt;
+      if (sinceMs >= REST_OVERTIME_LIMIT_MS) {
+        timeText = "Over 5:00";
+        isOvertime = true;
+      } else if (sinceMs >= REST_COMPLETE_GRACE_MS) {
+        const s = Math.floor(sinceMs / 1000);
+        timeText = "+" + pad2(Math.floor(s / 60)) + ":" + pad2(s % 60);
+        isOvertime = true;
+      } else {
+        timeText = "Rest Complete";
+      }
+    }
+    bar.classList.toggle("overtime", isOvertime);
+    document.getElementById("restTimerTime").textContent = timeText;
     const pct = restTimer.duration > 0
       ? Math.max(0, Math.min(100, (restTimer.remaining / restTimer.duration) * 100))
       : 0;
@@ -2145,7 +2188,7 @@
   // timer that already finished shows "Rest complete" right away instead
   // of waiting for the next 250ms tick.
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && restTimer && restTimer.running) {
+    if (document.visibilityState === "visible" && restTimer && (restTimer.running || restTimer.finished)) {
       tickRestTimer();
     }
   });
