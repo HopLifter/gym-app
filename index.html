@@ -26,7 +26,7 @@
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
-    padding: 20px 16px calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 110px);
+    padding: 20px 16px calc(var(--bottom-nav-h) + var(--bottom-nav-gap) + 190px);
     max-width: 480px;
     margin: 0 auto;
   }
@@ -528,16 +528,31 @@
     border-radius: 14px;
     padding: 12px 14px;
     display: none;
-    align-items: center;
+    flex-direction: column;
+    align-items: stretch;
     gap: 10px;
     z-index: 40;
     box-shadow: 0 4px 16px rgba(0,0,0,0.4);
   }
   .rest-timer-bar.visible { display: flex; }
+  .rest-timer-main { display: flex; align-items: center; gap: 10px; }
+  /* Set squares (feature 1.2): display only, one per set, wrap if needed. */
+  .rest-timer-sets { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rest-timer-sets:empty { display: none; }
+  .set-square {
+    width: 30px; height: 30px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700;
+    background: transparent; color: var(--text-dim); border: 1px solid var(--line);
+  }
+  .set-square.done { background: var(--done); color: var(--text); border-color: var(--done); }
+  .set-square.current { background: var(--accent); color: var(--bg); border-color: var(--accent); }
   .rest-timer-bar.finished {
     border-color: var(--accent);
     animation: restTimerPulse 1.1s ease-out 3;
   }
+  .rest-timer-bar.complete { border-color: var(--accent); }
+  .rest-timer-bar.complete .rest-timer-time { color: var(--text); font-size: 16px; }
   @keyframes restTimerPulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(198,255,61,0.45); }
     50% { box-shadow: 0 0 0 9px rgba(198,255,61,0); }
@@ -1039,15 +1054,18 @@
 </div>
 
 <div class="rest-timer-bar" id="restTimerBar">
-  <div class="rest-timer-info">
-    <div class="rest-timer-label" id="restTimerLabel"></div>
-    <div class="rest-timer-time" id="restTimerTime"></div>
-    <div class="rest-timer-progress-track"><div class="rest-timer-progress-fill" id="restTimerFill"></div></div>
-  </div>
-  <div class="rest-timer-actions">
-    <button class="rest-timer-btn primary" id="restTimerPauseBtn">Pause</button>
-    <button class="rest-timer-btn" id="restTimerResetBtn">Reset</button>
-    <button class="rest-timer-close" id="restTimerCloseBtn">✕</button>
+  <div class="rest-timer-sets" id="restTimerSets"></div>
+  <div class="rest-timer-main">
+    <div class="rest-timer-info">
+      <div class="rest-timer-label" id="restTimerLabel"></div>
+      <div class="rest-timer-time" id="restTimerTime"></div>
+      <div class="rest-timer-progress-track"><div class="rest-timer-progress-fill" id="restTimerFill"></div></div>
+    </div>
+    <div class="rest-timer-actions">
+      <button class="rest-timer-btn primary" id="restTimerPauseBtn">Pause</button>
+      <button class="rest-timer-btn" id="restTimerResetBtn">Reset</button>
+      <button class="rest-timer-close" id="restTimerCloseBtn">✕</button>
+    </div>
   </div>
 </div>
 
@@ -1114,7 +1132,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v57";
+  const APP_VERSION = "gym-app-cache-v58";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -2136,7 +2154,14 @@
   const REST_COMPLETE_GRACE_MS = 15000;
   const REST_OVERTIME_LIMIT_MS = 300000;
 
-  let restTimer = null; // { exerciseName, duration, remaining, running, finished, endAt, intervalId }
+  // totalSets/currentSet/allSetsComplete are in-memory only (feature 1.2);
+  // totalSets 0 = no set tracking (exercise has blank/0 sets).
+  let restTimer = null; // { exerciseName, duration, remaining, running, finished, endAt, intervalId, totalSets, currentSet, allSetsComplete }
+
+  // An active set timer has set squares and hasn't reached All Sets Complete.
+  function hasActiveSetTimer() {
+    return !!(restTimer && restTimer.totalSets > 0 && !restTimer.allSetsComplete);
+  }
 
   function clearRestTimerInterval() {
     if (restTimer && restTimer.intervalId) {
@@ -2148,14 +2173,20 @@
   function startRestTimer(ex) {
     clearRestTimerInterval();
     const duration = Math.max(0, Math.round(Number(ex.rest) || 0));
+    const partner = findSupersetPartner(ex);
+    const name = ex.name || "Exercise";
+    const totalSets = Math.max(0, Math.floor(Number(ex.sets) || 0));
     restTimer = {
-      exerciseName: ex.name || "Exercise",
+      exerciseName: partner ? name + " + " + (partner.name || "Exercise") : name,
       duration,
       remaining: duration,
       running: false,
       finished: false,
       endAt: null,
-      intervalId: null
+      intervalId: null,
+      totalSets,
+      currentSet: totalSets > 0 ? 1 : 0,
+      allSetsComplete: false
     };
     if (duration > 0) {
       restTimer.running = true;
@@ -2183,7 +2214,7 @@
   }
 
   function tickRestTimer() {
-    if (!restTimer) return;
+    if (!restTimer || restTimer.allSetsComplete) return;
     if (restTimer.running) {
       const remaining = Math.max(0, Math.ceil((restTimer.endAt - Date.now()) / 1000));
       restTimer.remaining = remaining;
@@ -2223,8 +2254,18 @@
   // touches it) — so no new state is needed to "remember" the last-used
   // duration. Mirrors startRestTimer()'s own duration>0 vs 0 handling.
   function resetRestTimer() {
-    if (!restTimer) return;
+    if (!restTimer || restTimer.allSetsComplete) return;
     clearRestTimerInterval();
+    if (restTimer.totalSets > 0) {
+      if (restTimer.currentSet >= restTimer.totalSets) {
+        restTimer.running = false;
+        restTimer.finished = false;
+        restTimer.allSetsComplete = true;
+        renderRestTimer();
+        return;
+      }
+      restTimer.currentSet++;
+    }
     restTimer.remaining = restTimer.duration;
     if (restTimer.duration > 0) {
       restTimer.running = true;
@@ -2242,6 +2283,26 @@
     renderRestTimer();
   }
 
+  const SET_TIMER_WARNING = "You will lose track of which set you are on. Are you sure you want to do this?";
+
+  // ✕ goes through here so an active set timer isn't lost by accident.
+  function requestDismissRestTimer() {
+    if (hasActiveSetTimer()) {
+      openConfirm("Close set timer?", SET_TIMER_WARNING, dismissRestTimer, "Confirm", true);
+    } else {
+      dismissRestTimer();
+    }
+  }
+
+  // ⏱ goes through here so an active set timer isn't replaced by accident.
+  function requestStartRestTimer(ex) {
+    if (hasActiveSetTimer()) {
+      openConfirm("Replace set timer?", SET_TIMER_WARNING, () => startRestTimer(ex), "Confirm", true);
+    } else {
+      startRestTimer(ex);
+    }
+  }
+
   function formatTimerClock(totalSeconds) {
     const m = Math.floor(totalSeconds / 60);
     const s = totalSeconds % 60;
@@ -2251,15 +2312,27 @@
   function renderRestTimer() {
     const bar = document.getElementById("restTimerBar");
     if (!restTimer) {
-      bar.classList.remove("visible", "finished", "overtime");
+      bar.classList.remove("visible", "finished", "overtime", "complete");
       return;
     }
     bar.classList.add("visible");
     bar.classList.toggle("finished", restTimer.finished);
+    bar.classList.toggle("complete", restTimer.allSetsComplete);
     document.getElementById("restTimerLabel").textContent = restTimer.exerciseName;
+    const setsEl = document.getElementById("restTimerSets");
+    let squares = "";
+    for (let i = 1; i <= restTimer.totalSets; i++) {
+      const state = restTimer.allSetsComplete || i < restTimer.currentSet ? "done"
+        : i === restTimer.currentSet ? "current" : "";
+      squares += `<div class="set-square ${state}">${i}</div>`;
+    }
+    setsEl.innerHTML = squares;
+    document.getElementById("restTimerResetBtn").classList.toggle("hidden", restTimer.allSetsComplete);
     let timeText = formatTimerClock(restTimer.remaining);
     let isOvertime = false;
-    if (restTimer.finished) {
+    if (restTimer.allSetsComplete) {
+      timeText = "All sets complete";
+    } else if (restTimer.finished) {
       const sinceMs = Date.now() - restTimer.endAt;
       if (sinceMs >= REST_OVERTIME_LIMIT_MS) {
         timeText = "Over 5:00";
@@ -2280,7 +2353,7 @@
     document.getElementById("restTimerFill").style.width = pct + "%";
     const pauseBtn = document.getElementById("restTimerPauseBtn");
     pauseBtn.textContent = restTimer.running ? "Pause" : "Resume";
-    pauseBtn.classList.toggle("hidden", restTimer.finished);
+    pauseBtn.classList.toggle("hidden", restTimer.finished || restTimer.allSetsComplete);
   }
 
   // The countdown is already derived from real-world time (endAt is a
@@ -2303,7 +2376,7 @@
     if (restTimer.running) pauseRestTimer(); else resumeRestTimer();
   });
   document.getElementById("restTimerResetBtn").addEventListener("click", resetRestTimer);
-  document.getElementById("restTimerCloseBtn").addEventListener("click", dismissRestTimer);
+  document.getElementById("restTimerCloseBtn").addEventListener("click", requestDismissRestTimer);
 
   // ---- Global Workout Timer ----
   // Total time spent on Today's Workout, independent of the rest timer.
@@ -2568,7 +2641,7 @@
     }
 
     if (action === "start-timer") {
-      startRestTimer(ex);
+      requestStartRestTimer(ex);
       return;
     }
 

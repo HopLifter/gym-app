@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v57` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v58` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -42,7 +42,40 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
-## New/changed this session: Workout Timer Resets When Its Workout Stops Being Today's
+## New/changed this session: Set Progress Tracking (Roadmap 1.2, v58)
+Shows which set you are on while the rest timer bar is open. All in
+`index.html`; nothing is saved (in-memory only, lost on full app close).
+
+- Tapping ⏱ reads `ex.sets` and adds `totalSets`, `currentSet`,
+  `allSetsComplete` to the in-memory `restTimer`. A row of numbered 30×30
+  squares (done / current / upcoming) sits above the existing bar content
+  (the bar is now a column: `.rest-timer-sets` + `.rest-timer-main`).
+  Squares are display only and wrap to a second row (10 sets fit 2 rows at
+  375px).
+- **Reset** (any state: running, paused, Rest Complete, overtime) moves to
+  the next set and restarts the countdown. On the final set it enters **All
+  Sets Complete**: all squares done, text "All sets complete", interval
+  stopped (no overtime), Pause and Reset hidden, accent border, no pulse.
+- **Warnings** (`openConfirm`, red Confirm): ✕ on an *active set timer*
+  (has squares, not All Sets Complete) → "Close set timer?"; ⏱ on any
+  exercise during an active set timer → "Replace set timer?". Helpers:
+  `hasActiveSetTimer()`, `requestDismissRestTimer()`,
+  `requestStartRestTimer(ex)`. No warning in All Sets Complete or when the
+  exercise has blank/0 sets (timer behaves exactly as before, no squares).
+- **Supersets**: one timer per round; square count comes from the tapped
+  exercise; label is "Tapped + Partner" (ellipsis if long).
+- The total is fixed when the timer starts (editing Sets mid-timer doesn't
+  change the open bar).
+- Body bottom padding raised (+190px) so a taller bar never covers Add
+  Exercise / the last item.
+- Cache/`APP_VERSION`: `gym-app-cache-v58`.
+- **Testing limits**: verified by scripted browser-pane tests (acceptance
+  tests 1–19, 21 and the 375px layout). Not tested on a real phone:
+  backgrounding/lock-screen behaviour (test 20) — logic is timestamp-based
+  as before and All Sets Complete has no running interval. Test 22 was
+  checked only by not touching those areas.
+
+## Previous session: Workout Timer Resets When Its Workout Stops Being Today's
 **Why**: a paused timer used to stay attached to its workout after another
 workout was put in front of it (reorder, or restoring from History). When
 that workout became Today's again it still showed the old elapsed time.
