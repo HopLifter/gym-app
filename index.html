@@ -218,6 +218,31 @@
     color: var(--text-dim);
     margin-bottom: 16px;
   }
+  .date-text.tight { margin-bottom: 4px; }
+  /* Edit mode on a Past Workout: date and duration fields side by side. */
+  .date-edit-row { display: flex; gap: 10px; align-items: flex-start; }
+  .duration-input { width: 130px; }
+  /* Today's Workout: date badge on the left, global workout timer on
+     the right. min-height keeps the header the same height in the
+     idle / running / paused states (the Start/Pause pill is taller
+     than the plain badge), so positionUndoBanner() stays correct. */
+  .date-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 34px;
+    margin-bottom: 16px;
+  }
+  .date-row .date-badge { margin-bottom: 0; }
+  .timer-controls { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+  .timer-clock {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .timer-clock.paused { opacity: 0.5; }
   .workout-note {
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
@@ -905,9 +930,19 @@
       <input class="title-input" id="dayTitle" data-field="label" placeholder="Workout label">
       <button class="header-action-btn hidden" id="editToggleBtn">Edit</button>
     </div>
-    <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" class="date-input hidden" id="dateInput">
-    <div class="date-badge hidden" id="dateDisplay"></div>
+    <div class="date-edit-row">
+      <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" class="date-input hidden" id="dateInput">
+      <input type="text" inputmode="decimal" maxlength="5" placeholder="Duration (min)" aria-label="Duration in minutes" class="date-input duration-input hidden" id="durationInput">
+    </div>
+    <div class="date-row hidden" id="dateRow">
+      <div class="date-badge hidden" id="dateDisplay"></div>
+      <div class="timer-controls" id="timerControls">
+        <span class="timer-clock hidden" id="timerClock">0:00</span>
+        <button class="header-action-btn" id="timerToggleBtn">Start Workout</button>
+      </div>
+    </div>
     <div class="date-text hidden" id="dateText"></div>
+    <div class="date-text hidden" id="durationText"></div>
   </div>
 
   <div id="workoutBody">
@@ -1053,7 +1088,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v53";
+  const APP_VERSION = "gym-app-cache-v54";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1512,6 +1547,7 @@
     document.getElementById("editToggleBtn").classList.add("hidden");
     document.getElementById("dateInput").classList.add("hidden");
     document.getElementById("dateDisplay").classList.add("hidden");
+    document.getElementById("dateRow").classList.add("hidden");
     backNavTarget = null;
     positionHeaderMenu();
     positionSaveIndicator();
@@ -1562,25 +1598,44 @@
     const dateInput = document.getElementById("dateInput");
     const dateDisplay = document.getElementById("dateDisplay");
     const dateText = document.getElementById("dateText");
+    const durationInput = document.getElementById("durationInput");
+    const durationText = document.getElementById("durationText");
+    const hasDuration = typeof workout.durationSec === "number";
     dateInput.classList.add("hidden");
+    durationInput.classList.add("hidden");
     dateDisplay.classList.add("hidden");
     dateText.classList.add("hidden");
+    dateText.classList.remove("tight");
+    durationText.classList.add("hidden");
+    document.getElementById("dateRow").classList.toggle("hidden", !(viewSource === "queue" && isNext));
     if (viewSource === "history") {
       if (editMode) {
-        // Editing: same editable dd/mm/yyyy field as always.
+        // Editing: same editable dd/mm/yyyy field as always, with the
+        // workout duration (whole minutes) beside it.
         dateInput.classList.remove("hidden");
         if (document.activeElement !== dateInput) dateInput.value = isoToDMY(workout.date);
         dateInput.disabled = !editable;
+        durationInput.classList.remove("hidden");
+        if (document.activeElement !== durationInput) {
+          durationInput.value = hasDuration ? String(Math.round(workout.durationSec / 60)) : "";
+        }
       } else {
         // Condensed view: plain read-only text, not a boxed input —
         // matches the rest of the condensed presentation.
         dateText.classList.remove("hidden");
         dateText.textContent = formatDateDisplay(workout.date);
+        if (hasDuration) {
+          dateText.classList.add("tight");
+          durationText.classList.remove("hidden");
+          durationText.textContent = "Total Workout Time: " + formatDurationLabel(workout.durationSec);
+        }
       }
     } else if (viewSource === "queue" && isNext) {
       dateDisplay.classList.remove("hidden");
       dateDisplay.textContent = formatDateBadge(workout.date);
+      renderWorkoutTimer();
     }
+    syncWorkoutTimerInterval();
 
     const status = document.getElementById("status");
     if (viewSource === "history" && editMode) {
@@ -1885,6 +1940,7 @@
       renderExerciseList();
     }
     else render();
+    syncWorkoutTimerInterval();
     updateBottomNav();
   }
 
@@ -2199,6 +2255,115 @@
   });
   document.getElementById("restTimerResetBtn").addEventListener("click", resetRestTimer);
   document.getElementById("restTimerCloseBtn").addEventListener("click", dismissRestTimer);
+
+  // ---- Global Workout Timer ----
+  // Total time spent on Today's Workout, independent of the rest timer.
+  // State lives on the queued workout itself as
+  //   timer: { status: "running" | "paused", startedAt, accumulatedMs }
+  // (absent = idle) and is saved only on Start/Pause/Resume/Finish. The
+  // displayed time is always derived from timestamps, never counted from
+  // interval ticks, so it stays correct through backgrounding, phone lock
+  // and a full app close. Only Today's Workout (front of the queue) shows
+  // it; navigating around the app never touches it.
+  let workoutTimerInterval = null;
+
+  function todaysWorkout() {
+    return sortedQueue()[0] || null;
+  }
+
+  function workoutTimerElapsedMs(t) {
+    return t.accumulatedMs + (t.status === "running" ? Date.now() - t.startedAt : 0);
+  }
+
+  function isWorkoutTimerRunning() {
+    const w = todaysWorkout();
+    return !!(w && w.timer && w.timer.status === "running");
+  }
+
+  // M:SS under an hour, H:MM:SS from one hour.
+  function formatElapsed(ms) {
+    const total = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    return h > 0 ? `${h}:${pad2(m)}:${pad2(s)}` : `${m}:${pad2(s)}`;
+  }
+
+  // "1h 12m" label used on the condensed Past Workout view.
+  function formatDurationLabel(sec) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return m > 0 ? `${m}m` : "<1m";
+  }
+
+  function renderWorkoutTimer() {
+    const w = todaysWorkout();
+    const t = w && w.timer;
+    const clock = document.getElementById("timerClock");
+    const btn = document.getElementById("timerToggleBtn");
+    if (!t) {
+      clock.classList.add("hidden");
+      btn.textContent = "Start Workout";
+      return;
+    }
+    clock.classList.remove("hidden");
+    clock.classList.toggle("paused", t.status !== "running");
+    clock.textContent = formatElapsed(workoutTimerElapsedMs(t));
+    btn.textContent = t.status === "running" ? "Pause" : "Resume";
+  }
+
+  // The 1-second refresh only runs while the timer is running and
+  // Today's Workout is the screen being looked at.
+  function syncWorkoutTimerInterval() {
+    const w = todaysWorkout();
+    const shouldRun = currentScreen === "workout" && viewSource === "queue" &&
+      !!w && w.id === viewId && isWorkoutTimerRunning();
+    if (shouldRun && !workoutTimerInterval) {
+      workoutTimerInterval = setInterval(renderWorkoutTimer, 1000);
+    } else if (!shouldRun && workoutTimerInterval) {
+      clearInterval(workoutTimerInterval);
+      workoutTimerInterval = null;
+    }
+  }
+
+  document.getElementById("timerToggleBtn").addEventListener("click", () => {
+    const w = todaysWorkout();
+    if (!w || w.id !== viewId) return;
+    const now = Date.now();
+    const t = w.timer;
+    if (!t) {
+      w.timer = { status: "running", startedAt: now, accumulatedMs: 0 };
+    } else if (t.status === "running") {
+      t.accumulatedMs += now - t.startedAt;
+      t.startedAt = null;
+      t.status = "paused";
+    } else {
+      t.startedAt = now;
+      t.status = "running";
+    }
+    saveQueue();
+    renderWorkoutTimer();
+    syncWorkoutTimerInterval();
+  });
+
+  // Same pattern as the rest timer: the interval is throttled while the
+  // app is backgrounded, so refresh immediately when it comes back.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      renderWorkoutTimer();
+      syncWorkoutTimerInterval();
+    }
+  });
+
+  // Today's Workout can't change while the timer is running, so any
+  // action that would swap or remove it is stopped with a notice first.
+  // Returns true when the action was blocked.
+  function blockIfTimerRunning() {
+    if (!isWorkoutTimerRunning()) return false;
+    openNotice("Pause the timer first", "Today's Workout can't change while the workout timer is running.");
+    return true;
+  }
 
   const container = document.getElementById("workout");
 
@@ -2624,6 +2789,28 @@
     e.target.value = isoToDMY(w.date);
   });
 
+  // History edit mode: duration is edited in whole minutes through the
+  // same isolated draft as every other field (Save commits, Leave discards).
+  document.getElementById("durationInput").addEventListener("input", (e) => {
+    const w = getActiveWorkout();
+    if (!w || viewSource !== "history" || !editMode) return;
+    const raw = e.target.value.trim().replace(",", ".");
+    if (raw === "") {
+      delete w.durationSec;
+    } else {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 0) w.durationSec = Math.round(n * 60);
+    }
+  });
+  document.getElementById("durationInput").addEventListener("blur", (e) => {
+    const w = getActiveWorkout();
+    if (!w) return;
+    e.target.value = typeof w.durationSec === "number" ? String(Math.round(w.durationSec / 60)) : "";
+  });
+  document.getElementById("durationInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") e.target.blur();
+  });
+
   document.getElementById("headerMenuBtn").addEventListener("click", (e) => {
     e.stopPropagation();
     headerMenuOpen = !headerMenuOpen;
@@ -2636,9 +2823,11 @@
     headerMenuOpen = false;
 
     if (action === "complete") {
+      const timed = getActiveWorkout() && getActiveWorkout().timer;
+      const durationLine = timed ? `\n\nDuration: ${formatElapsed(workoutTimerElapsedMs(timed))}` : "";
       openConfirm(
         "Finish Workout?",
-        "This will move today's workout into your history and make the next queued workout active.\n\nAre you sure you want to finish today's workout?",
+        "This will move today's workout into your history and make the next queued workout active.\n\nAre you sure you want to finish today's workout?" + durationLine,
         completeActiveWorkout,
         "Finish Workout",
         false
@@ -2679,10 +2868,20 @@
     w.date = todayISO();
     w.note = w.note || "";
     delete w.order;
+    // Stop the workout timer and keep its total (running time folded in).
+    if (w.timer) {
+      w.durationSec = Math.round(workoutTimerElapsedMs(w.timer) / 1000);
+      delete w.timer;
+    }
     history.push(w);
     saveQueue();
     saveHistory();
-    setActiveToNextQueued();
+    // Land on the finished workout's Past Workout view; the Today tab
+    // then shows the next queued workout as usual.
+    viewSource = "history";
+    viewId = w.id;
+    editMode = false;
+    historyEditDraft = null;
     showScreen("workout");
   }
 
@@ -2697,6 +2896,8 @@
     w.status = "queued";
     w.date = null;
     delete w.note;
+    delete w.durationSec; // restored workouts start with an idle timer
+    delete w.timer;
     w.order = queue.length ? Math.max(...queue.map(x => x.order)) + 1 : 0;
     queue.push(w);
     saveHistory();
@@ -2711,6 +2912,8 @@
   function confirmDeleteFromQueue(id, afterDelete) {
     const w = queue.find(x => x.id === id);
     if (!w) return;
+    const today = todaysWorkout();
+    if (today && today.id === id && blockIfTimerRunning()) return;
     openConfirm(
       "Delete from queue?",
       `"${w.label || "This workout"}" will be removed without being logged to history.`,
@@ -2745,18 +2948,24 @@
     );
   }
 
+  // Inserts the new workout directly after Today's Workout (second in
+  // the queue), so Today's Workout never changes. If the queue is empty
+  // it becomes Today's Workout. Orders are renumbered 0..n-1 since
+  // Move Up/Down swaps integer order values.
   function addAdhocWorkout() {
-    const minOrder = queue.length ? Math.min(...queue.map(w => w.order)) : 0;
     const w = {
       id: newId("wk"),
       programId: null,
       label: "Ad-hoc Workout",
       date: null,
       status: "queued",
-      order: minOrder - 1,
+      order: 0,
       exercises: []
     };
-    queue.push(w);
+    const q = sortedQueue();
+    q.splice(q.length ? 1 : 0, 0, w);
+    q.forEach((x, i) => { x.order = i; });
+    queue = q;
     saveQueue();
     viewSource = "queue";
     viewId = w.id;
@@ -2772,11 +2981,17 @@
     document.getElementById("confirmTitle").textContent = title;
     document.getElementById("confirmText").textContent = text;
     confirmAction = onConfirm;
+    document.getElementById("confirmCancelBtn").classList.remove("hidden");
     const btn = document.getElementById("confirmDangerBtn");
     btn.textContent = confirmLabel;
     btn.classList.toggle("modal-btn-danger", danger);
     btn.classList.toggle("modal-btn-primary", !danger);
     document.getElementById("confirmOverlay").classList.remove("hidden");
+  }
+  // Info-only variant of the confirm modal: a single OK button.
+  function openNotice(title, text) {
+    openConfirm(title, text, null, "OK", false);
+    document.getElementById("confirmCancelBtn").classList.add("hidden");
   }
   document.getElementById("confirmCancelBtn").addEventListener("click", () => {
     confirmAction = null;
@@ -2791,6 +3006,8 @@
 
   function confirmEndProgram() {
     if (!program) return;
+    const today = todaysWorkout();
+    if (today && today.programId === program.id && blockIfTimerRunning()) return;
     openConfirm(
       "End this program?",
       `Queued workouts from "${program.name}" that aren't completed will be discarded. Completed workouts stay in your history.`,
@@ -3127,6 +3344,11 @@
       const idx = q.findIndex(w => w.id === id);
       const targetIdx = action === "move-up" ? idx - 1 : idx + 1;
       if (targetIdx >= 0 && targetIdx < q.length) {
+        // Swapping with the first position would change Today's Workout.
+        if ((idx === 0 || targetIdx === 0) && blockIfTimerRunning()) {
+          renderQueueList();
+          return;
+        }
         const tmp = q[idx].order;
         q[idx].order = q[targetIdx].order;
         q[targetIdx].order = tmp;

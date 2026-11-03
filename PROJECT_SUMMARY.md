@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v53` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v54` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -42,7 +42,62 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
-## New/changed this session: Rest Timer Overtime Display
+## New/changed this session: Global Workout Timer (Roadmap 1.1)
+**What**: tracks total time spent on Today's Workout, separate from the
+rest timer. Explicit Start / Pause / Resume on Today's Workout only; the
+elapsed clock sits in the sticky header on the same row as the date badge
+(badge left, clock + pill button right). Finish Workout stops it and
+stores the duration on the history entry.
+
+**Behavior**
+- Elapsed = `accumulatedMs` + (running ? `now - startedAt` : 0), always
+  derived from timestamps (never counted from ticks), so it is right after
+  backgrounding, phone lock or a full app close. State is saved with the
+  workout via `saveQueue()` on Start/Pause/Resume/Finish only.
+- Format `M:SS`, or `H:MM:SS` from one hour; paused clock is dimmed.
+- Shown only on Today's Workout (front of queue): hidden on peeked queued
+  workouts, Past Workouts, the empty state and the Queue list. Navigating
+  to other screens never pauses it. The 1s refresh interval only runs
+  while it is running and Today's Workout is on screen
+  (`syncWorkoutTimerInterval()`); a `visibilitychange` handler refreshes
+  immediately on return.
+- **Guard**: while the timer is *running*, anything that would change
+  Today's Workout shows a one-button notice ("Pause the timer first")
+  and changes nothing: moving the first Queue item down or the second up,
+  deleting Today's Workout (Queue list or header ⋮ menu), and End Current
+  Program when Today's Workout belongs to that program. Paused is treated
+  as stopped, so none of this applies while paused. Notice is
+  `openNotice()` (confirm modal with the Cancel button hidden); the guard
+  helper is `blockIfTimerRunning()`.
+- **Finish Workout** now lands on the finished workout's Past Workout
+  view (`viewSource = "history"`, History tab highlighted) instead of the
+  next queued workout; the Today tab then shows the next one. The confirm
+  text appends "Duration: H:MM:SS" when a timer exists. Pause then Finish
+  records only the time up to the pause.
+- **Condensed History**: "Total Workout Time: 1h 12m" line directly under
+  the date (`<1m` under a minute); omitted if the timer was never started.
+- **History edit mode**: "Duration (min)" field beside the date field,
+  editing `historyEditDraft.durationSec` in whole minutes (empty clears
+  it). Save commits; "Leave" discards, like every other field.
+- **Add Workout behavior change**: the new ad-hoc workout now inserts
+  directly *after* Today's Workout (second position), always; if the
+  queue is empty it becomes Today's Workout. Queue `order` values are
+  renumbered 0..n-1 on insert. It opens as a peeked workout with the
+  Queue tab highlighted (title focused).
+- Restore to Queue deletes `durationSec` and never creates a timer.
+- Not in Export Gym Log; no auto-start, notification or sound.
+
+**Header height**: `.date-row` has `min-height: 34px` so the header is the
+same height in idle/running/paused (measured 147px at 375px wide), keeping
+`positionUndoBanner()` correct.
+
+**Tested** (browser, scripted against the spec's acceptance list): start/
+pause/resume, reload while running, blocked actions while running and
+allowed while paused, Finish while paused, History view/edit/Save/Leave/
+clear, Restore, End Program guard, Add Workout position and empty queue,
+header height. Not tested on a real phone: lock screen / app-kill timing.
+
+## Previous session: Rest Timer Overtime Display
 **Why**: a PWA can't notify the user when the timer ends while another app
 is in the foreground, so the timer now shows how long ago it finished when
 the user comes back to GymLog.
@@ -401,17 +456,23 @@ handlers:
   Exercise" is always a real value change from `""` → `__custom__`.
 
 ## Data model
-No data model changes this session. localStorage keys:
+Two new optional fields this session (no new localStorage key, no
+migration — absent means idle / no duration, so old data and old backups
+load unchanged). localStorage keys:
 - `gymapp_program_v1` — the currently active imported program, if any:
   `{ id, name, importedAt }`. `null`/absent if no program is active.
 - `gymapp_queue_v1` — array of planned workouts, each:
-  `{ id, programId, label, date, status: "queued", order, exercises }`.
+  `{ id, programId, label, date, status: "queued", order, exercises,
+  timer? }` where `timer` is
+  `{ status: "running" | "paused", startedAt: <ms epoch> | null,
+  accumulatedMs }` (absent = idle).
   `order` determines queue position (ascending); the lowest `order` is the
   "Today's Workout" / active workout. `date` is `null` until the workout is
   completed. `programId` is `null` for ad-hoc workouts.
 - `gymapp_history_v1` — array of completed workouts, each:
-  `{ id, programId, label, date, status: "completed", note, exercises }`
-  (no `order` field — history is sorted by `date`, newest first).
+  `{ id, programId, label, date, status: "completed", note, exercises,
+  durationSec? }` (no `order` field — history is sorted by `date`, newest
+  first). `durationSec` is the workout timer's total, absent if never started.
 - `gymapp_exercise_list_v1` — flat array of strings, the standardized
   exercise list. Always kept sorted alphabetically by the code that writes it.
 - Each exercise: `{ id, name, sets, reps, weight, rpe, rest, notes, supersetId }`.
@@ -599,7 +660,11 @@ confirm helper and one `data-action` name each.
 - "End Current Program" clears remaining queued workouts (completed ones
   stay in history) and annotates the last completed workout.
 - Queue screen lists all planned workouts in order; reorder, delete, or
-  add a one-off "Add Workout" ad-hoc entry.
+  add a one-off "Add Workout" ad-hoc entry (inserted right after Today's
+  Workout).
+- Global workout timer on Today's Workout (Start/Pause/Resume, duration
+  saved on Finish, shown in Past Workouts and editable there) — see the
+  "Global Workout Timer" section.
 - The active workout screen always shows the front-of-queue workout
   unless you've navigated into another queued or past workout to peek
   at it.
@@ -710,7 +775,11 @@ green border via direct DOM class toggle (editable card view only).
   design, matches current scope.
 - Shared superset rest time is enforced by app code on every edit/pair
   action, not by the storage schema.
-- The rest timer doesn't survive the app being fully closed/killed.
+- The rest timer doesn't survive the app being fully closed/killed. (The
+  global workout timer does.)
+- Workout timer: no cap or warning if you forget to finish (it keeps
+  running overnight; fix the total in History edit). It uses `Date.now()`,
+  so changing the phone clock mid-workout distorts the time.
 - Export Gym Log assumes weight is always entered in kg — no unit
   conversion (see Backlog). The comma-decimal export fix assumes the
   target sheet's regional settings use comma decimals.
