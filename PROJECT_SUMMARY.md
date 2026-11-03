@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v58` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v61` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -42,7 +42,109 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
-## New/changed this session: Set Progress Tracking (Roadmap 1.2, v58)
+## Tweak after testing (v61): comment box wording
+On editable workout pages the "Workout comment" label above the box was
+removed (it keeps an `aria-label`) and the placeholder is now "Leave a
+comment about this workout…" (was "How did today go?"). The read-only Past
+Workout view still shows the "Workout comment" label, so the text is
+identified there. Supersedes the label/placeholder wording in the 1.5
+section below. Cache version is `gym-app-cache-v61`.
+
+## New/changed this session: Workout Description and Comment (Roadmap 1.5, v60)
+Source: Feature Spec 1.5 (Option B, comment at top of page). All in
+`index.html`; `sw.js` only has the version bump. Builds on v59 (Program
+Queue, unpublished at the time of this build).
+
+- **Data model:** two optional text fields on queue and history workouts,
+  `description` and `comment`. No new key, no migration; missing = empty.
+  `comment` is deliberately separate from `note` (`endProgram()`
+  overwrites `note`, `restoreWorkoutToQueue()` deletes it). Both fields ride
+  along in Backup/Restore with no code change; Export Gym Log and Recent
+  Performance are unchanged.
+- **Description:** optional `description` string per workout in the import
+  file; `doImport()` saves it trimmed, and only when it is a non-empty
+  string. Shown read-only (13px, `--text-dim`) in `#workoutDesc` directly
+  under the title inside the sticky header, on Today's, peeked queued and
+  Past Workouts (also in History edit mode); hidden when empty so header
+  height is unchanged (`positionUndoBanner()` measures the real height).
+  Queue list second line shows it, falling back to `Program workout` /
+  `Ad-hoc`. History list unchanged.
+- **Comment (editable views):** static `#commentBox` (label "Workout
+  comment", textarea, placeholder "How did today go?") in `#workoutBody`
+  above `#workout`, so it scrolls away with the page and is not rebuilt by
+  `renderExercises()`. `renderCommentBox()` only writes the value when it
+  lacks focus (dayTitle pattern). The input handler writes
+  `getActiveWorkout().comment` and calls `saveActiveWorkout()` (History
+  edit goes through `historyEditDraft`; Save keeps, Leave discards); it
+  never calls `render()`. `autoSizeComment()` sets the height from
+  `scrollHeight` (reset first so it shrinks), on input, on render and on
+  window resize; `resize: none`.
+- **Comment (Past Workout, viewing):** `#commentBox` is hidden in
+  `isCondensedHistoryView()`; `renderCondensedExercises()` fills
+  `#condensedComment` below the table (also in the "No exercises logged."
+  case), `pre-wrap`, via `escapeHtml()`; whitespace-only = hidden. It is a
+  separate element so the table's `:last-child` border rule is unaffected.
+- **Testing limits:** scenarios run in a desktop browser against a local
+  server with a restored copy of a real backup, and 375px layout checked
+  by screenshot: import (trim/blank/non-text/missing), queue second line,
+  peek header, typing/persist/focus/grow/shrink, finish → Past view
+  comment, History edit draft isolation, restore keeps comment. Not run
+  on a phone: the iOS keyboard with the comment box, History Save/Leave
+  buttons by tap, full-reload persistence and backup round trip of the new
+  fields on-device.
+
+## Previous session: Program Queue (Roadmap 1.4, v59)
+Add a new program without replacing the current one. Source: Feature Spec
+1.4. All code in `index.html`; `sw.js` only has the version bump.
+
+- **Data model:** new key `gymapp_programs_v1`, an array of
+  `{ id, name, importedAt, status: "current"|"next"|"ended", endedAt? }`.
+  Replaces the old single `gymapp_program_v1`. Queue/history workouts are
+  unchanged; `programId` still links a workout to its program. Helpers:
+  `currentProgram()`, `nextProgram()`, `queuedCountFor(id)`,
+  `savePrograms()`.
+- **Migration (startup):** if `gymapp_programs_v1` is missing, the old
+  program becomes `current` (or the list is empty), `gymapp_program_v1` is
+  removed, then `syncProgramState()` runs. Programs ended before v59 were
+  never saved and cannot be recovered; workouts with an unknown
+  `programId` display normally.
+- **Import:** an empty `workouts` array shows "This file has no workouts."
+  Otherwise: no current → import is Current; current has no queued
+  workouts → it is marked ended and the import is Current; current has
+  queued workouts and no next → import is Next; a Next already exists →
+  `openNotice()` (Settings hides the button, so normally unreachable).
+  The old "Replace current program?" confirm is **removed** (superseded).
+  Workouts append to the end of the queue; `doImport(data, status)`.
+- **`syncProgramState()`:** runs at startup and after Finish Workout
+  (`completeActiveWorkout()`) and Delete from Queue
+  (`confirmDeleteFromQueue()`). Next with no queued workouts → ended if it
+  has history, else dropped from the list; Current with no queued
+  workouts → ended; if no Current, Next is promoted. No pop-up, no note on
+  the last workout. Ad-hoc workouts never count. Reordering never changes
+  which program is Current. Restore from History never changes a
+  program's status.
+- **Remove Next Program** (Settings, red button): blocked by
+  `blockIfTimerRunning()` if Today's Workout belongs to it; confirm
+  "Remove next program?" then deletes its queued workouts and syncs.
+- **End Current Program:** now marks the program ended (kept in the list)
+  and promotes Next; confirm text gets `"Next" becomes your current
+  program.` when one exists. Timer guard and `Program "X" ended here.`
+  note unchanged.
+- **Screens:** Settings shows Current/Next with `Start New Program` /
+  `Add Next Program` / `Remove Next Program` / `End Current Program` per
+  state. Queue program bar shows Next below Current; names wrap
+  (`overflow-wrap: anywhere`).
+- **Backup:** `ALL_DATA_KEYS` now includes `gymapp_programs_v1` and keeps
+  `gymapp_program_v1`, so a pre-v59 backup restores (programs key absent
+  → removed) and migrates on reload; new backups hold null for the old key.
+- **Testing limits:** logic scenarios (migration, import → next, finish
+  last workout switch, delete-all-next, remove next, end with next,
+  reorder, ad-hoc) were run in a desktop browser against a local server,
+  and the Queue bar was checked at 375px. Not run on a phone/iOS home-screen
+  install; confirm dialog flows by tap, the undo-banner position under the
+  taller Queue header, and restoring a real v58 backup file on-device.
+
+## Previous session: Set Progress Tracking (Roadmap 1.2, v58)
 Shows which set you are on while the rest timer bar is open. All in
 `index.html`; nothing is saved (in-memory only, lost on full app close).
 
@@ -762,8 +864,9 @@ header behavior. Sticky header; content scrolls beneath it.
 **Settings screen** — infrequent admin actions, reached via the bottom
 tab bar's "Settings" button from anywhere:
 - **About** — app name, `APP_VERSION`, short description
-- **Program Management** — current program (or "No active program"),
-  "Start New Program", "End Current Program" (only when active)
+- **Program Management** — current and next program names, with "Start
+  New Program" (none), "Add Next Program" (current only), "Remove Next
+  Program" (next exists) and "End Current Program" (current exists)
 - **Data** — "Export Gym Log", "Backup All Data", "Restore from Backup"
 - **Exercise List** — count of standardized exercises + "Manage
   Exercise List" button
@@ -776,9 +879,12 @@ confirm helper and one `data-action` name each.
 ## Current features (as of this version)
 **Program & Queue**
 - Import a program from JSON — Settings → Program Management → "Start
-  New Program", or the Workout empty-state's "Start New Program" button.
+  New Program" / "Add Next Program", or the Workout empty-state's "Start
+  New Program" button. A second program waits as Next and takes over
+  automatically (see "Program Queue").
 - "End Current Program" clears remaining queued workouts (completed ones
-  stay in history) and annotates the last completed workout.
+  stay in history), annotates the last completed workout and promotes the
+  Next Program.
 - Queue screen lists all planned workouts in order; reorder, delete, or
   add a one-off "Add Workout" ad-hoc entry (inserted right after Today's
   Workout).

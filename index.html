@@ -269,6 +269,29 @@
     transform: scaleX(1);
     transition: transform 700ms linear;
   }
+  .workout-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin: -2px 0 6px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  .comment-box { margin-bottom: 12px; }
+  .comment-box textarea { resize: none; overflow: hidden; display: block; }
+  .condensed-comment { margin-top: 14px; }
+  .condensed-comment-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .condensed-comment-text {
+    font-size: 14px;
+    color: var(--text);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
   .workout-note {
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
@@ -701,7 +724,7 @@
     margin-bottom: 18px;
   }
   .program-bar-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; font-weight: 700; }
-  .program-bar-name { font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  .program-bar-name { font-weight: 700; font-size: 15px; margin-bottom: 8px; overflow-wrap: anywhere; }
   .settings-title { margin-bottom: 18px; }
   .settings-section {
     background: var(--surface);
@@ -971,6 +994,7 @@
       <input class="title-input" id="dayTitle" data-field="label" placeholder="Workout label">
       <button class="header-action-btn hidden" id="editToggleBtn">Edit</button>
     </div>
+    <div class="workout-desc hidden" id="workoutDesc"></div>
     <div class="date-edit-row">
       <input type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" class="date-input hidden" id="dateInput">
       <input type="text" inputmode="decimal" maxlength="5" placeholder="Duration (min)" aria-label="Duration in minutes" class="date-input duration-input hidden" id="durationInput">
@@ -988,8 +1012,12 @@
 
   <div id="workoutBody">
     <div class="workout-note hidden" id="workoutNote"></div>
+    <div class="comment-box" id="commentBox">
+      <textarea id="workoutComment" rows="1" aria-label="Workout comment" placeholder="Leave a comment about this workout…"></textarea>
+    </div>
     <div id="workout"></div>
     <div id="condensedTable" class="hidden"></div>
+    <div class="condensed-comment hidden" id="condensedComment"></div>
     <button class="add-btn" id="addBtn">Add Exercise</button>
   </div>
 
@@ -1132,9 +1160,10 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v58";
+  const APP_VERSION = "gym-app-cache-v61";
 
-  const PROGRAM_KEY = "gymapp_program_v1";
+  const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
+  const PROGRAMS_KEY = "gymapp_programs_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
   const HISTORY_KEY = "gymapp_history_v1";
   const EXERCISE_LIST_KEY = "gymapp_exercise_list_v1";
@@ -1244,7 +1273,14 @@
     return prefix + Date.now() + Math.floor(Math.random() * 1000);
   }
 
-  function loadProgram() {
+  function loadPrograms() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(PROGRAMS_KEY));
+      if (Array.isArray(saved)) return saved;
+    } catch (e) {}
+    return null; // null = not yet migrated, distinct from []
+  }
+  function loadLegacyProgram() {
     try {
       const saved = JSON.parse(localStorage.getItem(PROGRAM_KEY));
       if (saved && saved.id) return saved;
@@ -1266,7 +1302,7 @@
     return [];
   }
 
-  let program = loadProgram();
+  let programs = loadPrograms();
   let queue = loadQueue();
   let history = loadHistory();
 
@@ -1283,6 +1319,25 @@
     }];
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
   }
+
+  // Program list migration (Spec 1.4): the old single `gymapp_program_v1`
+  // becomes the Current entry of the new list, then the old key is removed.
+  // syncProgramState() then runs once so a program that already has no
+  // queued workouts is marked ended.
+  if (programs === null) {
+    programs = [];
+    const legacy = loadLegacyProgram();
+    if (legacy) {
+      programs.push({
+        id: legacy.id,
+        name: legacy.name || "Program",
+        importedAt: legacy.importedAt || todayISO(),
+        status: "current"
+      });
+    }
+  }
+  localStorage.removeItem(PROGRAM_KEY);
+  syncProgramState();
 
   let viewSource = "queue"; // "queue" | "history" | "empty"
   let viewId = null;
@@ -1389,9 +1444,37 @@
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
     flashSaved();
   }
-  function saveProgram() {
-    if (program) localStorage.setItem(PROGRAM_KEY, JSON.stringify(program));
-    else localStorage.removeItem(PROGRAM_KEY);
+  function savePrograms() {
+    localStorage.setItem(PROGRAMS_KEY, JSON.stringify(programs));
+  }
+  function currentProgram() { return programs.find(p => p.status === "current") || null; }
+  function nextProgram() { return programs.find(p => p.status === "next") || null; }
+  function queuedCountFor(programId) { return queue.filter(w => w.programId === programId).length; }
+
+  // Keeps program statuses consistent with the queue. Runs at startup and
+  // after any workout leaves the queue via Finish Workout or Delete from
+  // Queue (Spec 1.4, 4.2). Ad-hoc workouts (programId null) never count.
+  function syncProgramState() {
+    const stamp = todayISO();
+    const nxt = nextProgram();
+    if (nxt && queuedCountFor(nxt.id) === 0) {
+      if (history.some(w => w.programId === nxt.id)) {
+        nxt.status = "ended";
+        nxt.endedAt = stamp;
+      } else {
+        programs = programs.filter(p => p !== nxt);
+      }
+    }
+    const cur = currentProgram();
+    if (cur && queuedCountFor(cur.id) === 0) {
+      cur.status = "ended";
+      cur.endedAt = stamp;
+    }
+    if (!currentProgram()) {
+      const n = nextProgram();
+      if (n) n.status = "current";
+    }
+    savePrograms();
   }
   function saveActiveWorkout() {
     if (viewSource === "queue") saveQueue();
@@ -1551,6 +1634,27 @@
     `;
   }
 
+  // Grows/shrinks the comment box to fit its content. Resets first so it
+  // can shrink; skipped while the screen is hidden (scrollHeight is 0).
+  function autoSizeComment() {
+    const ta = document.getElementById("workoutComment");
+    ta.style.height = "auto";
+    if (ta.scrollHeight > 0) ta.style.height = ta.scrollHeight + 2 + "px";
+  }
+
+  // Editable comment box (Today's, peeked queued, History edit mode).
+  // Hidden in the condensed Past Workout view, which shows it read-only
+  // below the table instead. Like dayTitle, the value is only written when
+  // the box doesn't have focus, so typing is never interrupted.
+  function renderCommentBox(workout) {
+    const box = document.getElementById("commentBox");
+    const ta = document.getElementById("workoutComment");
+    box.classList.toggle("hidden", isCondensedHistoryView());
+    if (document.activeElement !== ta) ta.value = workout.comment || "";
+    ta.disabled = !isEditable();
+    autoSizeComment();
+  }
+
   function render() {
     const workout = getActiveWorkout();
     document.getElementById("emptyState").classList.toggle("hidden", viewSource !== "empty");
@@ -1562,6 +1666,7 @@
     }
     if (!workout) { setActiveToNextQueued(); render(); return; }
     renderWorkoutHeader(workout);
+    renderCommentBox(workout);
     if (isCondensedHistoryView()) {
       renderCondensedExercises();
     } else {
@@ -1608,6 +1713,7 @@
     document.getElementById("eyebrow").classList.remove("past");
     document.getElementById("eyebrowRow").classList.remove("hidden");
     document.getElementById("titleRow").classList.add("hidden");
+    document.getElementById("workoutDesc").classList.add("hidden");
     document.getElementById("editToggleBtn").classList.add("hidden");
     document.getElementById("dateInput").classList.add("hidden");
     document.getElementById("dateDisplay").classList.add("hidden");
@@ -1658,6 +1764,12 @@
     const titleInput = document.getElementById("dayTitle");
     if (document.activeElement !== titleInput) titleInput.value = workout.label;
     titleInput.disabled = !editable;
+
+    // Read-only in every view, including History edit mode.
+    const descEl = document.getElementById("workoutDesc");
+    const desc = typeof workout.description === "string" ? workout.description.trim() : "";
+    descEl.textContent = desc;
+    descEl.classList.toggle("hidden", !desc);
 
     const dateInput = document.getElementById("dateInput");
     const dateDisplay = document.getElementById("dateDisplay");
@@ -1806,6 +1918,15 @@
     const container = document.getElementById("condensedTable");
     const workout = getActiveWorkout();
     const exs = workout ? workout.exercises : [];
+    const commentEl = document.getElementById("condensedComment");
+    const comment = workout && typeof workout.comment === "string" ? workout.comment : "";
+    if (comment.trim()) {
+      commentEl.innerHTML = `<div class="condensed-comment-label">Workout comment</div><div class="condensed-comment-text">${escapeHtml(comment)}</div>`;
+      commentEl.classList.remove("hidden");
+    } else {
+      commentEl.innerHTML = "";
+      commentEl.classList.add("hidden");
+    }
     if (exs.length === 0) {
       container.innerHTML = `<div class="condensed-empty">No exercises logged.</div>`;
       return;
@@ -1837,16 +1958,21 @@
     const condensed = isCondensedHistoryView();
     document.getElementById("workout").classList.toggle("hidden", condensed);
     document.getElementById("condensedTable").classList.toggle("hidden", !condensed);
+    if (!condensed) document.getElementById("condensedComment").classList.add("hidden");
   }
 
   function renderProgramBar() {
     const bar = document.getElementById("programBar");
-    if (!program) {
+    const cur = currentProgram();
+    const nxt = nextProgram();
+    if (!cur) {
       bar.innerHTML = `<div class="program-bar-empty">No active program. Manage programs in Settings.</div>`;
       return;
     }
     bar.innerHTML = `<div class="program-bar-label">Current Program</div>
-      <div class="program-bar-name">${escapeHtml(program.name)}</div>`;
+      <div class="program-bar-name">${escapeHtml(cur.name)}</div>` +
+      (nxt ? `<div class="program-bar-label">Next Program</div>
+      <div class="program-bar-name">${escapeHtml(nxt.name)}</div>` : "");
   }
 
   function renderQueueList() {
@@ -1859,7 +1985,7 @@
     list.innerHTML = q.map((w, idx) => `
       <div class="history-item${idx === 0 ? " next" : ""}" data-id="${w.id}">
         <div class="history-name">${escapeHtml(w.label || "Workout")}${idx === 0 ? " · Next" : ""}</div>
-        <div class="history-date">${w.programId ? "Program workout" : "Ad-hoc"}</div>
+        <div class="history-date">${escapeHtml((typeof w.description === "string" && w.description.trim()) || (w.programId ? "Program workout" : "Ad-hoc"))}</div>
         <button class="item-menu-btn" data-action="item-menu">⋮</button>
         <div class="item-menu-dropdown${openItemMenuId === w.id ? " open" : ""}">
           <button data-action="move-up">Move Up</button>
@@ -1893,6 +2019,8 @@
 
   function renderSettings() {
     const list = document.getElementById("settingsList");
+    const cur = currentProgram();
+    const nxt = nextProgram();
     list.innerHTML = `
       <div class="settings-section">
         <div class="settings-section-title">About</div>
@@ -1902,12 +2030,17 @@
       </div>
       <div class="settings-section">
         <div class="settings-section-title">Program Management</div>
-        ${program
-          ? `<div class="program-bar-label">Current Program</div><div class="program-bar-name">${escapeHtml(program.name)}</div>`
+        ${cur
+          ? `<div class="program-bar-label">Current Program</div><div class="program-bar-name">${escapeHtml(cur.name)}</div>`
           : `<div class="program-bar-empty">No active program.</div>`}
+        ${nxt
+          ? `<div class="program-bar-label">Next Program</div><div class="program-bar-name">${escapeHtml(nxt.name)}</div>`
+          : ""}
         <div class="program-bar-actions">
-          <button class="pill-btn accent" id="settingsStartProgramBtn">Start New Program</button>
-          ${program ? `<button class="pill-btn danger" id="settingsEndProgramBtn">End Current Program</button>` : ""}
+          ${!cur ? `<button class="pill-btn accent" id="settingsStartProgramBtn">Start New Program</button>` : ""}
+          ${cur && !nxt ? `<button class="pill-btn accent" id="settingsStartProgramBtn">Add Next Program</button>` : ""}
+          ${nxt ? `<button class="pill-btn danger" id="settingsRemoveNextBtn">Remove Next Program</button>` : ""}
+          ${cur ? `<button class="pill-btn danger" id="settingsEndProgramBtn">End Current Program</button>` : ""}
         </div>
       </div>
       <div class="settings-section">
@@ -1926,8 +2059,10 @@
         </div>
       </div>
     `;
-    document.getElementById("settingsStartProgramBtn").addEventListener("click", openImportModal);
-    if (program) document.getElementById("settingsEndProgramBtn").addEventListener("click", confirmEndProgram);
+    const startBtn = document.getElementById("settingsStartProgramBtn");
+    if (startBtn) startBtn.addEventListener("click", openImportModal);
+    if (nxt) document.getElementById("settingsRemoveNextBtn").addEventListener("click", confirmRemoveNextProgram);
+    if (cur) document.getElementById("settingsEndProgramBtn").addEventListener("click", confirmEndProgram);
     document.getElementById("settingsExportGymLogBtn").addEventListener("click", openExportGymLogModal);
     document.getElementById("settingsExportAllDataBtn").addEventListener("click", exportAllData);
     document.getElementById("settingsImportAllDataBtn").addEventListener("click", () => document.getElementById("importAllDataFileInput").click());
@@ -2930,6 +3065,14 @@
     w.label = e.target.value;
     saveActiveWorkout();
   });
+  document.getElementById("workoutComment").addEventListener("input", (e) => {
+    const w = getActiveWorkout();
+    if (!w) return;
+    w.comment = e.target.value;
+    saveActiveWorkout();
+    autoSizeComment();
+  });
+  window.addEventListener("resize", autoSizeComment); // re-wrap on rotate/resize
   document.getElementById("dateInput").addEventListener("input", (e) => applyDateMask(e.target));
   document.getElementById("dateInput").addEventListener("keydown", (e) => {
     if (e.key === "Enter") e.target.blur();
@@ -3057,6 +3200,7 @@
     history.push(w);
     saveQueue();
     saveHistory();
+    syncProgramState();
     // Land on the finished workout's Past Workout view; the Today tab
     // then shows the next queued workout as usual.
     viewSource = "history";
@@ -3113,6 +3257,7 @@
       () => {
         queue = queue.filter(x => x.id !== id);
         saveQueue();
+        syncProgramState();
         afterDelete();
       },
       "Delete",
@@ -3198,32 +3343,59 @@
   });
 
   function confirmEndProgram() {
-    if (!program) return;
+    const cur = currentProgram();
+    if (!cur) return;
+    const nxt = nextProgram();
     const today = todaysWorkout();
-    if (today && today.programId === program.id && blockIfTimerRunning()) return;
-    openConfirm(
-      "End this program?",
-      `Queued workouts from "${program.name}" that aren't completed will be discarded. Completed workouts stay in your history.`,
-      endProgram,
-      "End Program",
-      true
-    );
+    if (today && today.programId === cur.id && blockIfTimerRunning()) return;
+    let text = `Queued workouts from "${cur.name}" that aren't completed will be discarded. Completed workouts stay in your history.`;
+    if (nxt) text += ` "${nxt.name}" becomes your current program.`;
+    openConfirm("End this program?", text, endProgram, "End Program", true);
   }
 
   function endProgram() {
-    if (!program) return;
-    const endedId = program.id;
+    const cur = currentProgram();
+    if (!cur) return;
+    const endedId = cur.id;
     queue = queue.filter(w => w.programId !== endedId);
     const matches = history.filter(w => w.programId === endedId);
     if (matches.length) {
       matches.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
       const last = matches[matches.length - 1];
-      last.note = `Program "${program.name}" ended here.`;
+      last.note = `Program "${cur.name}" ended here.`;
     }
-    program = null;
-    saveProgram();
+    cur.status = "ended";
+    cur.endedAt = todayISO();
+    const nxt = nextProgram();
+    if (nxt) nxt.status = "current";
+    syncProgramState(); // also saves programs
     saveQueue();
     saveHistory();
+    setActiveToNextQueued();
+    showScreen(currentScreen);
+  }
+
+  function confirmRemoveNextProgram() {
+    const nxt = nextProgram();
+    if (!nxt) return;
+    const today = todaysWorkout();
+    if (today && today.programId === nxt.id && blockIfTimerRunning()) return;
+    const n = queuedCountFor(nxt.id);
+    openConfirm(
+      "Remove next program?",
+      `"${nxt.name}" and its ${n} queued workout${n === 1 ? "" : "s"} will be removed. Anything already logged stays in your history.`,
+      removeNextProgram,
+      "Remove",
+      true
+    );
+  }
+
+  function removeNextProgram() {
+    const nxt = nextProgram();
+    if (!nxt) return;
+    queue = queue.filter(w => w.programId !== nxt.id);
+    saveQueue();
+    syncProgramState();
     setActiveToNextQueued();
     showScreen(currentScreen);
   }
@@ -3266,31 +3438,40 @@
       errEl.classList.remove("hidden");
       return;
     }
+    if (data.workouts.length === 0) {
+      errEl.textContent = "This file has no workouts.";
+      errEl.classList.remove("hidden");
+      return;
+    }
     document.getElementById("importOverlay").classList.add("hidden");
-    if (program) {
-      openConfirm(
-        "Replace current program?",
-        `This ends "${program.name}" (its queued workouts are discarded) and imports "${data.program.name}".`,
-        () => { endProgram(); doImport(data); },
-        "Replace",
-        true
-      );
+    const cur = currentProgram();
+    if (!cur) {
+      doImport(data, "current");
+    } else if (queuedCountFor(cur.id) === 0) {
+      cur.status = "ended";
+      cur.endedAt = todayISO();
+      doImport(data, "current");
+    } else if (!nextProgram()) {
+      doImport(data, "next");
     } else {
-      doImport(data);
+      openNotice("Next program already queued", "Remove the next program in Settings before adding another.");
     }
   });
 
-  function doImport(data) {
+  function doImport(data, status) {
     const newProgram = {
       id: newId("prog"),
       name: data.program.name,
-      importedAt: todayISO()
+      importedAt: todayISO(),
+      status
     };
     let order = queue.length ? Math.max(...queue.map(w => w.order)) + 1 : 0;
     const newWorkouts = data.workouts.map((wDef) => ({
       id: newId("wk"),
       programId: newProgram.id,
       label: wDef.label || "Workout",
+      ...(typeof wDef.description === "string" && wDef.description.trim()
+        ? { description: wDef.description.trim() } : {}),
       date: null,
       status: "queued",
       order: order++,
@@ -3306,9 +3487,9 @@
         supersetId: null
       }))
     }));
-    program = newProgram;
+    programs.push(newProgram);
     queue = [...queue, ...newWorkouts];
-    saveProgram();
+    savePrograms();
     saveQueue();
     setActiveToNextQueued();
     showScreen("queue");
@@ -3434,7 +3615,7 @@
   // later be sent to a cloud endpoint instead of a file, without
   // reworking this logic — this is meant as a foundation for that, not
   // just a one-off fix.
-  const ALL_DATA_KEYS = [PROGRAM_KEY, QUEUE_KEY, HISTORY_KEY, EXERCISE_LIST_KEY];
+  const ALL_DATA_KEYS = [PROGRAM_KEY, PROGRAMS_KEY, QUEUE_KEY, HISTORY_KEY, EXERCISE_LIST_KEY];
 
   function exportAllData() {
     const data = {};
