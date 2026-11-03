@@ -15,6 +15,7 @@ These are relatively independent features that can be designed and implemented s
 - Track elapsed workout time independently of the existing rest timer.
 - Continue tracking accurately when switching apps or locking the phone.
 - Display total workout duration in the workout interface.
+- Status: implemented (before v58).
 
 **Complexity:** 2/5  
 **UX/UI Improvement:** 4/5
@@ -44,6 +45,39 @@ These are relatively independent features that can be designed and implemented s
 
 **Complexity:** 4/5  
 **UX/UI Improvement:** 5/5
+
+### 1.4 Program Queue
+
+**Goal:** Add a new program without replacing the current one; it waits behind the current program and takes over automatically when that finishes.
+
+- One Current Program and at most one Next Program, shown on the Queue and Settings screens.
+- Automatic switch when the Current Program has no queued workouts left.
+- Remove Next Program, and End Current Program promotes the Next Program.
+- A permanent saved list of programs (`gymapp_programs_v1`), including ended ones, with migration from the old single-program key.
+- Out of scope: a Past Programs screen (see 1.6), more than one waiting program.
+- Status: implemented in v59, published in build 20261103_V8 (cache v61).
+
+**Complexity:** 3/5  
+**UX/UI Improvement:** 4/5
+
+### 1.5 Workout Description and Comment
+
+**Goal:** Give each workout a short description (from the import file) and a journal-style comment written by the user.
+
+- Optional `description` per workout in the import file, shown read-only under the title and on the Queue list.
+- Editable, auto-saving workout comment at the top of the workout page; read-only on Past Workouts.
+- Out of scope: editing the description in the app, adding either field to Export Gym Log, searching comments.
+- Status: implemented in v60, wording tweaked in v61 (comment box has no label, placeholder "Leave a comment about this workout…"); published in build 20261103_V8.
+
+**Complexity:** 2/5  
+**UX/UI Improvement:** 4/5
+
+### 1.6 Past Programs Screen
+
+**Goal:** Show past (ended) programs and their workouts, using the permanent program list added in 1.4.
+
+- Not yet specified.
+- Status: planned, depends on 1.4.
 
 ## 2. Epics
 
@@ -96,8 +130,11 @@ An initial suggested sequence, subject to further exploration:
 1. Global Workout Timer.
 2. Set Progress Tracking.
 3. Workout Focus Mode.
-4. Program Builder Epic.
-5. Native Capabilities & App Integrations Epic.
+4. Program Queue (done).
+5. Workout Description and Comment (done).
+6. Past Programs Screen.
+7. Program Builder Epic.
+8. Native Capabilities & App Integrations Epic.
 
 The first three features form a cohesive improvement to the actual workout experience. The two Epics represent larger expansions of GymLog's capabilities.
 

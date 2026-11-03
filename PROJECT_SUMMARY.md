@@ -42,6 +42,11 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
+## Docs-only build 20261103_V9
+`ROADMAP.md` updated (1.1, 1.2, 1.4 and 1.5 marked implemented, 1.6 Past
+Programs Screen added, order refreshed). `index.html` and `sw.js` are
+unchanged from V8, so the cache version stays `gym-app-cache-v61`.
+
 ## Tweak after testing (v61): comment box wording
 On editable workout pages the "Workout comment" label above the box was
 removed (it keeps an `aria-label`) and the placeholder is now "Leave a
