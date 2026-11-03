@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v54` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v57` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -42,7 +42,92 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
-## New/changed this session: Global Workout Timer (Roadmap 1.1)
+## New/changed this session: Workout Timer Resets When Its Workout Stops Being Today's
+**Why**: a paused timer used to stay attached to its workout after another
+workout was put in front of it (reorder, or restoring from History). When
+that workout became Today's again it still showed the old elapsed time.
+That is no longer wanted: the timer now belongs to Today's Workout only.
+
+**Behavior**: any queued workout that is not first has its `timer`
+discarded, so it starts from idle ("Start Workout", 0) the next time it is
+Today's. Implemented as `clearStaleWorkoutTimers()`, called at the top of
+`saveQueue()` (so every path that reorders the queue is covered: Move
+Up/Down, Restore to Queue, etc.) and once at startup (cleans up timers
+saved by v54–v56, e.g. on the phone). It is a no-op for Today's own timer.
+The running-timer guard is unchanged: it still blocks changing Today's
+Workout while *running*, so in practice only a *paused* timer is discarded.
+Deleting a workout still deletes its timer with it.
+
+**Supersedes** the earlier note that a paused timer "stays attached... and
+reappears if that workout becomes Today's again" (Restore section below,
+and the original 1.1 spec's "Paused timer" paragraph): it no longer does.
+The restore confirm adds "Its paused workout timer will be reset." when
+the current Today's Workout has a timer. Moving items in the Queue has no
+confirm, so a paused timer is discarded silently there.
+
+**Tested** (browser, copy of the real backup): pause A, restore a History
+workout in front, finish it, come back to A: A shows Start Workout and no
+clock; same after moving Today's down then back up while paused; a running
+Today's timer is untouched by saves; a stale timer planted on a
+non-first workout is removed on reload (memory and localStorage).
+
+## Previous session: Restore to Queue Now Becomes Today's Workout
+**Behavior change**: "Restore to Queue" (History list ⋮ menu and the Past
+Workout header ⋮ menu) used to append the workout to the *end* of the queue.
+It now makes the restored workout **Today's Workout** (front of the queue);
+the previous Today's Workout moves to second. `restoreWorkoutToQueue()`
+inserts at the front and renumbers `order` 0..n-1 (same renumbering
+approach as Add Workout). If the queue is empty it simply becomes Today's.
+
+**Guard**: because this changes Today's Workout, both entry points now call
+`blockIfTimerRunning()` first. While the workout timer is *running* the user
+gets the same one-button "Pause the timer first" notice and nothing is
+restored. While *paused* it is allowed. (Superseded in v57: the previous
+Today's paused timer is now reset. In v56 it stayed attached to its workout,
+hidden, and reappeared if that workout became Today's again.) Restore was
+previously listed as "not blocked" because it appended to the end; that is
+no longer true.
+
+**Other details**
+- The restore confirm now reads `"X" will become Today's Workout. "Y"
+  moves to second in the queue.` (`restoreConfirmText()`).
+- Restored workouts still start with no timer and no `durationSec`.
+- From the Past Workout header menu, confirming lands on the restored
+  workout as Today's; from the History list you stay on the History list.
+
+**Tested** (browser, against a copy of the real backup): blocked from both
+entry points while running; allowed while paused; order/renumbering; the
+restored workout carries no timer or duration; the previous Today's paused
+timer is preserved; History list path with no timer.
+
+## Previous session: Workout Timer Reset + Hold-to-Pause (follow-up to 1.1)
+**Why**: found while using v54 on the phone. Starting the timer by accident
+(e.g. checking the day's program in the morning, gym in the afternoon) had
+no undo, and an accidental Pause silently stops the clock mid-workout.
+
+**Changes** (all in `index.html`; no data model change)
+- **Reset Workout Timer**: a red item in the header ⋮ menu, shown only on
+  Today's Workout while a timer exists (running *or* paused). Opens a
+  confirm ("The elapsed time (M:SS) will be discarded...") and, on
+  confirm, deletes `workout.timer` so it goes back to idle ("Start
+  Workout"). The workout's exercises are untouched. Not blocked by the
+  running-timer guard, since it doesn't change Today's Workout. Chosen
+  over an always-visible button so it can't be hit by accident at the gym.
+- **Hold-to-Pause**: while running, the button reads "Hold to Pause" and
+  needs a ~0.7s press (`HOLD_TO_PAUSE_MS`) with a fill animation. A quick
+  tap does nothing; releasing early, sliding off the button or a
+  scroll/cancel aborts it. Start and Resume stay single-tap. After a
+  completed hold, the trailing `click` is ignored for 500ms
+  (`holdFiredAt`) so it can't be read as an instant Resume. The button
+  disables long-press callout/selection (`-webkit-touch-callout`,
+  `user-select`, `contextmenu`).
+- Start Workout is deliberately unprotected (Reset covers a wrong start).
+
+**Limitations**: hold-to-pause is pointer/touch only (the keyboard can't
+pause); it was tested with synthetic pointer events in the browser pane,
+not yet with a real finger on the phone (gloves/sweaty hands untested).
+
+## Previous session: Global Workout Timer (Roadmap 1.1)
 **What**: tracks total time spent on Today's Workout, separate from the
 rest timer. Explicit Start / Pause / Resume on Today's Workout only; the
 elapsed clock sits in the sticky header on the same row as the date badge
@@ -84,7 +169,9 @@ stores the duration on the history entry.
   queue is empty it becomes Today's Workout. Queue `order` values are
   renumbered 0..n-1 on insert. It opens as a peeked workout with the
   Queue tab highlighted (title focused).
-- Restore to Queue deletes `durationSec` and never creates a timer.
+- Restore to Queue deletes `durationSec` and never creates a timer. (As of
+  v56 it also puts the workout at the front of the queue and is blocked
+  while the timer is running — see the "Restore to Queue" section.)
 - Not in Export Gym Log; no auto-start, notification or sound.
 
 **Header height**: `.date-row` has `min-height: 34px` so the header is the
@@ -662,9 +749,9 @@ confirm helper and one `data-action` name each.
 - Queue screen lists all planned workouts in order; reorder, delete, or
   add a one-off "Add Workout" ad-hoc entry (inserted right after Today's
   Workout).
-- Global workout timer on Today's Workout (Start/Pause/Resume, duration
-  saved on Finish, shown in Past Workouts and editable there) — see the
-  "Global Workout Timer" section.
+- Global workout timer on Today's Workout (Start, hold-to-Pause, Resume,
+  Reset from the ⋮ menu; duration saved on Finish, shown in Past Workouts
+  and editable there) — see the "Global Workout Timer" sections.
 - The active workout screen always shows the front-of-queue workout
   unless you've navigated into another queued or past workout to peek
   at it.

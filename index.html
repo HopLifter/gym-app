@@ -130,6 +130,7 @@
     flex-shrink: 0;
   }
   .header-action-btn:active { border-color: var(--accent); }
+  .header-menu-dropdown button[data-action="reset-timer"],
   .header-menu-dropdown button[data-action="delete-from-history"],
   .header-menu-dropdown button[data-action="delete-queue-workout"],
   .header-menu-dropdown button[data-action="end-program"] { color: var(--danger); }
@@ -243,6 +244,31 @@
     font-variant-numeric: tabular-nums;
   }
   .timer-clock.paused { opacity: 0.5; }
+  /* While running, the toggle is a hold-to-pause button: a fill sweeps
+     across it for the hold duration (see HOLD_TO_PAUSE_MS in the script)
+     so it can't be paused by an accidental tap. */
+  #timerToggleBtn {
+    position: relative;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+  #timerToggleBtn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    opacity: 0.35;
+    transform: scaleX(0);
+    transform-origin: left;
+    pointer-events: none;
+  }
+  #timerToggleBtn.holding::after {
+    transform: scaleX(1);
+    transition: transform 700ms linear;
+  }
   .workout-note {
     background: var(--surface-2);
     border: 1px solid var(--accent-dim);
@@ -1088,7 +1114,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v54";
+  const APP_VERSION = "gym-app-cache-v57";
 
   const PROGRAM_KEY = "gymapp_program_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
@@ -1317,7 +1343,27 @@
     return viewSource === "history" && !editMode;
   }
 
+  // The workout timer only belongs to Today's Workout (front of the
+  // queue). When a workout stops being first (reordered, or another
+  // workout was restored in front of it), its timer is discarded so it
+  // starts from 0 if it becomes Today's again. Run from saveQueue(), so
+  // every path that reorders the queue is covered, and once at startup to
+  // clean up timers saved by earlier versions. Returns true if anything
+  // was removed.
+  function clearStaleWorkoutTimers() {
+    let changed = false;
+    sortedQueue().forEach((w, i) => {
+      if (i > 0 && w.timer) {
+        delete w.timer;
+        changed = true;
+      }
+    });
+    return changed;
+  }
+  if (clearStaleWorkoutTimers()) localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+
   function saveQueue() {
+    clearStaleWorkoutTimers();
     localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
     flashSaved();
   }
@@ -1662,6 +1708,9 @@
     const isNextWorkout = viewSource === "queue" && sortedQueue()[0] && getActiveWorkout() && sortedQueue()[0].id === getActiveWorkout().id;
     if (viewSource === "queue" && isNextWorkout) {
       items.push(`<button data-action="complete">Finish Workout</button>`);
+      if (getActiveWorkout().timer) {
+        items.push(`<button data-action="reset-timer">Reset Workout Timer</button>`);
+      }
     }
     if (viewSource === "queue") {
       items.push(`<button data-action="delete-queue-workout">Delete from Queue</button>`);
@@ -2310,7 +2359,7 @@
     clock.classList.remove("hidden");
     clock.classList.toggle("paused", t.status !== "running");
     clock.textContent = formatElapsed(workoutTimerElapsedMs(t));
-    btn.textContent = t.status === "running" ? "Pause" : "Resume";
+    btn.textContent = t.status === "running" ? "Hold to Pause" : "Resume";
   }
 
   // The 1-second refresh only runs while the timer is running and
@@ -2327,24 +2376,66 @@
     }
   }
 
-  document.getElementById("timerToggleBtn").addEventListener("click", () => {
+  // Start and Resume are a single tap. Pause is hold-to-pause: an
+  // accidental Pause silently stops the clock mid-workout, so it needs a
+  // deliberate ~0.7s press (a fill animation shows the progress).
+  // Releasing early, scrolling away or leaving the button cancels it.
+  const HOLD_TO_PAUSE_MS = 700;
+  const timerToggleBtn = document.getElementById("timerToggleBtn");
+  let holdTimeout = null;
+  let holdFiredAt = 0;
+
+  function toggleWorkoutTimer(pauseOnly) {
     const w = todaysWorkout();
     if (!w || w.id !== viewId) return;
     const now = Date.now();
     const t = w.timer;
     if (!t) {
+      if (pauseOnly) return;
       w.timer = { status: "running", startedAt: now, accumulatedMs: 0 };
     } else if (t.status === "running") {
       t.accumulatedMs += now - t.startedAt;
       t.startedAt = null;
       t.status = "paused";
     } else {
+      if (pauseOnly) return;
       t.startedAt = now;
       t.status = "running";
     }
     saveQueue();
     renderWorkoutTimer();
     syncWorkoutTimerInterval();
+  }
+
+  function cancelPauseHold() {
+    clearTimeout(holdTimeout);
+    holdTimeout = null;
+    timerToggleBtn.classList.remove("holding");
+  }
+
+  timerToggleBtn.addEventListener("pointerdown", (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (!isWorkoutTimerRunning()) return;
+    cancelPauseHold();
+    timerToggleBtn.classList.add("holding");
+    holdTimeout = setTimeout(() => {
+      holdTimeout = null;
+      holdFiredAt = Date.now();
+      timerToggleBtn.classList.remove("holding");
+      toggleWorkoutTimer(true);
+    }, HOLD_TO_PAUSE_MS);
+  });
+  ["pointerup", "pointercancel", "pointerleave"].forEach(type =>
+    timerToggleBtn.addEventListener(type, cancelPauseHold));
+  timerToggleBtn.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  timerToggleBtn.addEventListener("click", () => {
+    // A tap while running does nothing (the button says "Hold to Pause").
+    // Also ignore the click that follows a completed hold, which would
+    // otherwise be read as a Resume now that the timer is paused.
+    if (isWorkoutTimerRunning()) return;
+    if (Date.now() - holdFiredAt < 500) return;
+    toggleWorkoutTimer(false);
   });
 
   // Same pattern as the rest timer: the interval is throttled while the
@@ -2832,11 +2923,28 @@
         "Finish Workout",
         false
       );
+    } else if (action === "reset-timer") {
+      const timed = getActiveWorkout();
+      if (!timed || !timed.timer) return;
+      openConfirm(
+        "Reset workout timer?",
+        `The elapsed time (${formatElapsed(workoutTimerElapsedMs(timed.timer))}) will be discarded and the timer goes back to Start Workout. The workout itself isn't affected.`,
+        () => {
+          delete timed.timer;
+          saveQueue();
+          renderWorkoutTimer();
+          syncWorkoutTimerInterval();
+          renderHeaderMenu();
+        },
+        "Reset Timer",
+        true
+      );
     } else if (action === "restore-to-queue") {
+      if (blockIfTimerRunning()) return;
       const workout = getActiveWorkout();
       openConfirm(
         "Restore to queue?",
-        `"${workout.label || "This workout"}" will be moved back to your active queue as a planned workout.`,
+        restoreConfirmText(workout),
         () => {
           restoreWorkoutToQueue(viewId);
           setActiveToNextQueued();
@@ -2885,9 +2993,19 @@
     showScreen("workout");
   }
 
+  function restoreConfirmText(w) {
+    const name = `"${(w && w.label) || "This workout"}"`;
+    const current = todaysWorkout();
+    if (!current) return `${name} will become Today's Workout.`;
+    const timerNote = current.timer ? " Its paused workout timer will be reset." : "";
+    return `${name} will become Today's Workout. "${current.label || "The current workout"}" moves to second in the queue.${timerNote}`;
+  }
+
   // Moves a completed workout back into the active queue, preserving all
-  // its data. Inverse of completeActiveWorkout(). New order places it at
-  // the end of the queue (same convention used when importing a program).
+  // its data. Inverse of completeActiveWorkout(). It becomes Today's
+  // Workout (front of the queue) and the current Today's Workout moves to
+  // second; orders are renumbered 0..n-1. Callers must first check
+  // blockIfTimerRunning(), since this changes Today's Workout.
   function restoreWorkoutToQueue(id) {
     const idx = history.findIndex(w => w.id === id);
     if (idx === -1) return;
@@ -2898,8 +3016,10 @@
     delete w.note;
     delete w.durationSec; // restored workouts start with an idle timer
     delete w.timer;
-    w.order = queue.length ? Math.max(...queue.map(x => x.order)) + 1 : 0;
-    queue.push(w);
+    const q = sortedQueue();
+    q.unshift(w);
+    q.forEach((x, i) => { x.order = i; });
+    queue = q;
     saveHistory();
     saveQueue();
   }
@@ -3387,10 +3507,14 @@
     }
     if (action === "restore-to-queue") {
       openItemMenuId = null;
+      if (blockIfTimerRunning()) {
+        renderHistoryList();
+        return;
+      }
       const w = history.find(x => x.id === id);
       openConfirm(
         "Restore to queue?",
-        `"${w.label || "This workout"}" will be moved back to your active queue as a planned workout.`,
+        restoreConfirmText(w),
         () => {
           restoreWorkoutToQueue(id);
           renderHistoryList();
