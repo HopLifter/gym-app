@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GymLog Program Builder</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --surface: #161917;
+    --line: #2A2F2B;
+    --text: #EDEEEA;
+    --text-dim: #8C948C;
+    --accent: #C6FF3D;
+    --danger: #E05C4E;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.hint { color: var(--text-dim); margin: 0 0 16px; font-size: 14px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  button {
+    background: var(--surface); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--text-dim); }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  button.danger { color: var(--danger); }
+  #status { color: var(--text-dim); font-size: 14px; margin-bottom: 8px; }
+  #status b { color: var(--accent); }
+  pre {
+    margin: 0; padding: 12px; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 8px; max-height: 480px; overflow: auto; font-size: 13px; line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+  <h1>GymLog Program Builder</h1>
+  <p class="hint">Build step 1 test page: data model and draft save. The real layout arrives in step 2.</p>
+
+  <div class="panel">
+    <div id="status"></div>
+    <div class="row">
+      <button id="btn-edit-name">Add " (edited)" to name</button>
+      <button id="btn-add-ex">Add test exercise to Workout 1</button>
+      <button id="btn-new" class="danger">Reset to new program</button>
+    </div>
+    <pre id="json"></pre>
+  </div>
+
+<script>
+'use strict';
+
+/* ==========================================================================
+   DATA MODEL (spec section 6)
+   Pure functions: no drawing code here, so they are easy to test and reuse.
+   ========================================================================== */
+
+var DRAFT_KEY = 'builder_draft_v1';
+var EXERCISE_LIST_KEY = 'builder_exercise_list_v1';
+var FORMAT_NAME = 'gym-program-builder';
+var FORMAT_VERSION = 1;
+var MAX_WEEKS = 12;
+var MAX_WORKOUTS = 7;
+
+var nextIdNumber = 1; // used by makeId(); reset from the program after loading
+
+function makeId(prefix) {
+  return prefix + '_' + (nextIdNumber++);
+}
+
+// Look through a program and make sure new ids never repeat existing ones.
+function syncIdCounter(program) {
+  var highest = 0;
+  function check(id) {
+    var n = parseInt(String(id).split('_')[1], 10);
+    if (n > highest) highest = n;
+  }
+  program.workouts.forEach(function (w) {
+    check(w.id);
+    w.exercises.forEach(function (e) { check(e.id); });
+  });
+  nextIdNumber = highest + 1;
+}
+
+function newGroup() {
+  return { sets: 3, reps: 10, loadType: 'kg', load: null, rpe: null, kg: null };
+}
+
+function newWeekEntry() {
+  return { included: true, edited: false, groups: [newGroup()] };
+}
+
+// A new exercise has one weeks[] entry per program week (spec section 6).
+function newExercise(name, weekCount) {
+  var weeks = [];
+  for (var i = 0; i < weekCount; i++) weeks.push(newWeekEntry());
+  return {
+    id: makeId('ex'),
+    name: name,
+    rest: 90,
+    notes: '',
+    supersetId: null,
+    pattern: { kind: 'same', type: 'kg', amount: 0 },
+    weeks: weeks
+  };
+}
+
+function newWorkout() {
+  return { id: makeId('wk'), description: '', exercises: [] };
+}
+
+// Spec 5.1: first visit opens "New Program", Block 1, 4 weeks, 3 workouts per week.
+function createDefaultProgram() {
+  nextIdNumber = 1;
+  var workouts = [];
+  for (var i = 0; i < 3; i++) workouts.push(newWorkout());
+  return {
+    format: FORMAT_NAME,
+    version: FORMAT_VERSION,
+    name: 'New Program',
+    block: 1,
+    weeks: 4,
+    workoutsPerWeek: 3,
+    workouts: workouts
+  };
+}
+
+/* --------------------------------------------------------------------------
+   Validation. Anything that comes from outside (localStorage now, opened
+   files later) is untrusted, so we check every field before using it.
+   Returns true only if the object has the full, correct shape.
+   -------------------------------------------------------------------------- */
+
+function isNum(v) { return typeof v === 'number' && isFinite(v); }
+function isNumOrNull(v) { return v === null || isNum(v); }
+function isWholeBetween(v, lo, hi) { return isNum(v) && Math.floor(v) === v && v >= lo && v <= hi; }
+
+function isValidGroup(g) {
+  return !!g && typeof g === 'object'
+    && isWholeBetween(g.sets, 1, 99)
+    && isWholeBetween(g.reps, 1, 999)
+    && (g.loadType === 'kg' || g.loadType === 'pct' || g.loadType === 'rpe')
+    && isNumOrNull(g.load)
+    && isNumOrNull(g.rpe)
+    && (g.loadType !== 'rpe' || g.rpe === null)
+    && isNumOrNull(g.kg);
+}
+
+function isValidWeekEntry(w) {
+  return !!w && typeof w === 'object'
+    && typeof w.included === 'boolean'
+    && typeof w.edited === 'boolean'
+    && Array.isArray(w.groups)
+    && w.groups.length >= 1 && w.groups.length <= 20
+    && w.groups.every(isValidGroup);
+}
+
+function isValidPattern(p) {
+  return !!p && typeof p === 'object'
+    && (p.kind === 'same' || p.kind === 'add' || p.kind === 'percent' || p.kind === 'manual')
+    && (p.type === 'kg' || p.type === 'pct' || p.type === 'rpe')
+    && isNum(p.amount);
+}
+
+function isValidExercise(e, weekCount) {
+  return !!e && typeof e === 'object'
+    && typeof e.id === 'string' && /^ex_\d+$/.test(e.id)
+    && typeof e.name === 'string' && e.name.length <= 200
+    && isNum(e.rest) && e.rest >= 0
+    && typeof e.notes === 'string'
+    && (e.supersetId === null || typeof e.supersetId === 'string')
+    && isValidPattern(e.pattern)
+    && Array.isArray(e.weeks) && e.weeks.length === weekCount
+    && e.weeks.every(isValidWeekEntry);
+}
+
+function isValidProgram(p) {
+  if (!p || typeof p !== 'object') return false;
+  if (p.format !== FORMAT_NAME) return false;
+  if (!isWholeBetween(p.version, 1, FORMAT_VERSION)) return false; // higher version = reject (spec 5.13)
+  if (typeof p.name !== 'string' || p.name.length > 200) return false;
+  if (!isWholeBetween(p.block, 1, 9999)) return false;
+  if (!isWholeBetween(p.weeks, 1, MAX_WEEKS)) return false;
+  if (!isWholeBetween(p.workoutsPerWeek, 1, MAX_WORKOUTS)) return false;
+  if (!Array.isArray(p.workouts) || p.workouts.length !== p.workoutsPerWeek) return false;
+  for (var i = 0; i < p.workouts.length; i++) {
+    var w = p.workouts[i];
+    if (!w || typeof w !== 'object') return false;
+    if (typeof w.id !== 'string' || !/^wk_\d+$/.test(w.id)) return false;
+    if (typeof w.description !== 'string' || w.description.length > 500) return false;
+    if (!Array.isArray(w.exercises)) return false;
+    for (var j = 0; j < w.exercises.length; j++) {
+      if (!isValidExercise(w.exercises[j], p.weeks)) return false;
+    }
+  }
+  return true;
+}
+
+/* --------------------------------------------------------------------------
+   Draft storage (spec 5.13). localStorage can fail (private mode, full disk),
+   so every call is wrapped in try/catch.
+   -------------------------------------------------------------------------- */
+
+function saveDraft(program) {
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(program));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// Returns a valid program, or null if there is no draft or it is damaged.
+function loadDraft() {
+  try {
+    var text = localStorage.getItem(DRAFT_KEY);
+    if (text === null) return null;
+    var data = JSON.parse(text);
+    return isValidProgram(data) ? data : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/* ==========================================================================
+   APP STATE
+   One `program` object; render() redraws everything from it.
+   ========================================================================== */
+
+var program = null;
+var dirty = false;       // true when there are changes not yet saved to a file (spec 5.13)
+var draftSaved = true;   // false if the last localStorage write failed
+var startedFrom = '';    // for the test page: where this session's program came from
+
+// Call this after EVERY change to the program.
+function changed() {
+  dirty = true;
+  draftSaved = saveDraft(program);
+  render();
+}
+
+function startUp() {
+  var draft = loadDraft();
+  if (draft) {
+    program = draft;
+    syncIdCounter(program);
+    startedFrom = 'saved draft';
+  } else {
+    program = createDefaultProgram();
+    saveDraft(program);
+    startedFrom = 'new program';
+  }
+  render();
+}
+
+/* ==========================================================================
+   DRAWING (temporary test page for step 1)
+   ========================================================================== */
+
+function render() {
+  var status = document.getElementById('status');
+  status.textContent = '';
+  var parts = [
+    'Started from: ' + startedFrom,
+    'Draft save: ' + (draftSaved ? 'OK' : 'FAILED'),
+    'Unsaved to file: ' + (dirty ? 'yes' : 'no')
+  ];
+  status.textContent = parts.join('   |   ');
+  // textContent (not innerHTML) so nothing in the program can run as HTML.
+  document.getElementById('json').textContent = JSON.stringify(program, null, 2);
+}
+
+/* ==========================================================================
+   TEST BUTTONS (step 1 only; removed or replaced in step 2)
+   ========================================================================== */
+
+document.getElementById('btn-edit-name').addEventListener('click', function () {
+  program.name = program.name + ' (edited)';
+  changed();
+});
+
+document.getElementById('btn-add-ex').addEventListener('click', function () {
+  program.workouts[0].exercises.push(newExercise('Test Exercise', program.weeks));
+  changed();
+});
+
+document.getElementById('btn-new').addEventListener('click', function () {
+  program = createDefaultProgram();
+  dirty = false;
+  draftSaved = saveDraft(program);
+  startedFrom = 'new program';
+  render();
+});
+
+// Warn before closing the tab if there are unsaved changes (spec 5.13).
+window.addEventListener('beforeunload', function (e) {
+  if (dirty) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+startUp();
+</script>
+</body>
+</html>
