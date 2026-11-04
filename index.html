@@ -13,48 +13,147 @@
     --text-dim: #8C948C;
     --accent: #C6FF3D;
     --danger: #E05C4E;
+    --rpe: #8FC7FF;
+    --selected-bg: #232A1A;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    padding: 24px;
     background: var(--bg);
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
     font-variant-numeric: tabular-nums;
+    min-width: 1024px;
   }
-  h1 { font-size: 20px; margin: 0 0 4px; }
-  p.hint { color: var(--text-dim); margin: 0 0 16px; font-size: 14px; }
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  button, input {
+    font: inherit;
+    color: var(--text);
+  }
   button {
-    background: var(--surface); color: var(--text); border: 1px solid var(--line);
-    border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    white-space: nowrap;
   }
-  button:hover { border-color: var(--text-dim); }
-  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-  button.danger { color: var(--danger); }
-  #status { color: var(--text-dim); font-size: 14px; margin-bottom: 8px; }
-  #status b { color: var(--accent); }
-  pre {
-    margin: 0; padding: 12px; background: var(--bg); border: 1px solid var(--line);
-    border-radius: 8px; max-height: 480px; overflow: auto; font-size: 13px; line-height: 1.4;
+  button:hover:not(:disabled) { border-color: var(--text-dim); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+  button.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+  input[type="text"] {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 7px 10px;
   }
+  input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+  /* ---- Header ---- */
+  .header {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .field { display: flex; align-items: center; gap: 8px; }
+  .field label { color: var(--text-dim); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  #name-input { width: 260px; font-size: 16px; font-weight: 600; }
+  #block-input { width: 56px; text-align: center; }
+  .stepper { display: flex; align-items: center; }
+  .stepper button { width: 32px; padding: 7px 0; font-size: 16px; line-height: 1; }
+  .stepper .value { min-width: 36px; text-align: center; font-weight: 600; }
+  .header-buttons { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+  /* ---- Grid ---- */
+  .main { padding: 20px; }
+  .grid-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+  table.grid { border-collapse: separate; border-spacing: 0; width: 100%; }
+  table.grid th, table.grid td {
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    text-align: left;
+  }
+  table.grid tr:last-child td { border-bottom: none; }
+  table.grid th:last-child, table.grid td:last-child { border-right: none; }
+  table.grid th {
+    padding: 10px 12px;
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  table.grid .week-col { min-width: 220px; }
+  table.grid .workout-col {
+    position: sticky; left: 0; z-index: 2;
+    min-width: 200px; max-width: 200px;
+    background: var(--surface);
+    box-shadow: 1px 0 0 var(--line);
+  }
+  table.grid td.workout-col { padding: 12px; }
+  .workout-title { font-weight: 700; margin-bottom: 6px; }
+  .workout-desc { width: 100%; }
+  td.cell { padding: 8px; }
+  .ex {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: var(--bg);
+  }
+  .ex-top { display: flex; gap: 6px; align-items: baseline; }
+  .ex-label { color: var(--accent); font-weight: 700; min-width: 22px; }
+  .ex-name { font-weight: 600; word-break: break-word; }
+  .ex-scheme { color: var(--text-dim); margin-top: 2px; }
+  .ex-load { margin-top: 2px; font-weight: 600; }
+  .load-kg { color: var(--text); }
+  .load-pct { color: var(--accent); }
+  .load-rpe { color: var(--rpe); }
+  .load-blank { color: var(--text-dim); font-style: italic; font-weight: 400; }
+  .ex-more { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
+  .ex-edited { color: var(--text-dim); font-size: 12px; margin-left: auto; white-space: nowrap; }
+  .add-ex { width: 100%; border-style: dashed; color: var(--text-dim); }
+
+  /* ---- Temporary step 2 test tools ---- */
+  .testtools {
+    margin: 0 20px 20px; padding: 12px 14px;
+    border: 1px dashed var(--line); border-radius: 10px; color: var(--text-dim);
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+
+  /* ---- Modal and notice ---- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
+    display: flex; align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px; width: 420px; max-width: 90vw;
+  }
+  .modal h2 { margin: 0 0 8px; font-size: 18px; }
+  .modal p { margin: 0 0 18px; color: var(--text-dim); }
+  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .notice {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--accent); color: var(--text);
+    padding: 10px 18px; border-radius: 8px; z-index: 200;
+  }
+  #save-warning { color: var(--danger); padding: 8px 20px 0; }
 </style>
 </head>
 <body>
-  <h1>GymLog Program Builder</h1>
-  <p class="hint">Build step 1 test page: data model and draft save. The real layout arrives in step 2.</p>
-
-  <div class="panel">
-    <div id="status"></div>
-    <div class="row">
-      <button id="btn-edit-name">Add " (edited)" to name</button>
-      <button id="btn-add-ex">Add test exercise to Workout 1</button>
-      <button id="btn-new" class="danger">Reset to new program</button>
-    </div>
-    <pre id="json"></pre>
-  </div>
+  <div class="header" id="header"></div>
+  <div id="save-warning" hidden>The draft could not be saved in this browser. Changes will be lost when the page closes.</div>
+  <div class="main"><div class="grid-wrap" id="grid"></div></div>
+  <div class="testtools" id="testtools"></div>
 
 <script>
 'use strict';
@@ -86,7 +185,10 @@ function syncIdCounter(program) {
   }
   program.workouts.forEach(function (w) {
     check(w.id);
-    w.exercises.forEach(function (e) { check(e.id); });
+    w.exercises.forEach(function (e) {
+      check(e.id);
+      if (e.supersetId) check(e.supersetId);
+    });
   });
   nextIdNumber = highest + 1;
 }
@@ -232,6 +334,123 @@ function loadDraft() {
 }
 
 /* ==========================================================================
+   CALCULATIONS (spec 5.9, 5.10). Pure functions: no drawing, no storage.
+   ========================================================================== */
+
+// Removes tiny floating-point errors, e.g. 0.1 + 0.2 = 0.30000000000000004.
+function cleanNum(v) { return Math.round(v * 10000) / 10000; }
+
+function cloneGroup(g) {
+  return { sets: g.sets, reps: g.reps, loadType: g.loadType, load: g.load, rpe: g.rpe, kg: g.kg };
+}
+
+// The load one week later, following the pattern. `load` is never null here.
+function nextLoad(load, pattern) {
+  if (pattern.kind === 'add') return cleanNum(load + pattern.amount);
+  if (pattern.kind === 'percent') {
+    // +5% rounded to the nearest 2.5 kg: round(previous x 1.05 / 2.5) x 2.5
+    return cleanNum(Math.round(load * (1 + pattern.amount / 100) / 2.5) * 2.5);
+  }
+  return load; // 'same' and 'manual' copy the previous week
+}
+
+// Builds the full weeks[] array for an exercise from Week 1 and its pattern.
+// - Week 1 is the source and is returned unchanged.
+// - Edited weeks are kept exactly as they are.
+// - Other weeks are regenerated. Each one starts from the previous week's
+//   GENERATED value (not from a hand-edited value).
+// - A blank Week 1 load stays blank. A group's kg value is kept only if its
+//   load type and load did not change.
+// Returns a new array of length weekCount; the exercise itself is not changed.
+function generateWeeks(exercise, weekCount) {
+  var week1 = exercise.weeks[0];
+  var result = [week1];
+  var previous = week1.groups.map(cloneGroup); // generated groups of the previous week
+  for (var i = 1; i < weekCount; i++) {
+    var generated = previous.map(function (prev) {
+      var g = cloneGroup(prev);
+      g.kg = null;
+      g.rpe = prev.rpe;
+      if (g.loadType === exercise.pattern.type && g.load !== null) {
+        g.load = nextLoad(g.load, exercise.pattern);
+      }
+      return g;
+    });
+    var existing = exercise.weeks[i];
+    if (existing && existing.edited) {
+      result.push(existing);
+    } else {
+      // Keep kg values for set groups whose prescription did not change.
+      if (existing) {
+        generated.forEach(function (g, k) {
+          var old = existing.groups[k];
+          if (old && old.loadType === g.loadType && old.load === g.load) g.kg = old.kg;
+        });
+      }
+      result.push({
+        included: existing ? existing.included : week1.included,
+        edited: false,
+        groups: generated
+      });
+    }
+    previous = generated;
+  }
+  return result;
+}
+
+// Superset labels for one workout in one week (spec 5.4, 5.10, 38a).
+// Returns { exerciseId: 'A1' | 'A2' | 'B1' ... }. Letters restart in each
+// workout. A pair is labelled only if BOTH exercises are included that week.
+function supersetLabels(workout, weekIndex) {
+  var labels = {};
+  var letterCode = 65; // 'A'
+  var seen = {};
+  workout.exercises.forEach(function (ex) {
+    if (!ex.supersetId || seen[ex.supersetId]) return;
+    seen[ex.supersetId] = true;
+    var pair = workout.exercises.filter(function (o) {
+      return o.supersetId === ex.supersetId && o.weeks[weekIndex].included;
+    });
+    if (pair.length === 2) {
+      var letter = String.fromCharCode(letterCode++);
+      labels[pair[0].id] = letter + '1';
+      labels[pair[1].id] = letter + '2';
+    }
+  });
+  return labels;
+}
+
+function formatNum(v) { return String(Math.round(v * 100) / 100); }
+
+// How a set group's load is shown (spec 5.4, 5.11). Returns { text, cls }.
+function describeLoad(g) {
+  if (g.load === null) return { text: 'Set load', cls: 'load-blank' };
+  var kgPart = g.kg === null ? '' : ' · ' + formatNum(g.kg) + ' kg';
+  if (g.loadType === 'kg') {
+    var shown = formatNum(g.load) + ' kg';
+    if (g.kg !== null && g.kg !== g.load) shown += kgPart;
+    return { text: shown, cls: 'load-kg' };
+  }
+  if (g.loadType === 'pct') return { text: formatNum(g.load) + '%' + kgPart, cls: 'load-pct' };
+  return { text: 'RPE ' + formatNum(g.load) + kgPart, cls: 'load-rpe' };
+}
+
+// Does removing the last week lose edits or kg values? (spec 5.3)
+function lastWeekHasWork(prog) {
+  var last = prog.weeks - 1;
+  return prog.workouts.some(function (w) {
+    return w.exercises.some(function (ex) {
+      var entry = ex.weeks[last];
+      return entry.edited || entry.groups.some(function (g) { return g.kg !== null; });
+    });
+  });
+}
+
+function programHasExercises(prog) {
+  return prog.workouts.some(function (w) { return w.exercises.length > 0; });
+}
+
+/* ==========================================================================
    APP STATE
    One `program` object; render() redraws everything from it.
    ========================================================================== */
@@ -239,13 +458,19 @@ function loadDraft() {
 var program = null;
 var dirty = false;       // true when there are changes not yet saved to a file (spec 5.13)
 var draftSaved = true;   // false if the last localStorage write failed
-var startedFrom = '';    // for the test page: where this session's program came from
 
-// Call this after EVERY change to the program.
+// Call this after EVERY change that needs a redraw.
 function changed() {
   dirty = true;
   draftSaved = saveDraft(program);
   render();
+}
+
+// For typing in text boxes: save, but do not redraw (a redraw would drop the cursor).
+function changedQuietly() {
+  dirty = true;
+  draftSaved = saveDraft(program);
+  document.getElementById('save-warning').hidden = draftSaved;
 }
 
 function startUp() {
@@ -253,53 +478,352 @@ function startUp() {
   if (draft) {
     program = draft;
     syncIdCounter(program);
-    startedFrom = 'saved draft';
+    // We cannot know if a reloaded draft was saved to a file, so treat it as
+    // unsaved as soon as it holds any work.
+    dirty = programHasExercises(program) || program.name !== 'New Program';
   } else {
     program = createDefaultProgram();
-    saveDraft(program);
-    startedFrom = 'new program';
+    draftSaved = saveDraft(program);
+    dirty = false;
   }
   render();
 }
 
 /* ==========================================================================
-   DRAWING (temporary test page for step 1)
+   CHANGING THE SIZE OF THE PROGRAM (spec 5.3)
    ========================================================================== */
 
-function render() {
-  var status = document.getElementById('status');
-  status.textContent = '';
-  var parts = [
-    'Started from: ' + startedFrom,
-    'Draft save: ' + (draftSaved ? 'OK' : 'FAILED'),
-    'Unsaved to file: ' + (dirty ? 'yes' : 'no')
-  ];
-  status.textContent = parts.join('   |   ');
-  // textContent (not innerHTML) so nothing in the program can run as HTML.
-  document.getElementById('json').textContent = JSON.stringify(program, null, 2);
+function setWeekCount(n) {
+  if (n < 1 || n > MAX_WEEKS || n === program.weeks) return;
+  if (n > program.weeks) {
+    program.weeks = n;
+    program.workouts.forEach(function (w) {
+      w.exercises.forEach(function (ex) { ex.weeks = generateWeeks(ex, n); });
+    });
+    changed();
+    return;
+  }
+  // Only ever removes the last week (steppers move one at a time).
+  function remove() {
+    program.weeks = n;
+    program.workouts.forEach(function (w) {
+      w.exercises.forEach(function (ex) { ex.weeks.length = n; });
+    });
+    changed();
+  }
+  if (lastWeekHasWork(program)) {
+    showConfirm({
+      title: 'Remove Week ' + program.weeks + '?',
+      text: 'This week has edited cells or kg values. They will be lost.',
+      confirmLabel: 'Remove',
+      onConfirm: remove
+    });
+  } else {
+    remove();
+  }
+}
+
+function setWorkoutCount(n) {
+  if (n < 1 || n > MAX_WORKOUTS || n === program.workoutsPerWeek) return;
+  if (n > program.workoutsPerWeek) {
+    program.workouts.push(newWorkout());
+    program.workoutsPerWeek = n;
+    changed();
+    return;
+  }
+  var last = program.workouts[program.workouts.length - 1];
+  function remove() {
+    program.workouts.pop();
+    program.workoutsPerWeek = n;
+    changed();
+  }
+  if (last.exercises.length > 0) {
+    showConfirm({
+      title: 'Remove Workout ' + program.workoutsPerWeek + '?',
+      text: 'This workout has exercises. They will be deleted.',
+      confirmLabel: 'Remove',
+      onConfirm: remove
+    });
+  } else {
+    remove();
+  }
+}
+
+function startNewProgram() {
+  function go() {
+    program = createDefaultProgram();
+    draftSaved = saveDraft(program);
+    dirty = false;
+    render();
+  }
+  if (dirty) {
+    showConfirm({
+      title: 'Replace current program?',
+      text: "Changes that haven't been saved to a file will be lost.",
+      confirmLabel: 'Replace',
+      onConfirm: go
+    });
+  } else {
+    go();
+  }
 }
 
 /* ==========================================================================
-   TEST BUTTONS (step 1 only; removed or replaced in step 2)
+   SMALL DRAWING HELPERS
+   `el` builds elements with textContent only, so user text can never run as HTML.
    ========================================================================== */
 
-document.getElementById('btn-edit-name').addEventListener('click', function () {
-  program.name = program.name + ' (edited)';
-  changed();
-});
+function el(tag, props, children) {
+  var node = document.createElement(tag);
+  if (props) {
+    Object.keys(props).forEach(function (key) {
+      if (props[key] === null) return; // null means "leave this attribute off"
+      if (key === 'text') node.textContent = props[key];
+      else if (key === 'className') node.className = props[key];
+      else if (key === 'onclick') node.addEventListener('click', props[key]);
+      else node.setAttribute(key, props[key]);
+    });
+  }
+  (children || []).forEach(function (child) { node.appendChild(child); });
+  return node;
+}
 
-document.getElementById('btn-add-ex').addEventListener('click', function () {
-  program.workouts[0].exercises.push(newExercise('Test Exercise', program.weeks));
-  changed();
-});
+var openModalCleanup = null;
 
-document.getElementById('btn-new').addEventListener('click', function () {
-  program = createDefaultProgram();
-  dirty = false;
-  draftSaved = saveDraft(program);
-  startedFrom = 'new program';
-  render();
-});
+function closeModal() {
+  var overlay = document.getElementById('modal-overlay');
+  if (overlay) overlay.remove();
+  if (openModalCleanup) { openModalCleanup(); openModalCleanup = null; }
+}
+
+// Custom confirm dialog (native confirm() is not allowed in this project).
+function showConfirm(opts) {
+  closeModal();
+  var cancelBtn = el('button', { text: 'Cancel', onclick: closeModal });
+  var okBtn = el('button', {
+    className: 'danger',
+    text: opts.confirmLabel,
+    onclick: function () { closeModal(); opts.onConfirm(); }
+  });
+  var overlay = el('div', { className: 'overlay', id: 'modal-overlay' }, [
+    el('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true' }, [
+      el('h2', { text: opts.title }),
+      el('p', { text: opts.text }),
+      el('div', { className: 'actions' }, [cancelBtn, okBtn])
+    ])
+  ]);
+  document.body.appendChild(overlay);
+  function onKey(e) { if (e.key === 'Escape') closeModal(); }
+  document.addEventListener('keydown', onKey);
+  openModalCleanup = function () { document.removeEventListener('keydown', onKey); };
+  cancelBtn.focus();
+}
+
+var noticeTimer = null;
+function showNotice(message) {
+  var old = document.getElementById('notice');
+  if (old) old.remove();
+  document.body.appendChild(el('div', { className: 'notice', id: 'notice', text: message }));
+  clearTimeout(noticeTimer);
+  noticeTimer = setTimeout(function () {
+    var n = document.getElementById('notice');
+    if (n) n.remove();
+  }, 2500);
+}
+
+/* ==========================================================================
+   DRAWING (spec 5.2 header, 5.4 grid)
+   ========================================================================== */
+
+function stepper(label, value, min, max, onChange) {
+  return el('div', { className: 'field' }, [
+    el('label', { text: label }),
+    el('div', { className: 'stepper' }, [
+      el('button', {
+        text: '−', 'aria-label': 'Decrease ' + label,
+        onclick: function () { onChange(value - 1); },
+        disabled: value <= min ? 'disabled' : null
+      }),
+      el('span', { className: 'value', text: String(value) }),
+      el('button', {
+        text: '+', 'aria-label': 'Increase ' + label,
+        onclick: function () { onChange(value + 1); },
+        disabled: value >= max ? 'disabled' : null
+      })
+    ])
+  ]);
+}
+
+// Placeholder for features that arrive in later build steps.
+function laterButton(label, step, extraClass) {
+  return el('button', {
+    text: label, className: extraClass || '', disabled: 'disabled',
+    title: 'Coming in build step ' + step
+  });
+}
+
+function renderHeader() {
+  var header = document.getElementById('header');
+  header.textContent = '';
+
+  var nameInput = el('input', { type: 'text', id: 'name-input', 'aria-label': 'Program name', maxlength: '200' });
+  nameInput.value = program.name;
+  nameInput.addEventListener('input', function () {
+    program.name = nameInput.value;
+    changedQuietly();
+  });
+
+  var blockInput = el('input', { type: 'text', id: 'block-input', inputmode: 'numeric', 'aria-label': 'Block number' });
+  blockInput.value = String(program.block);
+  blockInput.addEventListener('change', function () {
+    var n = parseInt(blockInput.value.replace(',', '.'), 10);
+    if (isFinite(n) && n >= 1 && n <= 9999) {
+      program.block = n;
+      changed();
+    } else {
+      blockInput.value = String(program.block); // invalid: put the old value back
+    }
+  });
+
+  header.appendChild(nameInput);
+  header.appendChild(el('div', { className: 'field' }, [el('label', { text: 'Block' }), blockInput]));
+  header.appendChild(stepper('Weeks', program.weeks, 1, MAX_WEEKS, setWeekCount));
+  header.appendChild(stepper('Workouts / week', program.workoutsPerWeek, 1, MAX_WORKOUTS, setWorkoutCount));
+  header.appendChild(el('div', { className: 'header-buttons' }, [
+    laterButton('Open file', 7),
+    laterButton('Save file', 7),
+    laterButton('Load Exercise List', 7),
+    el('button', { text: 'New Program', onclick: startNewProgram }),
+    laterButton('Copy AI prompt', 8, 'primary')
+  ]));
+}
+
+function renderExercise(ex, weekIndex, labels) {
+  var entry = ex.weeks[weekIndex];
+  var first = entry.groups[0];
+  var top = el('div', { className: 'ex-top' });
+  if (labels[ex.id]) top.appendChild(el('span', { className: 'ex-label', text: labels[ex.id] }));
+  top.appendChild(el('span', { className: 'ex-name', text: ex.name }));
+  if (entry.edited) top.appendChild(el('span', { className: 'ex-edited', text: '(edited)' }));
+
+  var load = describeLoad(first);
+  var box = el('div', { className: 'ex' }, [
+    top,
+    el('div', { className: 'ex-scheme', text: first.sets + ' × ' + first.reps }),
+    el('div', { className: 'ex-load ' + load.cls, text: load.text })
+  ]);
+  if (entry.groups.length > 1) {
+    box.appendChild(el('div', { className: 'ex-more', text: '+' + (entry.groups.length - 1) + ' more' }));
+  }
+  return box;
+}
+
+function renderGrid() {
+  var grid = document.getElementById('grid');
+  grid.textContent = '';
+
+  var headRow = el('tr', null, [el('th', { className: 'workout-col', text: 'Workout' })]);
+  for (var w = 0; w < program.weeks; w++) {
+    headRow.appendChild(el('th', { className: 'week-col', text: 'Week ' + (w + 1) }));
+  }
+
+  var body = el('tbody');
+  program.workouts.forEach(function (workout, wi) {
+    var descInput = el('input', {
+      type: 'text', className: 'workout-desc', placeholder: 'Description',
+      'aria-label': 'Description for Workout ' + (wi + 1), maxlength: '500'
+    });
+    descInput.value = workout.description;
+    descInput.addEventListener('input', function () {
+      workout.description = descInput.value;
+      changedQuietly();
+    });
+
+    var row = el('tr', null, [
+      el('td', { className: 'workout-col' }, [
+        el('div', { className: 'workout-title', text: 'Workout ' + (wi + 1) }),
+        descInput
+      ])
+    ]);
+
+    for (var week = 0; week < program.weeks; week++) {
+      var labels = supersetLabels(workout, week);
+      var cell = el('td', { className: 'cell' });
+      workout.exercises.forEach(function (ex) {
+        if (ex.weeks[week].included) cell.appendChild(renderExercise(ex, week, labels));
+      });
+      cell.appendChild(el('button', {
+        className: 'add-ex', text: 'Add exercise', disabled: 'disabled',
+        title: 'Coming in build step 3'
+      }));
+      row.appendChild(cell);
+    }
+    body.appendChild(row);
+  });
+
+  grid.appendChild(el('table', { className: 'grid' }, [el('thead', null, [headRow]), body]));
+}
+
+function render() {
+  renderHeader();
+  renderGrid();
+  document.getElementById('save-warning').hidden = draftSaved;
+}
+
+/* ==========================================================================
+   TEMPORARY STEP 2 TEST TOOLS
+   The real Add exercise modal arrives in step 3. These buttons add sample
+   data so the grid can be checked. They are removed once step 3 is done.
+   ========================================================================== */
+
+function sampleExercise(name, groups, pattern, rest) {
+  var ex = newExercise(name, program.weeks);
+  ex.rest = rest;
+  ex.pattern = pattern;
+  ex.weeks[0].groups = groups;
+  ex.weeks = generateWeeks(ex, program.weeks);
+  return ex;
+}
+
+function grp(sets, reps, loadType, load, rpe, kg) {
+  return { sets: sets, reps: reps, loadType: loadType, load: load, rpe: rpe, kg: kg };
+}
+
+function addSampleExercises() {
+  var list = program.workouts[0].exercises;
+  var bench = sampleExercise('Bench Press', [grp(3, 5, 'pct', 75, null, 100)],
+    { kind: 'add', type: 'pct', amount: 2.5 }, 180);
+  var row = sampleExercise('Barbell Row', [grp(3, 10, 'rpe', 7, null, null)],
+    { kind: 'add', type: 'rpe', amount: 0.5 }, 180);
+  var ssId = makeId('ss');
+  bench.supersetId = ssId;
+  row.supersetId = ssId;
+  var squat = sampleExercise('Squat', [grp(3, 5, 'kg', 100, 8, null), grp(1, 8, 'kg', 85, null, null)],
+    { kind: 'add', type: 'kg', amount: 2.5 }, 240);
+  var curl = sampleExercise('Curl', [grp(3, 12, 'kg', null, null, null)],
+    { kind: 'same', type: 'kg', amount: 0 }, 60);
+  var facePull = sampleExercise('Face Pull', [grp(3, 15, 'kg', 20, null, null)],
+    { kind: 'same', type: 'kg', amount: 0 }, 60);
+  // A "this week only" exercise: hidden everywhere except Week 2 (which is edited).
+  facePull.weeks.forEach(function (w, i) { w.included = (i === 1); w.edited = (i === 1); });
+  [bench, row, squat, curl, facePull].forEach(function (ex) { list.push(ex); });
+  changed();
+}
+
+function markLastWeekEdited() {
+  var list = program.workouts[0].exercises;
+  if (list.length === 0) { showNotice('Add the sample exercises first.'); return; }
+  list[0].weeks[program.weeks - 1].edited = true;
+  changed();
+}
+
+function renderTestTools() {
+  var box = document.getElementById('testtools');
+  box.textContent = '';
+  box.appendChild(el('span', { text: 'Step 2 test tools (temporary):' }));
+  box.appendChild(el('button', { text: 'Add sample exercises to Workout 1', onclick: addSampleExercises }));
+  box.appendChild(el('button', { text: 'Mark first exercise’s last week as edited', onclick: markLastWeekEdited }));
+}
 
 // Warn before closing the tab if there are unsaved changes (spec 5.13).
 window.addEventListener('beforeunload', function (e) {
@@ -309,6 +833,7 @@ window.addEventListener('beforeunload', function (e) {
   }
 });
 
+renderTestTools();
 startUp();
 </script>
 </body>

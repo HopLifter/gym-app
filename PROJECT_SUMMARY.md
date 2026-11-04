@@ -16,8 +16,8 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 ## Build progress (spec section 9)
 | Step | Status |
 |---|---|
-| 1. Data model and draft save | Built, awaiting user test |
-| 2. Header, steppers, grid | Not started |
+| 1. Data model and draft save | Done, committed and pushed |
+| 2. Header, steppers, grid | Built, awaiting user test |
 | 3. Add exercises, week cell editing | Not started |
 | 4. Exercise table, load type switching | Not started |
 | 5. Progression patterns | Not started |
@@ -38,7 +38,16 @@ Storage keys: `builder_draft_v1` (the program), `builder_exercise_list_v1` (arra
 - `isValidProgram(p)`: strict shape check used on anything loaded from outside.
 - `saveDraft(program)` / `loadDraft()`: localStorage with try/catch; a damaged draft is ignored and a new program opens.
 - `changed()`: call after every edit; sets the dirty flag, saves the draft and redraws.
-- `render()`: currently a temporary JSON viewer.
+- `render()`: redraws the header and grid from `program`.
 
 ## Testing limits
-No automated tests; everything is checked by hand in a browser. The step 1 page has temporary test buttons that will be replaced in step 2.
+No automated tests; everything is checked by hand in a browser (open `index.html` directly).
+
+## Step 2 additions
+- Header: name, block, Weeks and Workouts/week steppers, buttons. Open file, Save file, Load Exercise List and Copy AI prompt are disabled placeholders until steps 7 and 8. New Program works (confirms if `dirty`).
+- Grid: weeks across, workouts down, sticky Workout column, week columns at least 220px. Shows superset labels (A1/A2), `+N more`, `(edited)`, `Set load`, and loads such as `75% · 120 kg`. Exercise click and Add exercise are not wired yet (steps 3 and 4).
+- Calculations (pure functions): `generateWeeks(exercise, weekCount)` (all pattern kinds, edited weeks kept, kg kept only where the prescription is unchanged), `supersetLabels`, `describeLoad`, `lastWeekHasWork`.
+- Removing a week confirms if its last week has edited entries or kg values; removing a workout confirms if it has exercises.
+- Custom modal `showConfirm`, notice `showNotice`, DOM helper `el` (text only, never HTML).
+- Decisions: a newly added week copies Week 1's `included` flag. A draft reloaded with any exercise or a changed name counts as unsaved (`dirty`), because we cannot know if it was saved to a file.
+- Temporary "Step 2 test tools" strip adds sample exercises; remove it after step 3.
