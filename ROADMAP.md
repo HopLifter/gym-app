@@ -1,6 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
+**Last updated:** 4 November 2026  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -77,7 +78,56 @@ These are relatively independent features that can be designed and implemented s
 **Goal:** Show past (ended) programs and their workouts, using the permanent program list added in 1.4.
 
 - Not yet specified.
-- Status: planned, depends on 1.4.
+- Status: planned. Its dependency, 1.4, is done.
+
+### 1.7 Superset Import
+
+**Goal:** Let an import file define superset pairs, so the Program Builder's AI-prepared files can include them.
+
+- Add an optional import field that pairs two adjacent exercises.
+- Keep the shared rest time correct on import.
+- Files without the field import as they do today.
+- Status: spec ready, not built. Needed for Program Builder Phase 1.
+
+**Complexity:** 2/5  
+**UX/UI Improvement:** 3/5
+
+### 1.8 Set-by-Set Logging
+
+**Goal:** Hold different weights and reps for one exercise within the same exercise box.
+
+- Replace the single sets, reps, weight and RPE values with a list of sets.
+- Keep the common case simple when all sets are the same.
+- Migrate existing workouts and backups, and extend the import format.
+- Update Rest Timer squares, Volume, Recent Performance, condensed History and Export Gym Log.
+- Status: idea. Foundation for 1.9 and 1.10.
+
+**Complexity:** 4/5  
+**UX/UI Improvement:** 5/5
+
+### 1.9 Planned vs. Actual Tracking
+
+**Goal:** Keep the prescribed values when the logged values differ from them.
+
+- Store planned and actual values separately, instead of overwriting the plan.
+- Show the difference in Past Workouts.
+- Include both in backups, so the Program Builder can analyze them.
+- Status: idea. Depends on 1.8.
+
+**Complexity:** 3/5  
+**UX/UI Improvement:** 4/5
+
+### 1.10 Missed Reps Logging
+
+**Goal:** Record quickly when prescribed reps were not reached.
+
+- Assume a set went as planned, so only exceptions need input.
+- Enter the actual reps for a set with minimal tapping during a workout.
+- Show missed reps in Past Workouts and Recent Performance.
+- Status: idea. Depends on 1.8 and 1.9. Specify these three together, because they share one data model.
+
+**Complexity:** 3/5  
+**UX/UI Improvement:** 5/5
 
 ## 2. Epics
 
@@ -85,7 +135,46 @@ Epics are larger initiatives that must be broken down into smaller features and 
 
 ### 2.1 Program Builder Epic
 
-**Goal:** Allow users to create, manage, and reuse training programs directly within GymLog.
+**Goal:** Allow users to create, manage, and reuse training programs, first in a desktop website and later directly within GymLog.
+
+**Decisions so far:**
+
+- Build a separate desktop website on GitHub Pages, in its own repo. Move it into GymLog only once it is stable.
+- Save programs as a downloadable program file.
+- Use the combined layout: a Program Grid (weeks across, workouts down) as the main view. Selecting an exercise opens a week-by-week table for that workout below it.
+- Update the layout immediately when the number of weeks or workouts per week changes.
+- Support mixed programming within one program: fixed kg, % of 1RM and RPE targets, with easy switching between them. Percentages are always % of 1RM.
+- The builder keeps every load as written and does not convert it to kg.
+- Offer progression as a pick list of patterns, similar to a Google Calendar series: same every week, a kg or % change per week, a custom change, or set each week manually.
+- Suggestions never change a program until the user approves them.
+- Add no AI costs. The tool outputs a prompt to use with AI separately.
+- Support supersets.
+- Exercise names come from the GymLog Exercise List.
+- Single user for now, but avoid choices that would block future users.
+- Sets per muscle group is out of scope for now.
+- Exercises usually run in every week, but can be added to or removed from individual weeks.
+- Week 1 generates later weeks from the pattern, and any week can still be edited by hand.
+- The review table is edited in the AI chat for now.
+- Reopened programs show the kg value next to each prescription.
+
+**Getting a program into GymLog:**
+
+1. The builder creates a prompt containing the program, for use with a separate AI.
+2. The user adds their 1RMs and, optionally, a Backup All Data file.
+3. The AI returns a readable, editable table showing each prescription and its suggested kg.
+4. The user edits the table, and the AI asks for confirmation.
+5. Once confirmed, the AI provides two files: the GymLog import file and a copy of the program for the builder, with the kg values added.
+
+The builder does not export directly to GymLog.
+
+**Phases:**
+
+1. Core builder: create, edit, save and reopen programs, and copy the AI prompt. Spec ready, not built.
+2. Reuse: templates, duplication and versions.
+3. Analysis: weekly and per-exercise workload.
+4. History: import backups and compare planned with actual (best after 1.8 to 1.10).
+5. Suggestions: AI suggestions based on workout history, approved by the user.
+6. Mobile: move the builder into GymLog.
 
 Potential features:
 
@@ -98,7 +187,7 @@ Potential features:
 - Program versioning and progression management.
 - Recommendations and/or automatic progression based on workout history.
 
-**Important design question:** Should GymLog primarily recommend adjustments, automatically apply predefined progression rules, or support both?
+**Design decision:** Support both recommendations and predefined progression rules, through one flow where the user approves every change.
 
 **Complexity:** 5/5  
 **UX/UI Improvement:** 5/5
@@ -127,16 +216,24 @@ Potential features:
 
 An initial suggested sequence, subject to further exploration:
 
-1. Global Workout Timer.
-2. Set Progress Tracking.
-3. Workout Focus Mode.
-4. Program Queue (done).
-5. Workout Description and Comment (done).
-6. Past Programs Screen.
-7. Program Builder Epic.
-8. Native Capabilities & App Integrations Epic.
+1. Global Workout Timer (done).
+2. Set Progress Tracking (done).
+3. Program Queue (done).
+4. Workout Description and Comment (done).
+5. Superset Import.
+6. Program Builder Epic, Phases 1 to 3.
+7. Set-by-Set Logging.
+8. Planned vs. Actual Tracking.
+9. Missed Reps Logging.
+10. Program Builder Epic, Phases 4 and 5.
+11. Workout Focus Mode.
+12. Past Programs Screen.
+13. Program Builder Epic, Phase 6.
+14. Native Capabilities & App Integrations Epic.
 
-The first three features form a cohesive improvement to the actual workout experience. The two Epics represent larger expansions of GymLog's capabilities.
+Superset Import comes first because Builder Phase 1 needs it. Features 1.8 to 1.10 come before Builder Phases 4 and 5, because good suggestions depend on accurate workout data. Workout Focus Mode follows them, so it is designed around set-by-set logging.
+
+Until 1.8 is built, the builder stores sets individually, and each different weight and rep combination becomes a separate exercise entry in the GymLog import file.
 
 ## 4. Roadmap Principles
 

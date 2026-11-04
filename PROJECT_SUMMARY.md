@@ -42,6 +42,14 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
+## Docs update, 4 November 2026
+`ROADMAP.md` updated: added 1.7 Superset Import, 1.8 Set-by-Set Logging,
+1.9 Planned vs. Actual Tracking and 1.10 Missed Reps Logging, recorded the
+Program Builder Epic decisions and phases, and refreshed the development
+order. Specs for 1.7 Superset Import and Program Builder Phase 1 were
+written. `index.html` and `sw.js` are unchanged, so the cache version stays
+`gym-app-cache-v61`.
+
 ## Docs-only build 20261103_V9
 `ROADMAP.md` updated (1.1, 1.2, 1.4 and 1.5 marked implemented, 1.6 Past
 Programs Screen added, order refreshed). `index.html` and `sw.js` are
