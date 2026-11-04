@@ -17,8 +17,8 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 | Step | Status |
 |---|---|
 | 1. Data model and draft save | Done, committed and pushed |
-| 2. Header, steppers, grid | Built, awaiting user test |
-| 3. Add exercises, week cell editing | Not started |
+| 2. Header, steppers, grid | Done, committed |
+| 3. Add exercises, week cell editing | Built, awaiting user test |
 | 4. Exercise table, load type switching | Not started |
 | 5. Progression patterns | Not started |
 | 6. Supersets and reordering | Not started |
@@ -50,4 +50,11 @@ No automated tests; everything is checked by hand in a browser (open `index.html
 - Removing a week confirms if its last week has edited entries or kg values; removing a workout confirms if it has exercises.
 - Custom modal `showConfirm`, notice `showNotice`, DOM helper `el` (text only, never HTML).
 - Decisions: a newly added week copies Week 1's `included` flag. A draft reloaded with any exercise or a changed name counts as unsaved (`dirty`), because we cannot know if it was saved to a file.
-- Temporary "Step 2 test tools" strip adds sample exercises; remove it after step 3.
+
+## Step 3 additions
+- `Add exercise` modal (spec 5.6): Exercise List dropdown with `New Exercise` (free text, `Not in your Exercise List` warning), sets, reps, load type, load, rest in minutes, notes, All weeks / This week only. Without a stored list only the text field shows. `loadExerciseList()` reads `builder_exercise_list_v1`; loading it from a backup is step 7.
+- Week editor (spec 5.7): set groups (sets, reps, load, target RPE for kg and %), Add set group (hidden on paired exercises), delete group, Remove from this week (confirms and deletes if it is the only week), Use pattern value (edited weeks). A Week 1 save regenerates unedited weeks; a later week save marks it edited only if something changed. A kg value is kept only if the group's load and load type are unchanged.
+- Until step 4, clicking an exercise in the grid opens this editor. Step 4 changes that to select the exercise and open the table; the editor then opens from table cells.
+- Also built for later steps: `addToWeek`, `deleteExercise` (clears a superset partner), `parseNumber` ("." and ","), `openModal`.
+- Decision: "This week only" in Week 1 does not mark Week 1 as edited (Week 1 is the source).
+- The temporary test strip is gone.
