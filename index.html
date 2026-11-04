@@ -1160,7 +1160,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v61";
+  const APP_VERSION = "gym-app-cache-v62";
 
   const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
   const PROGRAMS_KEY = "gymapp_programs_v1";
@@ -3458,6 +3458,47 @@
     }
   });
 
+  function buildImportedExercises(exerciseDefs) {
+    const exercises = exerciseDefs.map(exDef => ({
+      id: newId("ex"),
+      name: exDef.name || "Exercise",
+      sets: exDef.sets ?? 3,
+      reps: exDef.reps ?? 10,
+      weight: exDef.weight ?? 0,
+      rpe: exDef.rpe ?? "",
+      rest: exDef.rest ?? 60,
+      notes: exDef.notes || "",
+      supersetId: null
+    }));
+    applyImportedSupersets(exercises, exerciseDefs);
+    return exercises;
+  }
+
+  // Optional `superset` text value per exercise in the import file. Within
+  // one workout, a value shared by exactly two *adjacent* exercises makes
+  // a pair; anything else (one, three or more, non-adjacent, blank or
+  // non-text) imports unpaired, silently. The value is never saved, only
+  // the resulting supersetId.
+  function applyImportedSupersets(exercises, exerciseDefs) {
+    const groups = new Map();
+    exerciseDefs.forEach((exDef, i) => {
+      if (typeof exDef.superset !== "string") return;
+      const key = exDef.superset.trim();
+      if (!key) return;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(i);
+    });
+    for (const idxs of groups.values()) {
+      if (idxs.length !== 2 || idxs[1] !== idxs[0] + 1) continue;
+      const first = exercises[idxs[0]];
+      const second = exercises[idxs[1]];
+      const groupId = newId("grp");
+      first.supersetId = groupId;
+      second.supersetId = groupId;
+      second.rest = first.rest;
+    }
+  }
+
   function doImport(data, status) {
     const newProgram = {
       id: newId("prog"),
@@ -3475,17 +3516,7 @@
       date: null,
       status: "queued",
       order: order++,
-      exercises: (wDef.exercises || []).map(exDef => ({
-        id: newId("ex"),
-        name: exDef.name || "Exercise",
-        sets: exDef.sets ?? 3,
-        reps: exDef.reps ?? 10,
-        weight: exDef.weight ?? 0,
-        rpe: exDef.rpe ?? "",
-        rest: exDef.rest ?? 60,
-        notes: exDef.notes || "",
-        supersetId: null
-      }))
+      exercises: buildImportedExercises(wDef.exercises || [])
     }));
     programs.push(newProgram);
     queue = [...queue, ...newWorkouts];

@@ -1,7 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
-**Last updated:** 4 November 2026  
+**Last updated:** 4 November 2026 (1.7 implemented, v62)  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -87,7 +87,7 @@ These are relatively independent features that can be designed and implemented s
 - Add an optional import field that pairs two adjacent exercises.
 - Keep the shared rest time correct on import.
 - Files without the field import as they do today.
-- Status: spec ready, not built. Needed for Program Builder Phase 1.
+- Status: implemented in v62 (build 20261104, spec 1.7). Needed for Program Builder Phase 1, which can now rely on it.
 
 **Complexity:** 2/5  
 **UX/UI Improvement:** 3/5
@@ -220,7 +220,7 @@ An initial suggested sequence, subject to further exploration:
 2. Set Progress Tracking (done).
 3. Program Queue (done).
 4. Workout Description and Comment (done).
-5. Superset Import.
+5. Superset Import (done).
 6. Program Builder Epic, Phases 1 to 3.
 7. Set-by-Set Logging.
 8. Planned vs. Actual Tracking.

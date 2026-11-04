@@ -10,7 +10,7 @@ no subscriptions.
 - Repo: github.com/HopLifter/gym-app
 - Files: `index.html` (the whole app) + `sw.js` (offline caching)
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v61` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v62` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -41,6 +41,37 @@ no subscriptions.
   locale uses (often mm/dd/yyyy), and there's no way to force that. Any
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
+
+## New/changed this session: Superset Import (Roadmap 1.7, v62, build 20261104)
+Source: Feature Spec 1.7. All in `index.html`; `sw.js` only has the version
+bump to `gym-app-cache-v62` (`APP_VERSION` matches).
+
+- **Import field:** an exercise may carry an optional `superset` text value.
+  Within one workout, a value (trimmed) shared by exactly two *adjacent*
+  exercises makes a pair: both get one new `supersetId` (`newId("grp")`) and
+  the second exercise's `rest` is set to the first's (same as
+  `pairSuperset()`). A value used once, by 3+ exercises, by non-adjacent
+  exercises, or blank/whitespace/non-text imports unpaired, silently. The
+  value only matters within its workout; the same letter in another workout
+  is a separate pair.
+- **Code:** `doImport()` now builds exercises via `buildImportedExercises()`,
+  which maps the defs as before and then calls `applyImportedSupersets()`.
+  The `superset` field itself is not saved; only `supersetId`. No new
+  storage key, no migration. Everything after import (group rendering,
+  Move Up/Down, Remove Superset, shared rest, Rest Timer, Export tag,
+  Backup) already works from `supersetId` and adjacency, unchanged.
+- **`Program Import Format.md`:** `superset` added to the Exercise table;
+  "Supersets" removed from "What can't be imported".
+- **Testing limits:** run in a desktop browser against a local server with
+  the restored real backup: helper scenarios (pair, two pairs, trimmed
+  value, three, one, non-adjacent, blank/whitespace/non-text, no field, field
+  not saved, distinct group ids), a real `doImport()` with the same letter
+  in two workouts, group box and shared rest on the Workout screen (375px
+  screenshot), `(Superset A)` Export Gym Log tag, and `supersetId`
+  persisting in storage. Not re-run by hand this session (existing
+  behaviour, unchanged code): Move Up/Down, Remove Superset, Rest Timer
+  naming, condensed History line, backup/restore round trip. Not run on a
+  phone.
 
 ## Docs update, 4 November 2026
 `ROADMAP.md` updated: added 1.7 Superset Import, 1.8 Set-by-Set Logging,
