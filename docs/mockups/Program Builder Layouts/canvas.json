@@ -1,0 +1,17 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-04T19:45:00Z" },
+  "title": "Program Builder Layouts",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1440, "h": 900, "title": "Option A: Program Grid", "expand": "fill", "is_interactive": true },
+    "Matrix.dc.html": { "x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Option B: Exercise Matrix", "expand": "fill", "is_interactive": true },
+    "Editor.dc.html": { "x": 3040, "y": 0, "w": 1440, "h": 900, "title": "Option C: Workout Editor", "expand": "fill", "is_interactive": true },
+    "Pattern.dc.html": { "x": 0, "y": 1020, "w": 720, "h": 760, "title": "Progression pattern (works with any option)", "is_interactive": true },
+    "Combined.dc.html": { "x": 800, "y": 1020, "w": 1440, "h": 1000, "title": "Combined: Grid + Exercise Matrix", "expand": "fill", "is_interactive": true }
+  },
+  "order": ["Main.dc.html", "Matrix.dc.html", "Editor.dc.html", "Pattern.dc.html", "Combined.dc.html"],
+  "notes": {},
+  "designSystems": []
+}

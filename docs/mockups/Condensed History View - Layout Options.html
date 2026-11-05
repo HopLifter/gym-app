@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Condensed History View — Options</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --surface: #161917;
+    --surface-2: #1F2320;
+    --line: #2A2F2B;
+    --text: #EDEEEA;
+    --text-dim: #8C948C;
+    --accent: #C6FF3D;
+    --accent-dim: #7A9A2E;
+    --danger: #E05C4E;
+  }
+  :root:not([data-theme="light"]) { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #05070A;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
+    padding: 24px 16px calc(env(safe-area-inset-bottom,0px) + 40px);
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .intro { color: var(--text-dim); font-size: 14px; max-width: 640px; margin: 0 auto 32px; text-align: center; line-height: 1.5; }
+  .options-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 28px;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .option-col { width: 340px; }
+  .option-label {
+    text-align: center;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--accent);
+    margin-bottom: 2px;
+  }
+  .option-sub { text-align: center; font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+  .phone-frame {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 16px 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  .pros-cons {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    line-height: 1.5;
+  }
+  .pros-cons b { color: var(--text); }
+
+  /* ---- shared header bits ---- */
+  .hdr-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .hdr-eyebrow { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); font-weight: 700; }
+  .hdr-title { font-size: 21px; font-weight: 800; letter-spacing: -0.01em; margin: 2px 0 2px; }
+  .hdr-date { font-size: 12px; color: var(--text-dim); }
+  .edit-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--accent-dim);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ================= OPTION A — Compact List ================= */
+  .a-ex { padding: 9px 2px; border-bottom: 1px solid var(--line); }
+  .a-ex:last-child { border-bottom: none; }
+  .a-name { font-size: 14.5px; font-weight: 700; }
+  .a-stats { font-size: 12.5px; color: var(--text-dim); margin-top: 2px; }
+  .a-stats b { color: var(--text); font-weight: 600; }
+  .a-notes { font-size: 11.5px; color: var(--accent-dim); font-style: italic; margin-top: 3px; }
+  .a-superset {
+    border: 1px solid var(--accent-dim);
+    border-radius: 10px;
+    padding: 6px 8px 2px;
+    margin: 6px 0;
+  }
+  .a-superset .a-ex { border-bottom: 1px dashed var(--line); padding: 7px 2px; }
+  .a-superset .a-ex:last-child { border-bottom: none; }
+  .a-superset-tag { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 2px; }
+
+  /* ================= OPTION B — Table ================= */
+  .b-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .b-table th {
+    text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-dim); font-weight: 700; padding: 0 4px 6px; border-bottom: 1px solid var(--line);
+  }
+  .b-table th.num, .b-table td.num { text-align: right; }
+  .b-table td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .b-table tr:last-child td { border-bottom: none; }
+  .b-ex-name { font-weight: 700; font-size: 13px; }
+  .b-superset-row td { position: relative; }
+  .b-superset-row.first td { border-bottom: 1px dashed var(--line); }
+  .b-superset-row td:first-child { padding-left: 10px; }
+  .b-superset-row td:first-child::before {
+    content: ""; position: absolute; left: 0; top: 4px; bottom: 4px; width: 3px;
+    background: var(--accent-dim); border-radius: 2px;
+  }
+  .b-tag { font-size: 9px; color: var(--accent); font-weight: 700; }
+  .b-notes-block { margin-top: 10px; font-size: 11px; color: var(--text-dim); }
+  .b-notes-block div { margin-top: 3px; }
+  .b-notes-block b { color: var(--text); font-weight: 600; }
+
+  /* ================= OPTION C — Condensed Cards ================= */
+  .c-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+  .c-superset-group { border: 1px solid var(--accent-dim); border-radius: 10px; margin-bottom: 6px; overflow: hidden; }
+  .c-superset-group .c-card { border: none; border-radius: 0; margin-bottom: 0; }
+  .c-superset-group .c-card + .c-card { border-top: 1px dashed var(--line); }
+  .c-superset-label { background: var(--surface-2); color: var(--accent); font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; }
+  .c-top { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+  .c-name { font-size: 13.5px; font-weight: 700; }
+  .c-rpe { font-size: 11px; color: var(--accent-dim); font-weight: 700; flex-shrink: 0; }
+  .c-chips { display: flex; gap: 10px; margin-top: 4px; font-size: 11.5px; color: var(--text-dim); flex-wrap: wrap; }
+  .c-chips b { color: var(--text); font-weight: 600; }
+  .c-notes { font-size: 11px; color: var(--text-dim); font-style: italic; margin-top: 4px; }
+</style>
+</head>
+<body>
+<h1 style="text-align:center;">Condensed History View — Layout Options</h1>
+<p class="intro">
+  Same sample completed workout ("Push Day", 4 exercises incl. one superset pair, with notes on two of them)
+  rendered three different ways, at real phone width (340px). No functionality here — just comparing density
+  and readability for a screenshot. Pick one and I'll build it for real.
+</p>
+
+<div class="options-wrap">
+
+  <!-- ============ OPTION A ============ -->
+  <div class="option-col">
+    <div class="option-label">Option A — Compact List</div>
+    <div class="option-sub">One line of stats per exercise, no grid</div>
+    <div class="phone-frame">
+      <div class="hdr-row">
+        <div>
+          <div class="hdr-eyebrow">History · Completed</div>
+          <div class="hdr-title">Push Day</div>
+          <div class="hdr-date">Wed, 17 Sep 2026</div>
+        </div>
+        <button class="edit-btn">Edit</button>
+      </div>
+
+      <div class="a-ex">
+        <div class="a-name">Barbell Bench Press</div>
+        <div class="a-stats"><b>4×6</b> @ <b>135 lb</b> · RPE <b>8</b> · rest <b>1.5m</b></div>
+        <div class="a-notes">"Felt strong, could go heavier next time"</div>
+      </div>
+
+      <div class="a-ex">
+        <div class="a-name">Overhead Press</div>
+        <div class="a-stats"><b>3×8</b> @ <b>65 lb</b> · RPE <b>7</b> · rest <b>1.5m</b></div>
+      </div>
+
+      <div class="a-superset">
+        <div class="a-superset-tag">⚡ Superset</div>
+        <div class="a-ex">
+          <div class="a-name">Incline DB Press</div>
+          <div class="a-stats"><b>3×10</b> @ <b>40 lb</b> · RPE <b>7</b> · rest <b>1m</b></div>
+        </div>
+        <div class="a-ex">
+          <div class="a-name">Lateral Raise</div>
+          <div class="a-stats"><b>3×15</b> @ <b>15 lb</b> · RPE <b>8</b> · rest <b>1m</b></div>
+        </div>
+      </div>
+
+      <div class="a-ex">
+        <div class="a-name">Tricep Pushdown</div>
+        <div class="a-stats"><b>3×12</b> @ <b>40 lb</b> · RPE <b>8</b> · rest <b>1m</b></div>
+        <div class="a-notes">"Elbows tucked, good mind-muscle"</div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <b>Pros:</b> shortest vertical height, closest to a plain log entry, easy to scan top-to-bottom.<br>
+      <b>Cons:</b> stats are all one visual weight — RPE/rest don't stand out; long notes could wrap awkwardly.
+    </div>
+  </div>
+
+  <!-- ============ OPTION B ============ -->
+  <div class="option-col">
+    <div class="option-label">Option B — Table</div>
+    <div class="option-sub">Spreadsheet-style rows, notes as footnotes</div>
+    <div class="phone-frame">
+      <div class="hdr-row">
+        <div>
+          <div class="hdr-eyebrow">History · Completed</div>
+          <div class="hdr-title">Push Day</div>
+          <div class="hdr-date">Wed, 17 Sep 2026</div>
+        </div>
+        <button class="edit-btn">Edit</button>
+      </div>
+
+      <table class="b-table">
+        <tr>
+          <th>Exercise</th><th class="num">Sets×Reps</th><th class="num">Wt</th><th class="num">RPE</th><th class="num">Rest</th>
+        </tr>
+        <tr>
+          <td class="b-ex-name">Bench Press*</td><td class="num">4×6</td><td class="num">135</td><td class="num">8</td><td class="num">1.5m</td>
+        </tr>
+        <tr>
+          <td class="b-ex-name">OHP</td><td class="num">3×8</td><td class="num">65</td><td class="num">7</td><td class="num">1.5m</td>
+        </tr>
+        <tr class="b-superset-row first">
+          <td class="b-ex-name">Incline DB Press <span class="b-tag">⚡A</span></td><td class="num">3×10</td><td class="num">40</td><td class="num">7</td><td class="num">1m</td>
+        </tr>
+        <tr class="b-superset-row">
+          <td class="b-ex-name">Lateral Raise <span class="b-tag">⚡A</span></td><td class="num">3×15</td><td class="num">15</td><td class="num">8</td><td class="num">1m</td>
+        </tr>
+        <tr>
+          <td class="b-ex-name">Tricep Pushdown*</td><td class="num">3×12</td><td class="num">40</td><td class="num">8</td><td class="num">1m</td>
+        </tr>
+      </table>
+
+      <div class="b-notes-block">
+        <div><b>Bench Press:</b> "Felt strong, could go heavier next time"</div>
+        <div><b>Tricep Pushdown:</b> "Elbows tucked, good mind-muscle"</div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <b>Pros:</b> most information-dense, easiest to compare numbers across exercises at a glance.<br>
+      <b>Cons:</b> exercise names get squeezed/wrap on longer names; notes are separated from their exercise, which can feel disconnected when screenshotted.
+    </div>
+  </div>
+
+  <!-- ============ OPTION C ============ -->
+  <div class="option-col">
+    <div class="option-label">Option C — Condensed Cards</div>
+    <div class="option-sub">Shrunk version of today's card, chips instead of grid</div>
+    <div class="phone-frame">
+      <div class="hdr-row">
+        <div>
+          <div class="hdr-eyebrow">History · Completed</div>
+          <div class="hdr-title">Push Day</div>
+          <div class="hdr-date">Wed, 17 Sep 2026</div>
+        </div>
+        <button class="edit-btn">Edit</button>
+      </div>
+
+      <div class="c-card">
+        <div class="c-top"><div class="c-name">Barbell Bench Press</div><div class="c-rpe">RPE 8</div></div>
+        <div class="c-chips"><span><b>4</b> sets</span><span><b>6</b> reps</span><span><b>135</b> lb</span><span>rest <b>1.5m</b></span></div>
+        <div class="c-notes">"Felt strong, could go heavier next time"</div>
+      </div>
+
+      <div class="c-card">
+        <div class="c-top"><div class="c-name">Overhead Press</div><div class="c-rpe">RPE 7</div></div>
+        <div class="c-chips"><span><b>3</b> sets</span><span><b>8</b> reps</span><span><b>65</b> lb</span><span>rest <b>1.5m</b></span></div>
+      </div>
+
+      <div class="c-superset-group">
+        <div class="c-superset-label">⚡ Superset</div>
+        <div class="c-card">
+          <div class="c-top"><div class="c-name">Incline DB Press</div><div class="c-rpe">RPE 7</div></div>
+          <div class="c-chips"><span><b>3</b> sets</span><span><b>10</b> reps</span><span><b>40</b> lb</span><span>rest <b>1m</b></span></div>
+        </div>
+        <div class="c-card">
+          <div class="c-top"><div class="c-name">Lateral Raise</div><div class="c-rpe">RPE 8</div></div>
+          <div class="c-chips"><span><b>3</b> sets</span><span><b>15</b> reps</span><span><b>15</b> lb</span><span>rest <b>1m</b></span></div>
+        </div>
+      </div>
+
+      <div class="c-card">
+        <div class="c-top"><div class="c-name">Tricep Pushdown</div><div class="c-rpe">RPE 8</div></div>
+        <div class="c-chips"><span><b>3</b> sets</span><span><b>12</b> reps</span><span><b>40</b> lb</span><span>rest <b>1m</b></span></div>
+        <div class="c-notes">"Elbows tucked, good mind-muscle"</div>
+      </div>
+    </div>
+    <div class="pros-cons">
+      <b>Pros:</b> closest visual continuity with the existing app (still reads as "GymLog cards"), notes stay attached to their exercise, RPE gets its own visual slot.<br>
+      <b>Cons:</b> tallest of the three — same workout takes noticeably more vertical space, more likely to need scrolling on longer workouts.
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

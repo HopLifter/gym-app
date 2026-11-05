@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Condensed History View — Option B (revised)</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --surface: #161917;
+    --surface-2: #1F2320;
+    --line: #2A2F2B;
+    --text: #EDEEEA;
+    --text-dim: #8C948C;
+    --accent: #C6FF3D;
+    --accent-dim: #7A9A2E;
+    --superset-line: #4B524C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #05070A;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  h1 { font-size: 18px; text-align: center; margin: 0 0 4px; }
+  .intro { color: var(--text-dim); font-size: 13px; max-width: 500px; margin: 0 auto 24px; text-align: center; line-height: 1.5; }
+  .wrap { display: flex; justify-content: center; }
+  .phone-frame {
+    width: 360px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 16px 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+
+  /* ---- header ---- */
+  .hdr-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .hdr-title { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+  .hdr-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .edit-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--accent-dim);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 12px;
+    white-space: nowrap;
+  }
+  .menu-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 20px; padding: 2px 6px; line-height: 1;
+  }
+  .hdr-date { font-size: 12px; color: var(--text-dim); margin: 4px 0 14px; }
+
+  /* ---- grid "table" ---- */
+  .cols { display: grid; grid-template-columns: 2.1fr 1fr 0.75fr 0.6fr 0.95fr; column-gap: 4px; }
+  .thead { padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 2px; }
+  .thead span {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--text-dim); font-weight: 700;
+  }
+  .thead span.num, .row span.num { text-align: right; }
+
+  .row { padding: 7px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+  .row:last-of-type { border-bottom: none; }
+  .ex-name { font-size: 13.5px; font-weight: 700; }
+  .row span { font-size: 12.5px; }
+
+  .note-row { padding: 0 0 8px; }
+  .note-row .note-text {
+    grid-column: 1 / -1;
+    font-size: 11px; color: var(--text-dim); font-style: italic;
+  }
+
+  /* ---- superset grouping: one continuous line down the left side of
+     every row (incl. note rows) belonging to the pair, no accent color,
+     no tag/icon on the names themselves ---- */
+  .superset-wrap { position: relative; padding-left: 10px; margin-bottom: 2px; }
+  .superset-wrap::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 2px; bottom: 2px;
+    width: 3px;
+    background: var(--superset-line);
+    border-radius: 2px;
+  }
+  .superset-wrap .row:last-of-type,
+  .superset-wrap .note-row:last-child .note-text { }
+  .superset-wrap .row { border-bottom: 1px dashed var(--line); }
+  .superset-wrap > .row:last-of-type:not(.note-row) { border-bottom: 1px solid var(--line); }
+  .superset-wrap .note-row { border-bottom: none; }
+</style>
+</head>
+<body>
+<h1>Condensed History View — Option B, revised</h1>
+<p class="intro">Same sample workout, updated per your feedback: no eyebrow line, title inline with Edit + ⋮, unit labels moved into the headers, notes under their own exercise, and the superset indicator is now one continuous gray bar.</p>
+
+<div class="wrap">
+  <div class="phone-frame">
+
+    <div class="hdr-row">
+      <div class="hdr-title">Push Day</div>
+      <div class="hdr-actions">
+        <button class="edit-btn">Edit</button>
+        <button class="menu-btn">⋮</button>
+      </div>
+    </div>
+    <div class="hdr-date">Wed, 17 Sep 2026</div>
+
+    <div class="cols thead">
+      <span>Exercise</span><span class="num">Sets×Reps</span><span class="num">Wt (kg)</span><span class="num">RPE</span><span class="num">Rest (min)</span>
+    </div>
+
+    <!-- Bench Press -->
+    <div class="cols row">
+      <span class="ex-name">Barbell Bench Press</span><span class="num">4×6</span><span class="num">135</span><span class="num">8</span><span class="num">1.5</span>
+    </div>
+    <div class="cols note-row">
+      <span class="note-text">"Felt strong, could go heavier next time"</span>
+    </div>
+
+    <!-- Overhead Press -->
+    <div class="cols row">
+      <span class="ex-name">Overhead Press</span><span class="num">3×8</span><span class="num">65</span><span class="num">7</span><span class="num">1.5</span>
+    </div>
+
+    <!-- Superset pair -->
+    <div class="superset-wrap">
+      <div class="cols row">
+        <span class="ex-name">Incline DB Press</span><span class="num">3×10</span><span class="num">40</span><span class="num">7</span><span class="num">1</span>
+      </div>
+      <div class="cols row">
+        <span class="ex-name">Lateral Raise</span><span class="num">3×15</span><span class="num">15</span><span class="num">8</span><span class="num">1</span>
+      </div>
+    </div>
+
+    <!-- Tricep Pushdown -->
+    <div class="cols row">
+      <span class="ex-name">Tricep Pushdown</span><span class="num">3×12</span><span class="num">40</span><span class="num">8</span><span class="num">1</span>
+    </div>
+    <div class="cols note-row">
+      <span class="note-text">"Elbows tucked, good mind-muscle"</span>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

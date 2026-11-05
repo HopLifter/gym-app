@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Option C: Workout Editor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0B0D0C}
+a{color:#C6FF3D}a:hover{color:#EDEEEA}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #C6FF3D;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 100vh; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; background: #0B0D0C; color: #EDEEEA; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0">
+      <label for="programNameC" style="font-size: 11px; color: #8C948C">Program</label>
+      <input id="programNameC" value="Block 2 - Strength Cycle" style="background: transparent; border: none; color: #EDEEEA; font: inherit; font-size: 20px; font-weight: 600; padding: 0; width: 100%">
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="color: #8C948C">Weeks</span>
+      <button aria-label="Remove a week" onClick="{{lessWeeks}}" style="width: 44px; height: 44px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; font-size: 18px">−</button>
+      <span style="min-width: 24px; text-align: center; font-size: 18px; font-weight: 600">{{weeks}}</span>
+      <button aria-label="Add a week" onClick="{{moreWeeks}}" style="width: 44px; height: 44px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; font-size: 18px">+</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="color: #8C948C">Workouts per week</span>
+      <button aria-label="Remove a workout per week" onClick="{{lessDays}}" style="width: 44px; height: 44px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; font-size: 18px">−</button>
+      <span style="min-width: 24px; text-align: center; font-size: 18px; font-weight: 600">{{days}}</span>
+      <button aria-label="Add a workout per week" onClick="{{moreDays}}" style="width: 44px; height: 44px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; font-size: 18px">+</button>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <button style="height: 44px; padding: 0 14px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA">Save file</button>
+      <button style="height: 44px; padding: 0 14px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA">Copy AI prompt</button>
+      <button style="height: 44px; padding: 0 14px; background: #C6FF3D; border: 1px solid #C6FF3D; border-radius: 8px; color: #0B0D0C; font-weight: 600">Export</button>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px">
+
+    <nav aria-label="Weeks and workouts" style="flex: 1 1 240px; max-width: 300px; box-sizing: border-box; padding: 8px; border: 1px solid #2A2F2B; border-radius: 10px; background: #161917; display: flex; flex-direction: column; gap: 10px">
+      <sc-for list="{{rail}}" as="wk" hint-placeholder-count="4">
+        <div style="display: flex; flex-direction: column; gap: 2px">
+          <span style="padding: 4px 8px; color: #8C948C; font-size: 12px; font-weight: 600">{{wk.label}}</span>
+          <sc-for list="{{wk.items}}" as="it" hint-placeholder-count="3">
+            <button onClick="{{it.pick}}" aria-pressed="{{it.pressed}}" style="min-height: 44px; box-sizing: border-box; width: 100%; padding: 4px 8px; text-align: left; background: {{it.bg}}; border: none; border-radius: 6px; color: {{it.fg}}">
+              <span style="display: block; font-size: 13px; font-weight: 600">{{it.label}}</span>
+              <span style="display: block; font-size: 12px">{{it.desc}}</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <h1 style="margin: 0; font-size: 20px">{{title}}</h1>
+        <span style="color: #8C948C">{{desc}}</span>
+      </div>
+      <sc-for list="{{exs}}" as="e" hint-placeholder-count="3">
+        <article style="border: 1px solid {{e.border}}; border-radius: 10px; background: #161917; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px">
+          <div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px">
+            <button onClick="{{e.pick}}" aria-pressed="{{e.pressed}}" style="flex: 1 1 200px; min-height: 44px; padding: 0; background: none; border: none; color: #EDEEEA; text-align: left; font-size: 15px; font-weight: 600">{{e.prefix}}{{e.name}}</button>
+            <div role="group" aria-label="Load type" style="display: flex; border: 1px solid #2A2F2B; border-radius: 8px; overflow: hidden">
+              <sc-for list="{{e.seg}}" as="s" hint-placeholder-count="3">
+                <button onClick="{{s.pick}}" aria-pressed="{{s.pressed}}" style="height: 44px; min-width: 56px; padding: 0 10px; border: none; background: {{s.bg}}; color: {{s.fg}}; font-size: 13px; font-weight: 600">{{s.label}}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 12px; color: #8C948C; font-size: 12px">
+            <span>Sets</span><span>Reps</span><span>Load</span><span>Rest</span>
+          </div>
+          <sc-for list="{{e.groups}}" as="g" hint-placeholder-count="1">
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px 12px; margin-top: -4px">
+              <span style="padding: 7px 10px; background: #0B0D0C; border: 1px solid #2A2F2B; border-radius: 6px">{{g.sets}}</span>
+              <span style="padding: 7px 10px; background: #0B0D0C; border: 1px solid #2A2F2B; border-radius: 6px">{{g.reps}}</span>
+              <span style="padding: 7px 10px; background: #0B0D0C; border: 1px solid #2A2F2B; border-radius: 6px; color: {{g.color}}; font-weight: 600">{{g.load}}</span>
+              <span style="padding: 7px 10px; background: #0B0D0C; border: 1px solid #2A2F2B; border-radius: 6px">{{e.rest}}</span>
+            </div>
+          </sc-for>
+          <button style="align-self: flex-start; min-height: 44px; padding: 0 2px; background: none; border: none; color: #8C948C; font-size: 13px">Add different sets</button>
+        </article>
+      </sc-for>
+      <button style="min-height: 44px; background: transparent; border: 1px dashed #2A2F2B; border-radius: 8px; color: #8C948C">Add exercise</button>
+    </main>
+
+    <aside style="flex: 1 1 260px; max-width: 320px; box-sizing: border-box; padding: 14px; border: 1px solid #2A2F2B; border-radius: 10px; background: #161917; display: flex; flex-direction: column; gap: 12px">
+      <sc-if value="{{hasSel}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 2px">
+          <span style="color: #8C948C; font-size: 12px">Progression</span>
+          <strong style="font-size: 15px">{{sel.name}}</strong>
+          <span style="font-size: 13px">{{sel.rule}}</span>
+        </div>
+        <div style="display: flex; flex-direction: column">
+          <sc-for list="{{sel.weeks}}" as="w" hint-placeholder-count="4">
+            <div style="display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid #2A2F2B">
+              <span style="color: {{w.labelColor}}; font-weight: {{w.weight}}">{{w.label}}</span>
+              <span style="color: {{w.color}}; font-weight: 600">{{w.load}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <a href="Pattern.dc.html" style="display: inline-flex; align-items: center; justify-content: center; height: 44px; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; text-decoration: none">Change pattern</a>
+      </sc-if>
+      <sc-if value="{{noSel}}" hint-placeholder-val="{{ false }}">
+        <span style="color: #8C948C">Select an exercise to see its progression.</span>
+      </sc-if>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { weeks: 4, days: 3, week: 0, day: 0, sel: 'bench', types: {} };
+  }
+  workouts() {
+    return [
+      { desc: 'Squat + Heavy Bench', exs: [
+        { id: 'squat', name: 'Back Squat', sets: 4, reps: 5, rest: '4 min', type: 'pct', base: 75, step: 2.5, rule: '+2.5% of 1RM per week', edit: { 3: 70 } },
+        { id: 'bench', name: 'Bench Press', sets: 3, reps: 5, rest: '3 min', type: 'kg', base: 97.5, step: 2.5, rule: '+2.5 kg per week', extra: { sets: 1, reps: 8, off: -15 } },
+        { id: 'pull', name: 'Pull Ups', sets: 3, reps: 8, rest: '1.5 min', type: 'rpe', base: 8, step: 0, rule: 'Same every week', ss: 'A1 ' },
+        { id: 'dips', name: 'Dips', sets: 3, reps: 10, rest: '1.5 min', type: 'rpe', base: 8, step: 0, rule: 'Same every week', ss: 'A2 ' }
+      ] },
+      { desc: 'Deadlift + Volume Bench', exs: [
+        { id: 'dead', name: 'Deadlift', sets: 3, reps: 3, rest: '5 min', type: 'pct', base: 80, step: 2.5, rule: '+2.5% of 1RM per week' },
+        { id: 'vbench', name: 'Bench Press', sets: 4, reps: 8, rest: '2 min', type: 'rpe', base: 7, step: 0.5, rule: '+0.5 RPE per week' },
+        { id: 'row', name: 'Barbell Row', sets: 3, reps: 10, rest: '2 min', type: 'kg', base: 60, step: 2.5, rule: '+2.5 kg per week' }
+      ] },
+      { desc: 'Front Squat + Press', exs: [
+        { id: 'front', name: 'Front Squat', sets: 3, reps: 6, rest: '3 min', type: 'rpe', base: 7.5, step: 0, rule: 'Same every week' },
+        { id: 'ohp', name: 'Overhead Press', sets: 4, reps: 6, rest: '2.5 min', type: 'kg', base: 50, step: 1.25, rule: '+1.25 kg per week' },
+        { id: 'lat', name: 'Lateral Raise', sets: 3, reps: 15, rest: '1 min', type: 'rpe', base: 8, step: 0, rule: 'Same every week', ss: 'A1 ' },
+        { id: 'face', name: 'Face Pull', sets: 3, reps: 15, rest: '1 min', type: 'rpe', base: 8, step: 0, rule: 'Same every week', ss: 'A2 ' }
+      ] }
+    ];
+  }
+  load(e, w, off) {
+    const t = this.state.types[e.id] || e.type;
+    const same = t === e.type;
+    const base = same ? e.base : { kg: 100, pct: 75, rpe: 8 }[t];
+    const edited = same && e.edit && e.edit[w] !== undefined;
+    const v = (edited ? e.edit[w] : base + (same ? e.step : 0) * w) + (same ? (off || 0) : 0);
+    const n = String(Number(v.toFixed(2)));
+    return {
+      text: t === 'kg' ? n + ' kg' : t === 'pct' ? n + '%' : 'RPE ' + n,
+      color: t === 'kg' ? '#EDEEEA' : t === 'pct' ? '#C6FF3D' : '#8FC7FF'
+    };
+  }
+  renderVals() {
+    const { weeks, days, sel, types } = this.state;
+    const week = Math.min(this.state.week, weeks - 1);
+    const day = Math.min(this.state.day, days - 1);
+    const lib = this.workouts();
+    const rail = [];
+    for (let w = 0; w < weeks; w++) {
+      const items = [];
+      for (let d = 0; d < days; d++) {
+        const on = w === week && d === day;
+        items.push({
+          label: 'Workout ' + (d + 1),
+          desc: (lib[d] || { desc: 'No exercises yet' }).desc,
+          pressed: on ? 'true' : 'false',
+          bg: on ? '#C6FF3D' : 'transparent',
+          fg: on ? '#0B0D0C' : '#EDEEEA',
+          pick: () => this.setState({ week: w, day: d })
+        });
+      }
+      rail.push({ label: 'Week ' + (w + 1), items });
+    }
+    const def = lib[day] || { desc: 'No exercises yet', exs: [] };
+    let found = null;
+    const exs = def.exs.map((e) => {
+      const cur = types[e.id] || e.type;
+      const on = e.id === sel;
+      if (on) found = e;
+      const main = this.load(e, week);
+      const groups = [{ sets: e.sets, reps: e.reps, load: main.text, color: main.color }];
+      if (e.extra) {
+        const x = this.load(e, week, e.extra.off);
+        groups.push({ sets: e.extra.sets, reps: e.extra.reps, load: x.text, color: x.color });
+      }
+      return {
+        name: e.name, prefix: e.ss || '', rest: e.rest, groups,
+        border: on ? '#C6FF3D' : '#2A2F2B',
+        pressed: on ? 'true' : 'false',
+        pick: () => this.setState({ sel: e.id }),
+        seg: [['kg', 'kg'], ['pct', '% 1RM'], ['rpe', 'RPE']].map(([k, label]) => ({
+          label,
+          pressed: k === cur ? 'true' : 'false',
+          bg: k === cur ? '#C6FF3D' : 'transparent',
+          fg: k === cur ? '#0B0D0C' : '#EDEEEA',
+          pick: () => this.setState({ types: { ...types, [e.id]: k } })
+        }))
+      };
+    });
+    const selOut = { weeks: [] };
+    if (found) {
+      const e = found;
+      selOut.name = e.name;
+      selOut.rule = (types[e.id] || e.type) === e.type ? e.rule : 'Not set';
+      for (let w = 0; w < weeks; w++) {
+        const l = this.load(e, w);
+        selOut.weeks.push({
+          label: 'Week ' + (w + 1), load: l.text, color: l.color,
+          labelColor: w === week ? '#EDEEEA' : '#8C948C', weight: w === week ? 600 : 400
+        });
+      }
+    }
+    return {
+      weeks, days, rail, exs,
+      title: 'Week ' + (week + 1) + ', Workout ' + (day + 1),
+      desc: def.desc,
+      hasSel: !!found, noSel: !found, sel: selOut,
+      lessWeeks: () => this.setState({ weeks: Math.max(1, weeks - 1) }),
+      moreWeeks: () => this.setState({ weeks: Math.min(12, weeks + 1) }),
+      lessDays: () => this.setState({ days: Math.max(1, days - 1) }),
+      moreDays: () => this.setState({ days: Math.min(7, days + 1) })
+    };
+  }
+}
+</script>
+</body>
+</html>

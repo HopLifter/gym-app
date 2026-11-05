@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Condensed History View — Option B (v4)</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --surface: #161917;
+    --surface-2: #1F2320;
+    --line: #2A2F2B;
+    --text: #EDEEEA;
+    --text-dim: #8C948C;
+    --accent: #C6FF3D;
+    --accent-dim: #7A9A2E;
+    --superset-line: #4B524C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #05070A;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  h1 { font-size: 18px; text-align: center; margin: 0 0 4px; }
+  .intro { color: var(--text-dim); font-size: 13px; max-width: 500px; margin: 0 auto 24px; text-align: center; line-height: 1.5; }
+  .wrap { display: flex; justify-content: center; }
+  .phone-frame {
+    width: 360px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 16px 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+
+  .hdr-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .hdr-title { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; }
+  .hdr-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .edit-btn {
+    background: var(--surface-2);
+    border: 1px solid var(--accent-dim);
+    border-radius: 8px;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 12px;
+    white-space: nowrap;
+  }
+  .menu-btn {
+    background: none; border: none; color: var(--text-dim);
+    font-size: 20px; padding: 2px 6px; line-height: 1;
+  }
+  .hdr-date { font-size: 12px; color: var(--text-dim); margin: 4px 0 14px; }
+
+  .cols { display: grid; grid-template-columns: 2.3fr 0.95fr 0.7fr 0.55fr 0.85fr; column-gap: 4px; align-items: center; }
+  .thead { padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 2px; align-items: end; }
+  .thead span {
+    font-size: 9px; text-transform: uppercase; letter-spacing: 0.03em;
+    color: var(--text-dim); font-weight: 700; line-height: 1.25;
+    text-align: center;
+  }
+  .thead span:first-child { text-align: left; }
+
+  .row { padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .row:last-of-type { border-bottom: none; }
+  .ex-name { font-size: 13.5px; font-weight: 700; line-height: 1.25; padding-right: 4px; text-align: left; }
+  /* All stat values share the same size/weight/color, centered under
+     their header, so the row reads as one consistent style — weight is
+     the one deliberate exception (bold), everything else (sets×reps,
+     RPE, rest) is visually equal. Missing values are the same size/
+     weight too, just dimmed, so "–" doesn't look like a different kind
+     of text, just a different state. */
+  .row span { font-size: 12.5px; text-align: center; color: var(--text); }
+  .row span.missing { color: var(--text-dim); }
+  .row span.wt { font-weight: 700; }
+
+  .note-row { padding: 0 0 8px; }
+  .note-row .note-text {
+    grid-column: 1 / -1;
+    font-size: 11px; color: var(--text-dim); font-style: italic;
+    text-align: left;
+  }
+
+  /* Superset indicator moved to the right edge of the table, running
+     the full height of both (or more) rows in the pair, including their
+     note rows. */
+  .superset-wrap { position: relative; padding-right: 10px; margin-bottom: 2px; }
+  .superset-wrap::after {
+    content: "";
+    position: absolute;
+    right: 0; top: 2px; bottom: 2px;
+    width: 3px;
+    background: var(--superset-line);
+    border-radius: 2px;
+  }
+  .superset-wrap .row { border-bottom: 1px dashed var(--line); }
+  .superset-wrap > .row:last-of-type:not(.note-row) { border-bottom: 1px solid var(--line); }
+  .superset-wrap .note-row { border-bottom: none; }
+
+  .callouts { max-width: 360px; margin: 18px auto 0; }
+  .callouts div { font-size: 11.5px; color: var(--text-dim); margin-top: 4px; }
+  .callouts b { color: var(--accent); }
+</style>
+</head>
+<body>
+<h1>Option B — v4</h1>
+<p class="intro">
+  Stat columns are now centered under their headers with one consistent style
+  (weight stays bold, everything else is equal weight/color). Superset line
+  moved to the right edge of the table.
+</p>
+
+<div class="wrap">
+  <div class="phone-frame">
+
+    <div class="hdr-row">
+      <div class="hdr-title">Leg Day</div>
+      <div class="hdr-actions">
+        <button class="edit-btn">Edit</button>
+        <button class="menu-btn">⋮</button>
+      </div>
+    </div>
+    <div class="hdr-date">Wed, 17 Sep 2026</div>
+
+    <div class="cols thead">
+      <span>Exercise</span><span>Sets ×<br>Reps</span><span>Wt<br>(kg)</span><span>RPE</span><span>Rest<br>(min)</span>
+    </div>
+
+    <div class="cols row">
+      <span class="ex-name">Barbell Back Squats</span><span>4×5</span><span class="wt">100</span><span>8</span><span>2</span>
+    </div>
+    <div class="cols note-row">
+      <span class="note-text">"Depth felt good, focus on bracing"</span>
+    </div>
+
+    <div class="cols row">
+      <span class="ex-name">Romanian Deadlifts</span><span>3×8</span><span class="wt">80</span><span class="missing">–</span><span>1.5</span>
+    </div>
+
+    <div class="superset-wrap">
+      <div class="cols row">
+        <span class="ex-name">DB Bulgarian Split Squats</span><span>3×10</span><span class="wt">20</span><span>7</span><span>1</span>
+      </div>
+      <div class="cols row">
+        <span class="ex-name">Standing Calf Raise</span><span>3×15</span><span class="wt">40</span><span>8</span><span>1</span>
+      </div>
+    </div>
+
+    <div class="cols row">
+      <span class="ex-name">Hanging Leg Raise</span><span>3×12</span><span class="wt missing">–</span><span>6</span><span>1</span>
+    </div>
+
+  </div>
+</div>
+
+<div class="callouts">
+  <div><b>Changed:</b> all stat columns (Sets×Reps, Wt, RPE, Rest) are center-aligned under their headers.</div>
+  <div><b>Changed:</b> uniform value styling across columns — weight stays bold, everything else is equal weight/color; "–" is the same size, just dimmed.</div>
+  <div><b>Changed:</b> superset bar moved to the right edge, still spans the full height of both rows + their notes.</div>
+</div>
+
+</body>
+</html>

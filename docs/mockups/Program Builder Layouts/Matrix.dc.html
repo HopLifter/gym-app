@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Option B: Exercise Matrix</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#0B0D0C}
+a{color:#C6FF3D}a:hover{color:#EDEEEA}
+button{font:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #C6FF3D;outline-offset:2px}
+</style>
+</helmet>
+<div style="min-height: 100vh; box-sizing: border-box; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; background: #0B0D0C; color: #EDEEEA; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Roboto, sans-serif; font-size: 14px; font-variant-numeric: tabular-nums">
+
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0">
+      <label for="programNameB" style="font-size: 11px; color: #8C948C">Program</label>
+      <input id="programNameB" value="Block 2 - Strength Cycle" style="background: transparent; border: none; color: #EDEEEA; font: inherit; font-size: 20px; font-weight: 600; padding: 0; width: 100%">
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="color: #8C948C">Weeks</span>
+      <button aria-label="Remove a week" onClick="{{lessWeeks}}" style="width: 44px; height: 44px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; font-size: 18px">−</button>
+      <span style="min-width: 24px; text-align: center; font-size: 18px; font-weight: 600">{{weeks}}</span>
+      <button aria-label="Add a week" onClick="{{moreWeeks}}" style="width: 44px; height: 44px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; font-size: 18px">+</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="color: #8C948C">Workouts per week</span>
+      <button aria-label="Remove a workout per week" onClick="{{lessDays}}" style="width: 44px; height: 44px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; font-size: 18px">−</button>
+      <span style="min-width: 24px; text-align: center; font-size: 18px; font-weight: 600">{{days}}</span>
+      <button aria-label="Add a workout per week" onClick="{{moreDays}}" style="width: 44px; height: 44px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA; font-size: 18px">+</button>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <button style="height: 44px; padding: 0 14px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA">Save file</button>
+      <button style="height: 44px; padding: 0 14px; background: #161917; border: 1px solid #2A2F2B; border-radius: 8px; color: #EDEEEA">Copy AI prompt</button>
+      <button style="height: 44px; padding: 0 14px; background: #C6FF3D; border: 1px solid #C6FF3D; border-radius: 8px; color: #0B0D0C; font-weight: 600">Export</button>
+    </div>
+  </header>
+
+  <nav aria-label="Workouts" style="display: flex; flex-wrap: wrap; gap: 8px">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+      <button onClick="{{t.pick}}" aria-pressed="{{t.pressed}}" style="min-height: 52px; padding: 6px 14px; text-align: left; background: {{t.bg}}; border: 1px solid {{t.border}}; border-radius: 8px; color: {{t.fg}}">
+        <span style="display: block; font-weight: 600">{{t.label}}</span>
+        <span style="display: block; font-size: 12px">{{t.desc}}</span>
+      </button>
+    </sc-for>
+  </nav>
+
+  <section aria-label="Exercises by week" style="overflow-x: auto; border: 1px solid #2A2F2B; border-radius: 10px; background: #161917">
+    <div style="min-width: max-content">
+      <div style="display: flex; border-bottom: 1px solid #2A2F2B; color: #8C948C; font-size: 12px">
+        <div style="flex: 0 0 200px; box-sizing: border-box; padding: 10px 12px; position: sticky; left: 0; background: #161917">Exercise</div>
+        <div style="flex: 0 0 196px; box-sizing: border-box; padding: 10px 12px">Load type</div>
+        <div style="flex: 0 0 170px; box-sizing: border-box; padding: 10px 12px">Progression</div>
+        <sc-for list="{{weekList}}" as="w" hint-placeholder-count="4">
+          <div style="flex: 1 0 116px; box-sizing: border-box; padding: 10px 12px; border-left: 1px solid #2A2F2B; color: #EDEEEA; font-weight: 600; font-size: 13px">{{w.label}}</div>
+        </sc-for>
+      </div>
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+        <div style="display: flex; align-items: stretch; border-bottom: 1px solid #2A2F2B">
+          <div style="flex: 0 0 200px; box-sizing: border-box; padding: 12px; position: sticky; left: 0; background: #161917; display: flex; flex-direction: column; justify-content: center; gap: 2px">
+            <strong style="font-size: 14px; font-weight: 600">{{r.prefix}}{{r.name}}</strong>
+            <span style="color: #8C948C; font-size: 12px">{{r.scheme}}, rest {{r.rest}}</span>
+          </div>
+          <div style="flex: 0 0 196px; box-sizing: border-box; padding: 10px 12px; display: flex; align-items: center">
+            <div role="group" aria-label="Load type" style="display: flex; border: 1px solid #2A2F2B; border-radius: 8px; overflow: hidden">
+              <sc-for list="{{r.seg}}" as="s" hint-placeholder-count="3">
+                <button onClick="{{s.pick}}" aria-pressed="{{s.pressed}}" style="height: 44px; min-width: 56px; padding: 0 8px; border: none; background: {{s.bg}}; color: {{s.fg}}; font-size: 13px; font-weight: 600">{{s.label}}</button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex: 0 0 170px; box-sizing: border-box; padding: 10px 12px; display: flex; align-items: center">
+            <a href="Pattern.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; color: #EDEEEA">{{r.rule}}</a>
+          </div>
+          <sc-for list="{{r.cells}}" as="c" hint-placeholder-count="4">
+            <div style="flex: 1 0 116px; box-sizing: border-box; padding: 12px; border-left: 1px solid #2A2F2B; display: flex; flex-direction: column; justify-content: center; gap: 2px">
+              <span style="color: {{c.color}}; font-size: 15px; font-weight: 600">{{c.load}}</span>
+              <span style="color: #8C948C; font-size: 12px">{{c.note}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-for>
+      <div style="padding: 8px 12px; position: sticky; left: 0; width: 200px; box-sizing: border-box">
+        <button style="min-height: 44px; width: 100%; background: transparent; border: 1px dashed #2A2F2B; border-radius: 6px; color: #8C948C">Add exercise</button>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { weeks: 4, days: 3, active: 0, types: {} };
+  }
+  workouts() {
+    return [
+      { desc: 'Squat + Heavy Bench', exs: [
+        { id: 'squat', name: 'Back Squat', sets: 4, reps: 5, rest: '4 min', type: 'pct', base: 75, step: 2.5, rule: '+2.5% of 1RM per week', edit: { 3: 70 } },
+        { id: 'bench', name: 'Bench Press', sets: 3, reps: 5, rest: '3 min', type: 'kg', base: 97.5, step: 2.5, rule: '+2.5 kg per week' },
+        { id: 'pull', name: 'Pull Ups', sets: 3, reps: 8, rest: '1.5 min', type: 'rpe', base: 8, step: 0, rule: 'Same every week', ss: 'A1 ' },
+        { id: 'dips', name: 'Dips', sets: 3, reps: 10, rest: '1.5 min', type: 'rpe', base: 8, step: 0, rule: 'Same every week', ss: 'A2 ' }
+      ] },
+      { desc: 'Deadlift + Volume Bench', exs: [
+        { id: 'dead', name: 'Deadlift', sets: 3, reps: 3, rest: '5 min', type: 'pct', base: 80, step: 2.5, rule: '+2.5% of 1RM per week' },
+        { id: 'vbench', name: 'Bench Press', sets: 4, reps: 8, rest: '2 min', type: 'rpe', base: 7, step: 0.5, rule: '+0.5 RPE per week' },
+        { id: 'row', name: 'Barbell Row', sets: 3, reps: 10, rest: '2 min', type: 'kg', base: 60, step: 2.5, rule: '+2.5 kg per week' }
+      ] },
+      { desc: 'Front Squat + Press', exs: [
+        { id: 'front', name: 'Front Squat', sets: 3, reps: 6, rest: '3 min', type: 'rpe', base: 7.5, step: 0, rule: 'Same every week' },
+        { id: 'ohp', name: 'Overhead Press', sets: 4, reps: 6, rest: '2.5 min', type: 'kg', base: 50, step: 1.25, rule: '+1.25 kg per week' },
+        { id: 'lat', name: 'Lateral Raise', sets: 3, reps: 15, rest: '1 min', type: 'rpe', base: 8, step: 0, rule: 'Same every week', ss: 'A1 ' },
+        { id: 'face', name: 'Face Pull', sets: 3, reps: 15, rest: '1 min', type: 'rpe', base: 8, step: 0, rule: 'Same every week', ss: 'A2 ' }
+      ] }
+    ];
+  }
+  load(e, w) {
+    const t = this.state.types[e.id] || e.type;
+    const same = t === e.type;
+    const base = same ? e.base : { kg: 100, pct: 75, rpe: 8 }[t];
+    const edited = same && e.edit && e.edit[w] !== undefined;
+    const v = edited ? e.edit[w] : base + (same ? e.step : 0) * w;
+    const n = String(Number(v.toFixed(2)));
+    return {
+      text: t === 'kg' ? n + ' kg' : t === 'pct' ? n + '%' : 'RPE ' + n,
+      color: t === 'kg' ? '#EDEEEA' : t === 'pct' ? '#C6FF3D' : '#8FC7FF',
+      edited: edited
+    };
+  }
+  renderVals() {
+    const { weeks, days, types } = this.state;
+    const active = Math.min(this.state.active, days - 1);
+    const lib = this.workouts();
+    const weekList = [];
+    for (let i = 0; i < weeks; i++) weekList.push({ label: 'Week ' + (i + 1) });
+    const tabs = [];
+    for (let d = 0; d < days; d++) {
+      const def = lib[d] || { desc: 'No exercises yet' };
+      const on = d === active;
+      tabs.push({
+        label: 'Workout ' + (d + 1), desc: def.desc,
+        pressed: on ? 'true' : 'false',
+        bg: on ? '#C6FF3D' : '#161917', fg: on ? '#0B0D0C' : '#EDEEEA', border: on ? '#C6FF3D' : '#2A2F2B',
+        pick: () => this.setState({ active: d })
+      });
+    }
+    const def = lib[active] || { exs: [] };
+    const rows = def.exs.map((e) => {
+      const cur = types[e.id] || e.type;
+      return {
+        name: e.name, prefix: e.ss || '', scheme: e.sets + ' × ' + e.reps, rest: e.rest,
+        rule: cur === e.type ? e.rule : 'Set a pattern',
+        seg: [['kg', 'kg'], ['pct', '%'], ['rpe', 'RPE']].map(([k, label]) => ({
+          label,
+          pressed: k === cur ? 'true' : 'false',
+          bg: k === cur ? '#C6FF3D' : 'transparent',
+          fg: k === cur ? '#0B0D0C' : '#EDEEEA',
+          pick: () => this.setState({ types: { ...types, [e.id]: k } })
+        })),
+        cells: weekList.map((_, w) => {
+          const l = this.load(e, w);
+          return { load: l.text, color: l.color, note: l.edited ? 'Edited' : e.sets + ' × ' + e.reps };
+        })
+      };
+    });
+    return {
+      weeks, days, weekList, tabs, rows,
+      lessWeeks: () => this.setState({ weeks: Math.max(1, weeks - 1) }),
+      moreWeeks: () => this.setState({ weeks: Math.min(12, weeks + 1) }),
+      lessDays: () => this.setState({ days: Math.max(1, days - 1) }),
+      moreDays: () => this.setState({ days: Math.min(7, days + 1) })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Superset Indicator — Options</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --surface: #161917;
+    --surface-2: #1F2320;
+    --line: #2A2F2B;
+    --text: #EDEEEA;
+    --text-dim: #8C948C;
+    --accent: #C6FF3D;
+    --accent-dim: #7A9A2E;
+    --superset-line: #4B524C;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #05070A;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, sans-serif;
+    padding: 24px 16px 60px;
+  }
+  h1 { font-size: 18px; text-align: center; margin: 0 0 4px; }
+  .intro { color: var(--text-dim); font-size: 13px; max-width: 560px; margin: 0 auto 28px; text-align: center; line-height: 1.5; }
+  .options-wrap { display: flex; flex-wrap: wrap; gap: 26px; justify-content: center; }
+  .option-col { width: 340px; }
+  .option-label { text-align: center; font-weight: 800; font-size: 14.5px; color: var(--accent); margin-bottom: 2px; }
+  .option-sub { text-align: center; font-size: 11px; color: var(--text-dim); margin-bottom: 10px; }
+  .phone-frame {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 14px 14px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+
+  .hdr-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .hdr-title { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+  .hdr-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .edit-btn {
+    background: var(--surface-2); border: 1px solid var(--accent-dim); border-radius: 8px;
+    color: var(--accent); font-size: 12px; font-weight: 700; padding: 5px 10px; white-space: nowrap;
+  }
+  .menu-btn { background: none; border: none; color: var(--text-dim); font-size: 18px; padding: 2px 5px; line-height: 1; }
+  .hdr-date { font-size: 11px; color: var(--text-dim); margin: 3px 0 12px; }
+
+  .cols { display: grid; grid-template-columns: 2.3fr 0.95fr 0.7fr 0.55fr 0.85fr; column-gap: 4px; align-items: center; }
+  .thead { padding-bottom: 6px; border-bottom: 1px solid var(--line); margin-bottom: 2px; align-items: end; }
+  .thead span { font-size: 8.5px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-dim); font-weight: 700; line-height: 1.2; text-align: center; }
+  .thead span:first-child { text-align: left; }
+
+  .row { padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .row:last-of-type { border-bottom: none; }
+  .ex-name { font-size: 12.5px; font-weight: 700; line-height: 1.2; padding-right: 4px; text-align: left; }
+  .row span { font-size: 11.5px; text-align: center; color: var(--text); }
+  .row span.missing { color: var(--text-dim); }
+  .row span.wt { font-weight: 700; }
+
+  .note-row { padding: 0 0 7px; }
+  .note-row .note-text { grid-column: 1 / -1; font-size: 10px; color: var(--text-dim); font-style: italic; text-align: left; }
+
+  /* ---- shared: neutralize any inner border on grouped rows so they
+     never differ from plain rows, then overlay the visual indicator
+     with an absolutely-positioned layer that takes up no layout space
+     at all. This is what actually fixes the misalignment. ---- */
+  .superset-wrap { position: relative; }
+  .superset-wrap .row { border-bottom: 1px dashed var(--line); }
+  .superset-wrap > .row:last-of-type:not(.note-row) { border-bottom: 1px solid var(--line); }
+  .superset-wrap .note-row { border-bottom: none; }
+
+  /* OPTION 1 — bracket outline, overlaid (no padding/border consuming width) */
+  .opt1 .superset-wrap::before {
+    content: ""; position: absolute; inset: 0;
+    border: 1px solid var(--superset-line); border-radius: 8px;
+    pointer-events: none;
+  }
+
+  /* OPTION 2 — thin line sitting in the frame's own side margin, not
+     inside the row's content box at all */
+  .opt2 .superset-wrap::after {
+    content: ""; position: absolute; top: 2px; bottom: 2px; right: -9px;
+    width: 3px; background: var(--superset-line); border-radius: 2px;
+  }
+
+  /* OPTION 3 — flush background tint, no border/padding needed since
+     background never consumes layout width */
+  .opt3 .superset-wrap { background: var(--surface-2); border-radius: 8px; }
+
+  /* OPTION 4 — small label row above the pair, same technique as the
+     note row (spans the grid, no side marker at all) */
+  .superset-label-row { padding: 0 0 4px; }
+  .superset-label-row span {
+    grid-column: 1 / -1; text-align: left;
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-dim);
+  }
+
+  .callout { max-width: 340px; margin: 10px auto 0; font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+  .callout b { color: var(--text); }
+</style>
+</head>
+<body>
+<h1>Superset Indicator — Alignment-Safe Options</h1>
+<p class="intro">
+  All four options below use the same fix: the grouped rows are ordinary rows with the same grid width as
+  every other row. The indicator itself is drawn as an overlay (or a plain row) rather than added padding/border,
+  so it can never shift the columns out of alignment with the rest of the table.
+</p>
+
+<div class="options-wrap">
+
+  <!-- OPTION 1 -->
+  <div class="option-col opt1">
+    <div class="option-label">Option 1 — Outline box</div>
+    <div class="option-sub">Thin rounded border drawn around the pair, overlaid</div>
+    <div class="phone-frame">
+      <div class="hdr-row">
+        <div class="hdr-title">Leg Day</div>
+        <div class="hdr-actions"><button class="edit-btn">Edit</button><button class="menu-btn">⋮</button></div>
+      </div>
+      <div class="hdr-date">Wed, 17 Sep 2026</div>
+      <div class="cols thead"><span>Exercise</span><span>Sets ×<br>Reps</span><span>Wt<br>(kg)</span><span>RPE</span><span>Rest<br>(min)</span></div>
+      <div class="cols row"><span class="ex-name">Barbell Back Squats</span><span>4×5</span><span class="wt">100</span><span>8</span><span>2</span></div>
+      <div class="cols row"><span class="ex-name">Romanian Deadlifts</span><span>3×8</span><span class="wt">80</span><span class="missing">–</span><span>1.5</span></div>
+      <div class="superset-wrap">
+        <div class="cols row"><span class="ex-name">DB Bulgarian Split Squats</span><span>3×10</span><span class="wt">20</span><span>7</span><span>1</span></div>
+        <div class="cols row"><span class="ex-name">Standing Calf Raise</span><span>3×15</span><span class="wt">40</span><span>8</span><span>1</span></div>
+      </div>
+      <div class="cols row"><span class="ex-name">Hanging Leg Raise</span><span>3×12</span><span class="wt missing">–</span><span>6</span><span>1</span></div>
+    </div>
+    <div class="callout"><b>Reads as:</b> a card within the list, like the app's existing superset cards. <b>Trade-off:</b> a bit more visual weight than a line.</div>
+  </div>
+
+  <!-- OPTION 2 -->
+  <div class="option-col opt2">
+    <div class="option-label">Option 2 — Margin-side line</div>
+    <div class="option-sub">Line sits in the phone's own side margin, not in the table</div>
+    <div class="phone-frame">
+      <div class="hdr-row">
+        <div class="hdr-title">Leg Day</div>
+        <div class="hdr-actions"><button class="edit-btn">Edit</button><button class="menu-btn">⋮</button></div>
+      </div>
+      <div class="hdr-date">Wed, 17 Sep 2026</div>
+      <div class="cols thead"><span>Exercise</span><span>Sets ×<br>Reps</span><span>Wt<br>(kg)</span><span>RPE</span><span>Rest<br>(min)</span></div>
+      <div class="cols row"><span class="ex-name">Barbell Back Squats</span><span>4×5</span><span class="wt">100</span><span>8</span><span>2</span></div>
+      <div class="cols row"><span class="ex-name">Romanian Deadlifts</span><span>3×8</span><span class="wt">80</span><span class="missing">–</span><span>1.5</span></div>
+      <div class="superset-wrap">
+        <div class="cols row"><span class="ex-name">DB Bulgarian Split Squats</span><span>3×10</span><span class="wt">20</span><span>7</span><span>1</span></div>
+        <div class="cols row"><span class="ex-name">Standing Calf Raise</span><span>3×15</span><span class="wt">40</span><span>8</span><span>1</span></div>
+      </div>
+      <div class="cols row"><span class="ex-name">Hanging Leg Raise</span><span>3×12</span><span class="wt missing">–</span><span>6</span><span>1</span></div>
+    </div>
+    <div class="callout"><b>Reads as:</b> closest to your original idea — a plain gray bar. <b>Trade-off:</b> sits very close to the phone's edge, could get tight if you ever add a screen-edge safe-area inset.</div>
+  </div>
+
+  <!-- OPTION 3 -->
+  <div class="option-col opt3">
+    <div class="option-label">Option 3 — Tinted background</div>
+    <div class="option-sub">Pair sits on a slightly lighter panel, no line at all</div>
+    <div class="phone-frame">
+      <div class="hdr-row">
+        <div class="hdr-title">Leg Day</div>
+        <div class="hdr-actions"><button class="edit-btn">Edit</button><button class="menu-btn">⋮</button></div>
+      </div>
+      <div class="hdr-date">Wed, 17 Sep 2026</div>
+      <div class="cols thead"><span>Exercise</span><span>Sets ×<br>Reps</span><span>Wt<br>(kg)</span><span>RPE</span><span>Rest<br>(min)</span></div>
+      <div class="cols row"><span class="ex-name">Barbell Back Squats</span><span>4×5</span><span class="wt">100</span><span>8</span><span>2</span></div>
+      <div class="cols row"><span class="ex-name">Romanian Deadlifts</span><span>3×8</span><span class="wt">80</span><span class="missing">–</span><span>1.5</span></div>
+      <div class="superset-wrap">
+        <div class="cols row"><span class="ex-name">DB Bulgarian Split Squats</span><span>3×10</span><span class="wt">20</span><span>7</span><span>1</span></div>
+        <div class="cols row"><span class="ex-name">Standing Calf Raise</span><span>3×15</span><span class="wt">40</span><span>8</span><span>1</span></div>
+      </div>
+      <div class="cols row"><span class="ex-name">Hanging Leg Raise</span><span>3×12</span><span class="wt missing">–</span><span>6</span><span>1</span></div>
+    </div>
+    <div class="callout"><b>Reads as:</b> subtle, no line/border to fuss over. <b>Trade-off:</b> grouping is less obvious at a glance (relies on the tint alone) and it's the option most likely to look odd next to the rest of the app's dark palette if the tint is too close to --surface.</div>
+  </div>
+
+  <!-- OPTION 4 -->
+  <div class="option-col">
+    <div class="option-label">Option 4 — Label row</div>
+    <div class="option-sub">Small caption above the pair, no line or box at all</div>
+    <div class="phone-frame">
+      <div class="hdr-row">
+        <div class="hdr-title">Leg Day</div>
+        <div class="hdr-actions"><button class="edit-btn">Edit</button><button class="menu-btn">⋮</button></div>
+      </div>
+      <div class="hdr-date">Wed, 17 Sep 2026</div>
+      <div class="cols thead"><span>Exercise</span><span>Sets ×<br>Reps</span><span>Wt<br>(kg)</span><span>RPE</span><span>Rest<br>(min)</span></div>
+      <div class="cols row"><span class="ex-name">Barbell Back Squats</span><span>4×5</span><span class="wt">100</span><span>8</span><span>2</span></div>
+      <div class="cols row"><span class="ex-name">Romanian Deadlifts</span><span>3×8</span><span class="wt">80</span><span class="missing">–</span><span>1.5</span></div>
+      <div class="cols superset-label-row"><span>Superset</span></div>
+      <div class="cols row"><span class="ex-name">DB Bulgarian Split Squats</span><span>3×10</span><span class="wt">20</span><span>7</span><span>1</span></div>
+      <div class="cols row"><span class="ex-name">Standing Calf Raise</span><span>3×15</span><span class="wt">40</span><span>8</span><span>1</span></div>
+      <div class="cols row"><span class="ex-name">Hanging Leg Raise</span><span>3×12</span><span class="wt missing">–</span><span>6</span><span>1</span></div>
+    </div>
+    <div class="callout"><b>Reads as:</b> unambiguous, no visual trick needed, easiest to implement. <b>Trade-off:</b> takes an extra line of vertical space; grouping is stated rather than shown.</div>
+  </div>
+
+</div>
+</body>
+</html>
