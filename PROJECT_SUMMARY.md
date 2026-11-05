@@ -21,7 +21,7 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 | 3. Add exercises, week cell editing | Done, committed |
 | 4. Exercise table, load type switching | Done, committed |
 | 5. Progression patterns | Done, committed |
-| 6. Supersets and reordering | Built, awaiting user test |
+| 6. Supersets and reordering | Done (adjacent exercise pairs), committed; being rebuilt as 6.1 |
 | 7. Save/Open file, Exercise List | Not started |
 | 8. Copy AI prompt | Not started |
 | 9. Acceptance tests, real block | Not started |
@@ -112,3 +112,13 @@ No automated tests; everything is checked by hand in a browser (open `index.html
 - Deleting one exercise of a pair clears the pair (`deleteExercise`). `Add set group` is hidden on paired exercises (table and week editor).
 - Labels `A1` / `A2` show in the grid and in the table's week cells, only in weeks where both exercises of the pair are included (`supersetLabels`). The table's exercise cell says `Superset with <name>`.
 - Bug fixed while testing: `removeSuperset` read the pair id after clearing it on the first exercise, so the partner stayed paired.
+
+## Step 6.1: supersets per set group (rebuild of step 6, awaiting user test)
+- A superset now pairs ONE SET GROUP of an exercise with one set group of another exercise in the same workout, instead of two whole adjacent exercises. Data model: `exercise.supersetId` became `exercise.supersets[]`, one entry per Week 1 set group (null or a pair id shared by exactly two groups), like `patterns`. Old drafts convert in `migrateOldPatterns`; `purgeBrokenPairs` clears any id not used exactly twice.
+- Each set group line in the table has a `Superset` cell: `Superset with…` (dialog `openSupersetPicker`) or `With <exercise>` plus `Remove`. Different set counts offer `Split and superset`: the larger group is split in two in every week (`splitGroup`), the first part pairs, the rest stays free (e.g. Curls 6 sets -> 3 + 3 for Bench 3 and Incline 3).
+- Pairs share rest (`setGroupRest`, `pairGroups`) and sets (`syncPairs` after a week edit; a later week that changes is marked edited). Deleting an exercise or a set group unpairs the partner. `Add set group` is allowed on any exercise. Move Up/Down move one exercise at a time (pairs need not be adjacent in the builder).
+- Labels A1/A2 sit on the paired set group lines, per week, only where both exercises are included and both have that group (`supersetLabels` returns `exerciseId:groupIndex` keys).
+- The spec (5.10, tests 34-38a, data model, AI prompt rules) was updated. Step 8 must make the prompt place each pair side by side, so a repeated exercise such as Curls appears several times in the import file.
+
+## Step 6.1 feedback change
+- The grid and the table now show a workout in GymLog order: a paired set group is drawn straight after its partner inside one frame (`weekSegments`, `ss-block`), so Bench 2 + Curls 2 sit together and Incline + Curls 2 sit below. The table (`tableSpecs`) shows the selected exercise plus the partner line of each of its pairs, with the partner marked "Superset partner"; selecting Curls 2 shows both pairs one under the other. The spec (5.4, 5.5) was updated.

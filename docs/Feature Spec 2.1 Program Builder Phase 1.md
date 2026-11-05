@@ -33,7 +33,7 @@ Give the user a desktop website for building a training program faster and more 
 - Phone support and offline support.
 - Any change to GymLog itself, other than Spec 1.7.
 - Accounts, a server or paid AI services.
-- Supersets of more than two exercises.
+- Supersets of more than two set groups.
 
 ## 3. Setup
 
@@ -84,9 +84,9 @@ The grid updates immediately when a stepper changes.
 
 - Weeks run across and workouts run down.
 - The left column shows `Workout N`, followed by its editable description.
-- Each cell lists the exercises for that week.
+- Each cell lists the exercises for that week in the order they will have in GymLog: a paired set group is shown straight after its partner, inside one frame, so a superset reads as a pair. An exercise with several paired set groups therefore appears several times (for example Bench, Curls, then Incline Bench, Curls).
 - Each exercise shows its name, then one line per set group with sets × reps, the target RPE (if set) and the load, all on the same line.
-- Supersets show `A1` and `A2`, with letters restarting in each workout.
+- Paired set groups show `A1` and `A2` in front of their lines, with letters restarting in each workout.
 - An exercise with more than one set group shows every set group, one per line. There is no `+N more`.
 - An exercise that isn't included in a week doesn't appear in that week's cell.
 - An edited week shows `(edited)`.
@@ -100,7 +100,7 @@ The grid updates immediately when a stepper changes.
 
 Clicking an exercise in the grid:
 - Highlights that exercise in every week.
-- Opens a table below the grid. The table has one row, for that exercise only.
+- Opens a table below the grid. The table shows the selected exercise. If some of its set groups are in a superset, each paired set group is shown together with its partner's line, framed as a pair, in GymLog order (for example selecting Curls shows Bench with Curls, then Incline Bench with Curls). Partner lines are fully editable, and clicking a partner's name selects it.
 
 The table stays visible while the grid scrolls, up to 380px tall. `Close` hides it and clears the highlight.
 
@@ -109,7 +109,7 @@ The table is laid out with one line per set group, so each set group's load type
 - For each set group, its own kg, %, RPE load type control. Set groups of one exercise can use different load types, such as a single at 103% of 1RM followed by 3 × 3 at RPE 7.
 - One progression pattern button for each set group. Clicking one opens the pattern picker for that set group.
 - One cell per week.
-- Add set group, Move Up, Move Down, Superset and Delete actions, at the far right. `Add set group` opens the Week 1 editor with a new set group added, and is hidden on superset pairs.
+- Add set group, Move Up, Move Down and Delete actions, at the far right. `Add set group` opens the Week 1 editor with a new set group added. Supersets are set per set group line, in the `Superset` column (5.10).
 
 Clicking another exercise in the grid replaces the exercise in the table.
 
@@ -196,14 +196,18 @@ There are no fixed `+2.5` or `+5` options: Custom covers them. RPE is subjective
 
 ### 5.10 Supersets
 
-- The `Superset` action pairs an exercise with the exercise below it.
-- It isn't available on the last exercise, or if either exercise is already paired or has more than one set group.
-- `Remove Superset` clears both exercises.
-- A pair shares one rest time (each exercise in a pair has one set group). The second exercise adopts the first's rest, and editing either updates both.
-- Move Up and Move Down move the pair together.
-- Deleting one exercise clears the pair, and the other exercise stays.
-- `Add set group` is hidden on paired exercises.
-- A pair only acts as a superset in weeks that include both exercises. In a week with only one, that exercise is treated as a normal exercise.
+A superset pairs one set group of an exercise with one set group of another exercise in the same workout. The two set groups have the same number of sets: each round is one set of each.
+
+- Every set group line in the table has a `Superset` cell. `Superset with…` opens a dialog to choose the other exercise and which of its free set groups to pair with. `Remove` clears the pair.
+- If the two set groups have different numbers of sets, the dialog says so and offers `Split and superset`. The group with more sets is split in two (for example Curls 6 sets becomes 3 + 3), with the same reps, load, rest and pattern in each part. The first part pairs and the rest stays free, so it can be paired with another exercise.
+- Example: Bench 3 sets, Incline Bench 3 sets and Curls 6 sets. Curls is split 3 + 3, one half pairs with Bench and the other with Incline Bench.
+- A set group belongs to at most one pair, and a pair is always two set groups of two different exercises.
+- A pair shares one rest time: the later exercise adopts the earlier one's rest, and editing either updates both.
+- Editing the sets of a paired set group (in any week) gives its partner the same sets in that week. A later week that changes is marked edited.
+- Move Up and Move Down move one exercise at a time. Paired set groups do not have to sit next to each other in the builder.
+- Deleting an exercise or a set group unpairs its partner; the partner stays.
+- A pair only acts as a superset in weeks where both exercises are included and both have that set group. Otherwise the set group is treated as normal that week.
+- In the import file, the AI puts each pair next to each other, so an exercise with several paired set groups can appear several times in a GymLog workout. That is expected.
 
 ### 5.11 kg values
 
@@ -273,7 +277,7 @@ Saved in the draft and in program files:
           "id": "ex_1",
           "name": "Bench Press",
           "notes": "",
-          "supersetId": null,
+          "supersets": [null, null],
           "patterns": [
             { "kind": "add", "type": "kg", "amount": 2.5 },
             { "kind": "same", "type": "kg", "amount": 0 }
@@ -363,8 +367,8 @@ Rules for File 1:
 - "weight" is always in kg. "rest" is always in seconds.
 - Use a period for decimals.
 - "rpe" is the target RPE, or the load if the load type is "rpe". Leave it out if there is neither.
-- For a pair with the same "supersetId", give both exercises the same "superset" letter if both are included that week. Letters restart in each workout. Keep the pair next to each other.
-- Leave "superset" out for all other exercises, including a pair's exercise when its partner isn't included that week.
+- For two set groups with the same value in their exercises' "supersets" list (the same pair id), give both entries the same "superset" letter if both exercises are included that week and both have that set group. Each pair gets its own letter. Letters restart in each workout. Put the two entries next to each other, at the position of the earlier one. An exercise with several paired set groups therefore appears several times.
+- Leave "superset" out for all other entries, including a paired set group when its partner isn't included that week.
 
 File 2: [program name].program.json, for my Program Builder:
 - Return the exact program JSON below, unchanged, except:
@@ -464,12 +468,12 @@ Stop after each step so the user can test it.
 33. A blank Week 1 load stays blank, and later weeks show the planned change, such as `Set load + 5 kg`.
 
 **Supersets**
-34. Pairing shows A1 and A2 in the grid and table.
-35. The second exercise adopts the first's rest, and editing either updates both.
-36. Move Up and Move Down move a pair together.
-37. Superset isn't available in the cases listed in 5.10.
-38. Removing and deleting clear the pair correctly.
-38a. In a week with only one exercise from a pair, it shows without a superset label.
+34. Pairing two set groups shows A1 and A2 on those set groups in the grid and table.
+35. The later exercise adopts the earlier one's rest, and editing either updates both. Editing the sets of one updates the other.
+36. Move Up and Move Down move one exercise at a time.
+37. Pairing groups with different set counts offers `Split and superset`; Bench 3 + Incline 3 with Curls 6 works as in 5.10.
+38. Removing a pair, deleting a set group and deleting an exercise unpair the partner correctly.
+38a. In a week where one exercise of a pair is not included, the other shows without a superset label.
 
 **Files**
 39. The draft survives a page reload.

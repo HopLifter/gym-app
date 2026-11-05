@@ -121,6 +121,10 @@
   .ex-edited { color: var(--text-dim); font-size: 12px; margin-left: auto; white-space: nowrap; }
   .add-ex { width: 100%; border-style: dashed; color: var(--text-dim); }
 
+  .ss-block { border-left: 3px solid var(--accent); padding-left: 6px; margin-bottom: 6px; }
+  .ss-block .ex { margin-bottom: 4px; }
+  .detail-table tr.pair-first td { border-top: 2px solid var(--accent); }
+  .detail-table tr.partner td { background: var(--bg); }
   .ex.selected { border-color: var(--accent); background: var(--selected-bg); }
   .ex-group { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; margin-top: 2px; }
   .ex-group .ex-scheme, .ex-group .ex-load { margin-top: 0; }
@@ -156,6 +160,8 @@
   .detail-table td.wk.clickable:hover { background: var(--bg); }
   .detail-table tr.selected td { background: var(--selected-bg); }
   .detail-table tr.sg-row:not(.first) td { border-top: 1px dashed var(--line); }
+  .detail-table .ss-cell { min-width: 150px; }
+  .detail-table .ss-with { font-weight: 600; }
   .detail-table .sg-none { color: var(--text-dim); font-style: italic; }
   .detail-table td.wk .ex-group { margin-top: 0; }
   .detail-table tr.selected td.ex-col { box-shadow: inset 3px 0 0 var(--accent); }
@@ -271,7 +277,7 @@ function syncIdCounter(program) {
     check(w.id);
     w.exercises.forEach(function (e) {
       check(e.id);
-      if (e.supersetId) check(e.supersetId);
+      (e.supersets || []).forEach(function (id) { if (id) check(id); });
     });
   });
   nextIdNumber = highest + 1;
@@ -294,9 +300,11 @@ function newExercise(name, weekCount) {
     id: makeId('ex'),
     name: name,
     notes: '',
-    supersetId: null,
-    // One pattern per set group of Week 1, in the same order as Week 1's groups.
+    // One pattern and one superset entry per set group of Week 1, in the same order as Week 1's
+    // groups. A superset entry is null, or an id shared by exactly two set groups (of two
+    // different exercises in the same workout) that are paired.
     patterns: [samePattern('kg')],
+    supersets: [null],
     weeks: weeks
   };
 }
@@ -371,9 +379,11 @@ function isValidExercise(e, weekCount) {
     && typeof e.id === 'string' && /^ex_\d+$/.test(e.id)
     && typeof e.name === 'string' && e.name.length <= 200
     && typeof e.notes === 'string'
-    && (e.supersetId === null || typeof e.supersetId === 'string')
     && Array.isArray(e.weeks) && e.weeks.length === weekCount
     && e.weeks.every(isValidWeekEntry)
+    && Array.isArray(e.supersets)
+    && e.supersets.length === e.weeks[0].groups.length
+    && e.supersets.every(function (s) { return s === null || typeof s === 'string'; })
     && Array.isArray(e.patterns)
     && e.patterns.length === e.weeks[0].groups.length
     && e.patterns.every(isValidPattern);
@@ -431,6 +441,12 @@ function migrateOldPatterns(p) {
         });
         delete e.pattern;
       }
+      // Supersets used to pair whole exercises (`supersetId`); they now pair set groups.
+      if (!Array.isArray(e.supersets)) {
+        var oldId = typeof e.supersetId === 'string' ? e.supersetId : null;
+        e.supersets = e.weeks[0].groups.map(function () { return oldId; });
+      }
+      delete e.supersetId;
       var rest = typeof e.rest === 'number' ? e.rest : 90;
       e.weeks.forEach(function (week) {
         if (!week || !Array.isArray(week.groups)) return;
@@ -450,7 +466,9 @@ function loadDraft() {
     if (text === null) return null;
     var data = JSON.parse(text);
     migrateOldPatterns(data);
-    return isValidProgram(data) ? data : null;
+    if (!isValidProgram(data)) return null;
+    data.workouts.forEach(purgeBrokenPairs);
+    return data;
   } catch (err) {
     return null;
   }
@@ -529,26 +547,104 @@ function generateWeeks(exercise, weekCount) {
   return result;
 }
 
-// Superset labels for one workout in one week (spec 5.4, 5.10, 38a).
-// Returns { exerciseId: 'A1' | 'A2' | 'B1' ... }. Letters restart in each
-// workout. A pair is labelled only if BOTH exercises are included that week.
+// The two set groups that share superset id `id` in a workout, in exercise order:
+// [{ ex, k }, { ex, k }], or fewer if the pair is broken.
+function pairMembers(workout, id) {
+  var found = [];
+  workout.exercises.forEach(function (ex) {
+    ex.supersets.forEach(function (s, k) { if (s === id) found.push({ ex: ex, k: k }); });
+  });
+  return found;
+}
+
+// Superset labels for one workout in one week (spec 5.4, 5.10).
+// Returns { 'exerciseId:groupIndex': 'A1' | 'A2' | 'B1' ... }. Letters restart in each workout.
+// A pair is labelled only if BOTH exercises are included that week and both have that set group.
 function supersetLabels(workout, weekIndex) {
   var labels = {};
   var letterCode = 65; // 'A'
   var seen = {};
   workout.exercises.forEach(function (ex) {
-    if (!ex.supersetId || seen[ex.supersetId]) return;
-    seen[ex.supersetId] = true;
-    var pair = workout.exercises.filter(function (o) {
-      return o.supersetId === ex.supersetId && o.weeks[weekIndex].included;
-    });
-    if (pair.length === 2) {
+    ex.supersets.forEach(function (id) {
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      var members = pairMembers(workout, id);
+      var active = members.length === 2 && members.every(function (m) {
+        var entry = m.ex.weeks[weekIndex];
+        return entry.included && !!entry.groups[m.k];
+      });
+      if (!active) return;
       var letter = String.fromCharCode(letterCode++);
-      labels[pair[0].id] = letter + '1';
-      labels[pair[1].id] = letter + '2';
-    }
+      labels[members[0].ex.id + ':' + members[0].k] = letter + '1';
+      labels[members[1].ex.id + ':' + members[1].k] = letter + '2';
+    });
   });
   return labels;
+}
+
+// Any superset id that is not used by exactly two set groups is cleared. Called after anything
+// that can remove a set group (deleting an exercise or a group), and after loading a draft.
+function purgeBrokenPairs(workout) {
+  var counts = {};
+  workout.exercises.forEach(function (ex) {
+    ex.supersets.forEach(function (id) { if (id) counts[id] = (counts[id] || 0) + 1; });
+  });
+  workout.exercises.forEach(function (ex) {
+    ex.supersets = ex.supersets.map(function (id) { return id && counts[id] === 2 ? id : null; });
+  });
+}
+
+// How one workout looks in one week, in the order it will have in GymLog (spec 5.4): the set
+// groups of each exercise in turn, except that a set group in an active superset is followed
+// straight away by its partner (which is then skipped where it would normally come).
+// Returns segments for drawing:
+//   { type: 'run',  ex, entries: [{ k }] }       one exercise, one or more set groups in a row
+//   { type: 'pair', boxes: [run, run] }          two set groups in a superset, side by side
+function weekSegments(workout, weekIndex) {
+  var labels = supersetLabels(workout, weekIndex);
+  var emitted = {};
+  var list = [];
+  function push(ex, k) {
+    emitted[ex.id + ':' + k] = true;
+    list.push({ ex: ex, k: k, label: labels[ex.id + ':' + k] });
+  }
+  workout.exercises.forEach(function (ex) {
+    var entry = ex.weeks[weekIndex];
+    if (!entry.included) return;
+    entry.groups.forEach(function (g, k) {
+      if (emitted[ex.id + ':' + k]) return;
+      push(ex, k);
+      var id = ex.supersets[k];
+      if (id && labels[ex.id + ':' + k]) {
+        pairMembers(workout, id).forEach(function (m) {
+          if (m.ex !== ex) push(m.ex, m.k);
+        });
+      }
+    });
+  });
+
+  var segments = [];
+  for (var i = 0; i < list.length; i++) {
+    var e = list[i];
+    var next = list[i + 1];
+    var isPair = e.label && next && next.label && e.label.charAt(0) === next.label.charAt(0)
+      && e.label.charAt(1) === '1' && next.label.charAt(1) === '2';
+    if (isPair) {
+      segments.push({
+        type: 'pair',
+        boxes: [
+          { type: 'run', ex: e.ex, entries: [{ k: e.k, label: e.label }] },
+          { type: 'run', ex: next.ex, entries: [{ k: next.k, label: next.label }] }
+        ]
+      });
+      i++;
+      continue;
+    }
+    var last = segments[segments.length - 1];
+    if (last && last.type === 'run' && last.ex === e.ex) last.entries.push({ k: e.k, label: e.label });
+    else segments.push({ type: 'run', ex: e.ex, entries: [{ k: e.k, label: e.label }] });
+  }
+  return segments;
 }
 
 function formatNum(v) { return String(Math.round(v * 100) / 100); }
@@ -892,10 +988,11 @@ function renderGroupLines(g, plan, label) {
   return line;
 }
 
-function renderExercise(ex, wi, weekIndex, labels) {
+// A box in the grid for one exercise: its name, then one line per entry (set group) given.
+// `entries` is a list of { k, label }; label is a superset label such as "A1" (or undefined).
+function renderBox(ex, wi, weekIndex, entries) {
   var entry = ex.weeks[weekIndex];
   var top = el('div', { className: 'ex-top' });
-  if (labels[ex.id]) top.appendChild(el('span', { className: 'ex-label', text: labels[ex.id] }));
   top.appendChild(el('span', { className: 'ex-name', text: ex.name }));
   if (entry.edited) top.appendChild(el('span', { className: 'ex-edited', text: '(edited)' }));
 
@@ -905,8 +1002,9 @@ function renderExercise(ex, wi, weekIndex, labels) {
     className: 'ex clickable' + (isSelected ? ' selected' : ''),
     role: 'button', tabindex: '0', onclick: choose
   }, [top]);
-  entry.groups.forEach(function (g, k) {
-    box.appendChild(renderGroupLines(g, plannedChange(ex.patterns[k], weekIndex, g, entry)));
+  entries.forEach(function (e) {
+    var g = entry.groups[e.k];
+    box.appendChild(renderGroupLines(g, plannedChange(ex.patterns[e.k], weekIndex, g, entry), e.label));
   });
   box.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); }
@@ -1043,9 +1141,10 @@ function setGroupRest(workout, ex, k, seconds) {
     target.weeks = generateWeeks(target, program.weeks);
   }
   apply(ex, k);
-  if (ex.supersetId) {
-    workout.exercises.forEach(function (o) {
-      if (o !== ex && o.supersetId === ex.supersetId) apply(o, 0);
+  var id = ex.supersets[k];
+  if (id) {
+    pairMembers(workout, id).forEach(function (m) {
+      if (m.ex !== ex) apply(m.ex, m.k);
     });
   }
   changed();
@@ -1422,100 +1521,207 @@ function openPatternPicker(wi, ex, k) {
 
 /* ==========================================================================
    SUPERSETS AND REORDERING (spec 5.10)
+   A superset pairs ONE SET GROUP of an exercise with one set group of another exercise in the
+   same workout. The two groups have the same number of sets (one set of each per round).
+   Exercise.supersets[k] holds a pair id for Week 1's set group k, or null.
    ========================================================================== */
 
-// The workout's exercises as "units": a superset pair is one unit, everything else is a unit
-// of its own. Moving up or down moves a whole unit, so a pair always stays together.
-function exerciseUnits(workout) {
-  var units = [];
-  var list = workout.exercises;
-  for (var i = 0; i < list.length; i++) {
-    var next = list[i + 1];
-    if (list[i].supersetId && next && next.supersetId === list[i].supersetId) {
-      units.push([list[i], next]);
-      i++;
-    } else {
-      units.push([list[i]]);
-    }
-  }
-  return units;
-}
-
-function unitIndexOf(units, ex) {
-  for (var i = 0; i < units.length; i++) {
-    if (units[i].indexOf(ex) >= 0) return i;
-  }
-  return -1;
-}
-
 function canMove(workout, ex, direction) {
-  var units = exerciseUnits(workout);
-  var target = unitIndexOf(units, ex) + direction;
-  return target >= 0 && target < units.length;
+  var target = workout.exercises.indexOf(ex) + direction;
+  return target >= 0 && target < workout.exercises.length;
 }
 
+// Moves one exercise up or down. Paired set groups do not need to sit next to each other here;
+// the AI places each pair side by side in the import file.
 function moveExercise(workout, ex, direction) {
   if (!canMove(workout, ex, direction)) return;
-  var units = exerciseUnits(workout);
-  var from = unitIndexOf(units, ex);
-  var moved = units.splice(from, 1)[0];
-  units.splice(from + direction, 0, moved);
-  workout.exercises = [].concat.apply([], units);
+  var from = workout.exercises.indexOf(ex);
+  workout.exercises.splice(from, 1);
+  workout.exercises.splice(from + direction, 0, ex);
   changed();
 }
 
-// Can `ex` be paired with the exercise below it? Returns { ok, reason }.
-function supersetCheck(workout, ex) {
-  var below = workout.exercises[workout.exercises.indexOf(ex) + 1];
-  if (!below) return { ok: false, reason: 'There is no exercise below this one.' };
-  if (ex.supersetId || below.supersetId) return { ok: false, reason: 'One of the two exercises is already in a superset.' };
-  var manyGroups = function (e) {
-    return e.weeks.some(function (w) { return w.groups.length > 1; });
-  };
-  if (manyGroups(ex) || manyGroups(below)) {
-    return { ok: false, reason: 'Exercises with more than one set group cannot be in a superset.' };
-  }
-  return { ok: true, below: below };
-}
-
-// Pairs an exercise with the one below it. The second takes the first's rest time.
-function makeSuperset(workout, ex) {
-  var check = supersetCheck(workout, ex);
-  if (!check.ok) return;
-  var id = makeId('ss');
-  ex.supersetId = id;
-  check.below.supersetId = id;
-  check.below.weeks[0].groups[0].rest = ex.weeks[0].groups[0].rest;
-  check.below.weeks = generateWeeks(check.below, program.weeks);
-  changed();
-}
-
-// Clears the pair; both exercises stay.
-function removeSuperset(workout, ex) {
-  var id = ex.supersetId; // read it first: the loop below clears it on `ex` too
-  workout.exercises.forEach(function (o) {
-    if (o.supersetId === id) o.supersetId = null;
+// Splits set group k into two groups in every week: the first keeps `firstSets` sets, the second
+// gets the rest, with the same reps, load, rest and pattern. Used when the two groups to pair
+// have different numbers of sets (e.g. Curls 6 sets -> 3 + 3).
+function splitGroup(ex, k, firstSets) {
+  ex.weeks.forEach(function (w) {
+    var g = w.groups[k];
+    if (!g) return;
+    var copy = cloneGroup(g);
+    if (g.sets > firstSets) {
+      copy.sets = g.sets - firstSets;
+      g.sets = firstSets;
+    } else {
+      copy.sets = 1; // only in an odd edited week that has fewer sets than Week 1
+    }
+    w.groups.splice(k + 1, 0, copy);
   });
+  ex.patterns.splice(k + 1, 0, JSON.parse(JSON.stringify(ex.patterns[k])));
+  ex.supersets.splice(k + 1, 0, null);
+}
+
+// Set groups of other exercises in the workout that are not paired yet: [{ ex, k }].
+function freeGroupsOf(workout, ex) {
+  var list = [];
+  workout.exercises.forEach(function (o) {
+    if (o === ex) return;
+    o.supersets.forEach(function (s, k) { if (s === null) list.push({ ex: o, k: k }); });
+  });
+  return list;
+}
+
+// Pairs set group a.k of a.ex with b.k of b.ex. If their set counts differ, the larger group is
+// split first. The later exercise in the workout adopts the earlier one's rest.
+function pairGroups(workout, a, b) {
+  var ga = a.ex.weeks[0].groups[a.k];
+  var gb = b.ex.weeks[0].groups[b.k];
+  if (ga.sets > gb.sets) splitGroup(a.ex, a.k, gb.sets);
+  else if (gb.sets > ga.sets) splitGroup(b.ex, b.k, ga.sets);
+
+  var id = makeId('ss');
+  a.ex.supersets[a.k] = id;
+  b.ex.supersets[b.k] = id;
+
+  var aFirst = workout.exercises.indexOf(a.ex) < workout.exercises.indexOf(b.ex);
+  var source = aFirst ? a : b;
+  var target = aFirst ? b : a;
+  target.ex.weeks[0].groups[target.k].rest = source.ex.weeks[0].groups[source.k].rest;
+  target.ex.weeks = generateWeeks(target.ex, program.weeks);
   changed();
 }
 
-// The other exercise of a pair, or null.
-function supersetPartner(workout, ex) {
-  if (!ex.supersetId) return null;
-  for (var i = 0; i < workout.exercises.length; i++) {
-    var o = workout.exercises[i];
-    if (o !== ex && o.supersetId === ex.supersetId) return o;
-  }
-  return null;
+// Clears the pair of set group k; both exercises stay.
+function unpairGroup(workout, ex, k) {
+  var id = ex.supersets[k]; // read it first: clearing changes what we compare against
+  pairMembers(workout, id).forEach(function (m) { m.ex.supersets[m.k] = null; });
+  changed();
 }
 
-// One week cell for set group row `r`. Row 0 also carries the "(edited)" tag, and a week that
-// does not include the exercise is one tall cell spanning all rows.
-function renderWeekCell(wi, ex, weekIndex, r, rowCount) {
+// After a week is edited, the partner of each paired set group gets the same sets and rest in
+// that week (pairs always match). A later week that has to change is marked edited.
+function syncPairs(workout, ex, weekIndex) {
+  var regenerate = [];
+  ex.supersets.forEach(function (id, k) {
+    if (!id) return;
+    var src = ex.weeks[weekIndex].groups[k];
+    if (!src) return;
+    pairMembers(workout, id).forEach(function (m) {
+      if (m.ex === ex) return;
+      var entry = m.ex.weeks[weekIndex];
+      var dst = entry.groups[m.k];
+      if (!dst || (dst.sets === src.sets && dst.rest === src.rest)) return;
+      dst.sets = src.sets;
+      dst.rest = src.rest;
+      if (weekIndex === 0) { if (regenerate.indexOf(m.ex) < 0) regenerate.push(m.ex); }
+      else entry.edited = true;
+    });
+  });
+  regenerate.forEach(function (o) { o.weeks = generateWeeks(o, program.weeks); });
+}
+
+// "Superset with..." dialog for set group k of `ex`.
+function openSupersetPicker(wi, ex, k) {
+  var workout = program.workouts[wi];
+  var free = freeGroupsOf(workout, ex);
+  var mine = ex.weeks[0].groups[k];
+
+  if (free.length === 0) {
+    openModal({
+      title: 'Superset',
+      body: el('p', { text: 'No other exercise in this workout has a set group that is free to pair. Add another exercise first.' }),
+      actions: [el('button', { text: 'Close', onclick: closeModal })]
+    });
+    return;
+  }
+
+  // Exercises that still have a free set group, nearest below first.
+  var partners = [];
+  free.forEach(function (f) { if (partners.indexOf(f.ex) < 0) partners.push(f.ex); });
+  var myIndex = workout.exercises.indexOf(ex);
+  var below = partners.filter(function (p) { return workout.exercises.indexOf(p) > myIndex; });
+  var above = partners.filter(function (p) { return workout.exercises.indexOf(p) < myIndex; });
+  var ordered = below.concat(above);
+
+  var state = { partner: ordered[0], group: null };
+  var partnerSelect = selectBox(ordered.map(function (p, i) { return [String(i), p.name]; }), '0');
+  var groupsBox = el('div');
+  var infoBox = el('div', { className: 'form-warning' });
+  var confirmBtn = el('button', { className: 'primary', text: 'Superset' });
+
+  function chooseDefaultGroup() {
+    var options = free.filter(function (f) { return f.ex === state.partner; });
+    var sameSets = options.filter(function (f) { return f.ex.weeks[0].groups[f.k].sets === mine.sets; });
+    state.group = (sameSets[0] || options[0]).k;
+  }
+
+  function drawGroups() {
+    groupsBox.textContent = '';
+    free.filter(function (f) { return f.ex === state.partner; }).forEach(function (f) {
+      var g = f.ex.weeks[0].groups[f.k];
+      var radio = el('input', { type: 'radio', name: 'superset-group', value: String(f.k) });
+      radio.checked = state.group === f.k;
+      radio.addEventListener('change', function () { state.group = f.k; drawInfo(); });
+      groupsBox.appendChild(el('label', { className: 'opt' }, [
+        radio,
+        el('span', { className: 'opt-label', text: 'Set group ' + (f.k + 1) + ': ' + g.sets + ' × ' + g.reps }),
+        el('span', { className: 'opt-desc', text: describeLoad(g).text })
+      ]));
+    });
+  }
+
+  function drawInfo() {
+    var theirs = state.partner.weeks[0].groups[state.group];
+    var text;
+    if (mine.sets === theirs.sets) {
+      text = 'Pairs ' + mine.sets + (mine.sets === 1 ? ' set' : ' sets') + ' of each.';
+    } else if (mine.sets > theirs.sets) {
+      text = ex.name + ' set group ' + (k + 1) + ' has ' + mine.sets + ' sets. It will be split into '
+        + theirs.sets + ' + ' + (mine.sets - theirs.sets) + ', and the first ' + theirs.sets + ' pair with ' + state.partner.name + '.';
+    } else {
+      text = state.partner.name + ' set group ' + (state.group + 1) + ' has ' + theirs.sets + ' sets. It will be split into '
+        + mine.sets + ' + ' + (theirs.sets - mine.sets) + ', and the first ' + mine.sets + ' pair with ' + ex.name + '.';
+    }
+    infoBox.textContent = text;
+    confirmBtn.textContent = mine.sets === theirs.sets ? 'Superset' : 'Split and superset';
+  }
+
+  partnerSelect.addEventListener('change', function () {
+    state.partner = ordered[Number(partnerSelect.value)];
+    chooseDefaultGroup();
+    drawGroups();
+    drawInfo();
+  });
+  confirmBtn.addEventListener('click', function () {
+    closeModal();
+    pairGroups(workout, { ex: ex, k: k }, { ex: state.partner, k: state.group });
+  });
+
+  chooseDefaultGroup();
+  drawGroups();
+  drawInfo();
+  openModal({
+    title: 'Superset',
+    body: el('div', null, [
+      el('div', { className: 'sub', text: ex.name + ' · set group ' + (k + 1) + ' (' + mine.sets + ' × ' + mine.reps + ')' }),
+      formRow('Superset with', partnerSelect),
+      el('label', { className: 'pv-title', text: 'Which set group?' }),
+      groupsBox,
+      infoBox
+    ]),
+    actions: [el('button', { text: 'Cancel', onclick: closeModal }), confirmBtn]
+  });
+}
+
+// One week cell of the table, for set group `k` of `ex`. `runFirst` is true for the first table
+// line of this exercise's run of lines and `runLen` is the length of that run. A week that does not
+// include the exercise is one tall cell spanning the whole run; the first line of a run also
+// carries the "(edited)" tag.
+function renderWeekCell(wi, ex, weekIndex, k, runFirst, runLen) {
   var entry = ex.weeks[weekIndex];
   if (!entry.included) {
-    if (r > 0) return null; // covered by the tall cell in row 0
-    var none = el('td', { className: 'wk', rowspan: String(rowCount) });
+    if (!runFirst) return null; // covered by the tall cell in the first line
+    var none = el('td', { className: 'wk', rowspan: String(runLen) });
     none.appendChild(el('div', { className: 'wk-none', text: 'Not in this week' }));
     none.appendChild(el('button', {
       text: 'Add to this week',
@@ -1524,11 +1730,11 @@ function renderWeekCell(wi, ex, weekIndex, r, rowCount) {
     return none;
   }
   var cell = el('td', { className: 'wk clickable' });
-  var g = entry.groups[r];
-  // A1 / A2 appears in front of the first line, only in weeks where both exercises of the pair are included.
-  var label = r === 0 ? supersetLabels(program.workouts[wi], weekIndex)[ex.id] : null;
-  if (g) cell.appendChild(renderGroupLines(g, plannedChange(ex.patterns[r], weekIndex, g, entry), label));
-  if (r === 0 && entry.edited) cell.appendChild(el('div', { className: 'ex-edited', text: '(edited)' }));
+  var g = entry.groups[k];
+  // A1 / A2 appears in front of the line, only in weeks where both set groups of the pair are included.
+  var label = supersetLabels(program.workouts[wi], weekIndex)[ex.id + ':' + k];
+  if (g) cell.appendChild(renderGroupLines(g, plannedChange(ex.patterns[k], weekIndex, g, entry), label));
+  if (runFirst && entry.edited) cell.appendChild(el('div', { className: 'ex-edited', text: '(edited)' }));
   cell.setAttribute('role', 'button');
   cell.setAttribute('tabindex', '0');
   cell.setAttribute('aria-label', 'Edit ' + ex.name + ' in Week ' + (weekIndex + 1));
@@ -1540,39 +1746,68 @@ function renderWeekCell(wi, ex, weekIndex, r, rowCount) {
   return cell;
 }
 
-// The table rows for one exercise: one row per set group, so each group's load type,
-// pattern and week values line up on the same line. Returns an array of <tr>.
-function renderTableRows(workout, wi, ex) {
-  var groups1 = ex.weeks[0].groups;
-  var rowCount = groups1.length;
-  ex.weeks.forEach(function (w) { if (w.included && w.groups.length > rowCount) rowCount = w.groups.length; });
+// The table lines for the selected exercise `S`, laid out like the GymLog workout will look:
+// each set group of S is one line, and a set group paired in a superset is followed (or preceded,
+// if its partner's exercise comes first) by its partner's line, so the pair sits together.
+// Returns [{ ex, k, pairStart, extra }].
+function tableSpecs(workout, S) {
+  var specs = [];
+  var groups1 = S.weeks[0].groups.length;
+  for (var k = 0; k < groups1; k++) {
+    var id = S.supersets[k];
+    var partner = null;
+    if (id) pairMembers(workout, id).forEach(function (m) { if (m.ex !== S) partner = m; });
+    if (!partner) {
+      specs.push({ ex: S, k: k });
+    } else if (workout.exercises.indexOf(S) < workout.exercises.indexOf(partner.ex)) {
+      specs.push({ ex: S, k: k, pairStart: true }, { ex: partner.ex, k: partner.k });
+    } else {
+      specs.push({ ex: partner.ex, k: partner.k, pairStart: true }, { ex: S, k: k });
+    }
+  }
+  // Set groups that only exist in an edited week (it has more groups than Week 1).
+  var most = groups1;
+  S.weeks.forEach(function (w) { if (w.included && w.groups.length > most) most = w.groups.length; });
+  for (var e = groups1; e < most; e++) specs.push({ ex: S, k: e, extra: true });
+  return specs;
+}
 
+// The table rows for the selected exercise and the partners of its superset pairs: one row per
+// set group, so each group's load type, pattern and week values line up on the same line.
+// Returns an array of <tr>.
+function renderTableRows(workout, wi, S) {
+  var specs = tableSpecs(workout, S);
   var rows = [];
-  for (var r = 0; r < rowCount; r++) {
-    var row = el('tr', { className: 'sg-row' + (r === 0 ? ' first' : '') + (selected.exId === ex.id ? ' selected' : '') });
-    if (r === 0) {
-      var nameCell = el('td', { className: 'ex-col', rowspan: String(rowCount) }, [
+  specs.forEach(function (spec, i) {
+    var ex = spec.ex;
+    var runFirst = i === 0 || specs[i - 1].ex !== ex;
+    var runLen = 0;
+    if (runFirst) {
+      for (var j = i; j < specs.length && specs[j].ex === ex; j++) runLen++;
+    }
+    var row = el('tr', {
+      className: 'sg-row' + (runFirst ? ' first' : '') + (ex === S ? ' selected' : ' partner') + (spec.pairStart ? ' pair-first' : '')
+    });
+    if (runFirst) {
+      var nameCell = el('td', { className: 'ex-col', rowspan: String(runLen) }, [
         el('div', { className: 'ex-name', text: ex.name })
       ]);
-      var partner = supersetPartner(workout, ex);
-      if (partner) {
-        nameCell.appendChild(el('div', { className: 'ex-scheme', text: 'Superset with ' + partner.name }));
-      }
+      if (ex !== S) nameCell.appendChild(el('div', { className: 'ex-scheme', text: 'Superset partner' }));
       nameCell.addEventListener('click', function () { selectExercise(wi, ex.id); });
       row.appendChild(nameCell);
     }
-    if (r < groups1.length) {
-      row.appendChild(buildGroupCells(workout, wi, ex, r, groups1.length > 1));
+    if (!spec.extra) {
+      row.appendChild(buildGroupCells(workout, wi, ex, spec.k, ex.weeks[0].groups.length > 1));
     } else {
-      row.appendChild(el('td', { colspan: '3', className: 'sg-none', text: 'Only in an edited week' }));
+      row.appendChild(el('td', { colspan: '4', className: 'sg-none', text: 'Only in an edited week' }));
     }
     for (var w = 0; w < program.weeks; w++) {
-      var cell = renderWeekCell(wi, ex, w, r, rowCount);
+      var cell = renderWeekCell(wi, ex, w, spec.k, runFirst, runLen);
       if (cell) row.appendChild(cell);
     }
-    if (r === 0) row.appendChild(buildActionsCell(workout, wi, ex, rowCount));
+    if (runFirst) row.appendChild(buildActionsCell(workout, wi, ex, runLen));
     rows.push(row);
-  }
+  });
   return rows;
 }
 
@@ -1600,35 +1835,54 @@ function buildGroupCells(workout, wi, ex, r, many) {
     text: patternText(ex.patterns[r]),
     onclick: function () { openPatternPicker(wi, ex, r); }
   })]));
+  frag.appendChild(buildSupersetCell(workout, wi, ex, r));
   return frag;
+}
+
+// The superset cell of set group r: who it is paired with and a Remove button, or a
+// "Superset with..." button.
+function buildSupersetCell(workout, wi, ex, r) {
+  var cell = el('td', { className: 'ss-cell' });
+  var id = ex.supersets[r];
+  var partner = null;
+  if (id) {
+    pairMembers(workout, id).forEach(function (m) { if (m.ex !== ex) partner = m; });
+  }
+  if (partner) {
+    var pg = partner.ex.weeks[0].groups[partner.k];
+    var many = partner.ex.weeks[0].groups.length > 1;
+    cell.appendChild(el('div', { className: 'ss-with', text: 'With ' + partner.ex.name }));
+    cell.appendChild(el('div', {
+      className: 'ex-scheme',
+      text: (many ? 'Set group ' + (partner.k + 1) + ': ' : '') + pg.sets + ' × ' + pg.reps
+    }));
+    cell.appendChild(el('button', { text: 'Remove', onclick: function () { unpairGroup(workout, ex, r); } }));
+  } else {
+    var none = freeGroupsOf(workout, ex).length === 0;
+    var btn = el('button', {
+      text: 'Superset with…',
+      title: none ? 'No other exercise in this workout has a free set group' : 'Pair this set group with a set group of another exercise',
+      onclick: function () { openSupersetPicker(wi, ex, r); }
+    });
+    if (none) btn.disabled = true;
+    cell.appendChild(btn);
+  }
+  return cell;
 }
 
 function buildActionsCell(workout, wi, ex, rowCount) {
   var actions = el('td', { className: 'actions-col', rowspan: String(rowCount) });
-  // Hidden on paired exercises (spec 5.10). Opens the Week 1 editor with a new set group added.
-  if (!ex.supersetId) {
-    actions.appendChild(el('button', {
-      text: 'Add set group', title: 'Add another set group to this exercise',
-      onclick: function () { openWeekEditor(wi, ex, 0, true); }
-    }));
-  }
+  // Opens the Week 1 editor with a new set group added.
+  actions.appendChild(el('button', {
+    text: 'Add set group', title: 'Add another set group to this exercise',
+    onclick: function () { openWeekEditor(wi, ex, 0, true); }
+  }));
   var up = el('button', { text: 'Move Up', onclick: function () { moveExercise(workout, ex, -1); } });
   var down = el('button', { text: 'Move Down', onclick: function () { moveExercise(workout, ex, 1); } });
   if (!canMove(workout, ex, -1)) { up.disabled = true; up.title = 'Already first'; }
   if (!canMove(workout, ex, 1)) { down.disabled = true; down.title = 'Already last'; }
-  var superset;
-  if (ex.supersetId) {
-    superset = el('button', { text: 'Remove Superset', onclick: function () { removeSuperset(workout, ex); } });
-  } else {
-    var check = supersetCheck(workout, ex);
-    superset = el('button', {
-      text: 'Superset', title: check.ok ? 'Pair with the exercise below' : check.reason,
-      onclick: function () { makeSuperset(workout, ex); }
-    });
-    if (!check.ok) superset.disabled = true;
-  }
   [
-    up, down, superset,
+    up, down,
     el('button', { className: 'danger-text', text: 'Delete', onclick: function () { confirmDeleteExercise(workout, ex); } })
   ].forEach(function (b) { actions.appendChild(b); });
   return actions;
@@ -1657,7 +1911,8 @@ function renderDetail() {
     el('th', { className: 'ex-col', text: 'Exercise' }),
     el('th', { text: 'Set group' }),
     el('th', { text: 'Load type' }),
-    el('th', { text: 'Pattern' })
+    el('th', { text: 'Pattern' }),
+    el('th', { text: 'Superset' })
   ]);
   for (var w = 0; w < program.weeks; w++) headRow.appendChild(el('th', { className: 'wk', text: 'Week ' + (w + 1) }));
   headRow.appendChild(el('th', { text: 'Actions' }));
@@ -1679,10 +1934,16 @@ function renderDetail() {
 }
 
 function renderCell(workout, wi, week) {
-  var labels = supersetLabels(workout, week);
   var cell = el('td', { className: 'cell' });
-  workout.exercises.forEach(function (ex) {
-    if (ex.weeks[week].included) cell.appendChild(renderExercise(ex, wi, week, labels));
+  weekSegments(workout, week).forEach(function (seg) {
+    if (seg.type === 'run') {
+      cell.appendChild(renderBox(seg.ex, wi, week, seg.entries));
+    } else {
+      // A superset: the two paired set groups sit together inside one frame.
+      cell.appendChild(el('div', { className: 'ss-block' }, seg.boxes.map(function (b) {
+        return renderBox(b.ex, wi, week, b.entries);
+      })));
+    }
   });
   cell.appendChild(el('button', {
     className: 'add-ex', text: 'Add exercise',
@@ -1801,14 +2062,10 @@ function includedWeekCount(ex) {
   return ex.weeks.filter(function (w) { return w.included; }).length;
 }
 
-// Spec 5.10: deleting one exercise clears the pair; the partner stays.
+// Spec 5.10: deleting an exercise unpairs its set groups; their partners stay.
 function deleteExercise(workout, ex) {
   workout.exercises = workout.exercises.filter(function (o) { return o !== ex; });
-  if (ex.supersetId) {
-    workout.exercises.forEach(function (o) {
-      if (o.supersetId === ex.supersetId) o.supersetId = null;
-    });
-  }
+  purgeBrokenPairs(workout);
   changed();
 }
 
@@ -1843,6 +2100,7 @@ function createExercise(workout, fields, weekIndex) {
   ex.notes = fields.notes;
   ex.weeks[0].groups = fields.groups;
   ex.patterns = fields.groups.map(function (g) { return samePattern(g.loadType); });
+  ex.supersets = fields.groups.map(function () { return null; });
   // Every week (even hidden ones) keeps a copy of the entered values.
   ex.weeks = generateWeeks(ex, program.weeks);
   if (weekIndex !== null) {
@@ -2143,16 +2401,24 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
       // Week 1 is the source: regenerate every week that is not edited.
       // Each set group keeps its own pattern; a new group starts as "Same every week".
       var oldPatterns = ex.patterns;
+      var oldSupersets = ex.supersets;
       ex.patterns = groups.map(function (g, i) {
         var from = drafts[i].origIndex;
         return from !== null ? oldPatterns[from] : samePattern(g.loadType);
       });
+      ex.supersets = groups.map(function (g, i) {
+        var from = drafts[i].origIndex;
+        return from !== null ? oldSupersets[from] : null;
+      });
       entry.groups = groups;
       ex.weeks = generateWeeks(ex, program.weeks);
+      purgeBrokenPairs(workout); // a deleted set group unpairs its partner
+      syncPairs(workout, ex, 0);
       changed();
     } else if (JSON.stringify(groups) !== JSON.stringify(entry.groups)) {
       entry.groups = groups;
       entry.edited = true;
+      syncPairs(workout, ex, weekIndex);
       changed();
     }
   }
@@ -2174,7 +2440,7 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
   }
 
   var bodyChildren = [rowsBox];
-  if (!ex.supersetId) bodyChildren.push(el('div', { className: 'form-row' }, [addGroupBtn]));
+  bodyChildren.push(el('div', { className: 'form-row' }, [addGroupBtn]));
   bodyChildren.push(errorBox);
 
   openModal({
