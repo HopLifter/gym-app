@@ -20,8 +20,8 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 | 2. Header, steppers, grid | Done, committed |
 | 3. Add exercises, week cell editing | Done, committed |
 | 4. Exercise table, load type switching | Done, committed |
-| 5. Progression patterns | Built (fourth round of changes done), awaiting user test |
-| 6. Supersets and reordering | Not started |
+| 5. Progression patterns | Done, committed |
+| 6. Supersets and reordering | Built, awaiting user test |
 | 7. Save/Open file, Exercise List | Not started |
 | 8. Copy AI prompt | Not started |
 | 9. Acceptance tests, real block | Not started |
@@ -105,3 +105,10 @@ No automated tests; everything is checked by hand in a browser (open `index.html
 ## Step 5 fourth round of changes (user requests)
 - In the pattern picker the `+` button sits directly beside the value (`[-] value [+] unit per week`).
 - Changing a set group's load type when some weeks were edited by hand now asks: keep the edited weeks as they are (default) or clear them too (`setGroupLoadType`, `applyGroupLoadType(ex, k, type, replaceEdited)`). This replaces the earlier decision that edited weeks always stay marked edited.
+
+## Step 6 additions
+- `Superset` (table actions) pairs an exercise with the one below it (`makeSuperset`). Disabled, with the reason as its tooltip, on the last exercise, if either is already paired, or if either has more than one set group. The second exercise adopts the first's rest; editing either rest updates both (`setGroupRest`). The button reads `Remove Superset` on a pair (`removeSuperset` clears both).
+- `Move Up` / `Move Down` move a whole unit (`exerciseUnits`): a pair moves together, a single exercise jumps over a whole pair. Disabled at the top and bottom.
+- Deleting one exercise of a pair clears the pair (`deleteExercise`). `Add set group` is hidden on paired exercises (table and week editor).
+- Labels `A1` / `A2` show in the grid and in the table's week cells, only in weeks where both exercises of the pair are included (`supersetLabels`). The table's exercise cell says `Superset with <name>`.
+- Bug fixed while testing: `removeSuperset` read the pair id after clearing it on the first exercise, so the partner stayed paired.
