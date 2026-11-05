@@ -95,7 +95,7 @@
     font-size: 22px; cursor: pointer; padding: 2px 8px; line-height: 1;
   }
   .nav-right { display: flex; align-items: center; gap: 4px; position: relative; margin-left: auto; }
-  /* Small "saved" checkmark shown briefly to the left of the ⋮ menu
+  /* Small "saved" disk icon shown briefly to the left of the ⋮ menu
      whenever a change is persisted. Reserves a fixed, constant slot in
      the flex row (via fixed width) so it never shifts the ⋮ button when
      it appears/disappears — it's just invisible (opacity: 0) the rest
@@ -1496,7 +1496,7 @@
     historyEditDraft = null;
     saveHistory();
   }
-  // Briefly flashes the small checkmark icon next to the ⋮ menu
+  // Briefly flashes the small save (disk) icon next to the ⋮ menu
   // whenever a change is saved. Restarting mid-flash (rapid edits)
   // removes the animation class, forces a reflow, then re-adds it —
   // the standard way to restart a CSS animation from the start rather
@@ -1552,7 +1552,7 @@
   //   lets the user promote what they just typed into the standardized
   //   list right from here (disabled while empty or an exact duplicate
   //   of something already on the list). Entered on picking "New
-  //   Custom Name" from the dropdown, or when a brand-new exercise is
+  //   Exercise" from the dropdown, or when a brand-new exercise is
   //   added.
   // - Otherwise: a dropdown only, listing the standardized exerciseList
   //   alphabetically. Its selected/visible text is whatever name the
@@ -2670,7 +2670,7 @@
   // directly and keeps the dropdown showing. Picking "New Exercise"
   // clears the name and switches to the free-text input, focused
   // so the user can type right away; the dropdown (and its "New
-  // Custom Name" option) only comes back if they reopen it later.
+  // Exercise" option) only comes back if they reopen it later.
   container.addEventListener("change", (e) => {
     if (e.target.dataset.action !== "name-select") return;
     const card = e.target.closest(".exercise");
@@ -2710,7 +2710,7 @@
 
   // Finishing a custom name (leaving the field) switches back to the
   // dropdown view, now showing the typed name instead of "New
-  // Custom Name". Enter key does the same, via blur.
+  // Exercise". Enter key does the same, via blur.
   //
   // Backstop for the mousedown fix above (e.g. keyboard-only focus
   // changes): deferring with setTimeout(0) means if a click on
@@ -3664,7 +3664,7 @@
   }
 
   // Sanity-checks an imported file before touching localStorage: must be
-  // a plain object, must contain at least one of the four expected keys,
+  // a plain object, must contain at least one of the five expected keys,
   // and any present value must be null or a string that itself parses as
   // JSON (each key's value is a JSON-encoded string, matching how
   // localStorage stores it) — catches "wrong file" mistakes without
@@ -3687,7 +3687,7 @@
   // localStorage key; a null value (no data of that kind at export time,
   // e.g. no active program) removes that key instead of writing "null".
   // Reloads afterward rather than patching the in-memory state, since a
-  // restore touches all four keys at once and a fresh load is the
+  // restore touches all five keys at once and a fresh load is the
   // simplest way to guarantee everything (program, queue, history,
   // exercise list, and whichever workout is active) is consistent.
   function doImportAllData(data) {
