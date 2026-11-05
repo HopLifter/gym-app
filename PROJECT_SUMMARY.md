@@ -18,7 +18,7 @@ no subscriptions.
 - Section headings below that say "session" were written at different
   times. Use `git log` for the real dates.
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v62` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v63` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -49,6 +49,22 @@ no subscriptions.
   locale uses (often mm/dd/yyyy), and there's no way to force that. Any
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
+
+## Offline fix (v63, 5 November 2026) — still to be tested on the iPhone
+`sw.js` cached `index.html` but not the folder address `https://hoplifter.github.io/gym-app/`
+(which ends in `/`, not `index.html`). The service worker looks up cached
+files by exact address, so opening the folder address with no signal could
+fail while `/gym-app/index.html` worked. Reproduced as: a cache holding
+`index.html` and `sw.js` answers a lookup for `/index.html` but not for `/`;
+adding `./` to the cache makes `/` match too (checked with the Cache API in a
+desktop Chromium-based browser; a full airplane-mode run was done only on
+desktop). Fix: `FILES_TO_CACHE` in `sw.js` now also lists `"./"`, and
+`CACHE_NAME` and `APP_VERSION` are both `gym-app-cache-v63`. No other
+behaviour changed.
+
+**Still needs testing on the iPhone:** open the app once with signal (so the
+new version installs, Settings → About shows v63), turn on airplane mode, close
+the app fully and reopen it from the home-screen shortcut. It should load.
 
 ## Docs-only build 20261105: Program Builder Phase 1 built (Roadmap 2.1)
 `index.html` and `sw.js` are unchanged from 20261104, so the cache version
