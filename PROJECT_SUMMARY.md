@@ -18,8 +18,8 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 |---|---|
 | 1. Data model and draft save | Done, committed and pushed |
 | 2. Header, steppers, grid | Done, committed |
-| 3. Add exercises, week cell editing | Built, awaiting user test |
-| 4. Exercise table, load type switching | Not started |
+| 3. Add exercises, week cell editing | Done, committed |
+| 4. Exercise table, load type switching | Built, awaiting user test |
 | 5. Progression patterns | Not started |
 | 6. Supersets and reordering | Not started |
 | 7. Save/Open file, Exercise List | Not started |
@@ -58,3 +58,17 @@ No automated tests; everything is checked by hand in a browser (open `index.html
 - Also built for later steps: `addToWeek`, `deleteExercise` (clears a superset partner), `parseNumber` ("." and ","), `openModal`.
 - Decision: "This week only" in Week 1 does not mark Week 1 as edited (Week 1 is the source).
 - The temporary test strip is gone.
+
+## Step 4 additions
+- **Deliberate spec deviation (user request):** the grid shows every set group of an exercise (sets × reps, target RPE, load) instead of the first group plus `+N more`. Acceptance test 17 should be read as "a second set group shows in the grid".
+- Add exercise modal: the Load field label follows the load type (`Load (kg)` etc.) and its placeholder reads `Blank = set later`.
+- Clicking an exercise in the grid (or a table row's name cell) sets `selected` (screen state only, not saved). It highlights that exercise in every week and opens the table in `#detail`, sticky at the bottom of the window, max 380px tall, scrolling inside. `Close` clears it. `render()` clears a selection whose exercise no longer exists.
+- Table columns: exercise (name, set scheme, editable rest in minutes), load type control, pattern text, one cell per week, actions. Clicking a week cell opens the week editor; a hidden week shows `Not in this week` and `Add to this week`.
+- Load type switching (spec 5.8): confirm if any load, target RPE or kg value exists; then every group in every week takes the new type with blanks, edits are cleared and the pattern resets to `Same every week`. No type is highlighted if Week 1's groups mix types.
+- Rest edits update the superset partner too (`setRest`). Delete asks first.
+- Disabled placeholders: Pattern button (step 5), Move Up, Move Down and Superset (step 6).
+
+## Step 4 feedback changes (user requests, deviate from the spec)
+- Each set group shows sets × reps and its load on one line (wraps only if the column is too narrow).
+- All load types (kg, %, RPE) use the accent green. The text still names the type.
+- The table shows only the selected exercise, not the whole workout. Clicking another exercise in the grid swaps the table.
