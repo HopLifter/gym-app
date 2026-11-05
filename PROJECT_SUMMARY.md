@@ -21,8 +21,8 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 | 3. Add exercises, week cell editing | Done, committed |
 | 4. Exercise table, load type switching | Done, committed |
 | 5. Progression patterns | Done, committed |
-| 6. Supersets and reordering | Done (adjacent exercise pairs), committed; being rebuilt as 6.1 |
-| 7. Save/Open file, Exercise List | Not started |
+| 6. Supersets and reordering | Done as 6.1 (set-group pairs), committed |
+| 7. Save/Open file, Exercise List | Built, awaiting user test |
 | 8. Copy AI prompt | Not started |
 | 9. Acceptance tests, real block | Not started |
 
@@ -122,3 +122,9 @@ No automated tests; everything is checked by hand in a browser (open `index.html
 
 ## Step 6.1 feedback change
 - The grid and the table now show a workout in GymLog order: a paired set group is drawn straight after its partner inside one frame (`weekSegments`, `ss-block`), so Bench 2 + Curls 2 sit together and Incline + Curls 2 sit below. The table (`tableSpecs`) shows the selected exercise plus the partner line of each of its pairs, with the partner marked "Superset partner"; selecting Curls 2 shows both pairs one under the other. The spec (5.4, 5.5) was updated.
+
+## Step 7 additions
+- `Save file` (`saveProgramFile`): downloads the program as JSON named from the program name with unsafe characters removed, plus `.program.json` (`programFileName`). Clears the unsaved-changes flag.
+- `Open file` (`openProgramFile`, `parseProgramFile`): reads the file (max 5 MB), converts old formats (`migrateOldPatterns`), checks it with `isValidProgram`, rejects duplicate ids and a higher `version`, and unpairs any broken superset. Invalid: the message "This file can't be opened." and nothing changes. If there are unsaved changes it asks `Replace current program?` first, after the file has been checked.
+- `Load Exercise List` (`loadExerciseListFile`, `parseExerciseListFromBackup`): reads a GymLog backup (max 100 MB), takes only `gymapp_exercise_list_v1` (a JSON string inside the file, parsed a second time), trims, removes duplicates and non-text items, and stores the names under `builder_exercise_list_v1`, replacing any earlier list. Shows `N exercises loaded.`; otherwise "This file doesn't contain an Exercise List." Nothing else from the backup is kept.
+- The builder never reads or writes a `gymapp_` localStorage key. The only `gymapp_` text in the code is the key name looked up inside the opened backup file.

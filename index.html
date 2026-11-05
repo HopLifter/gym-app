@@ -929,6 +929,163 @@ function stepper(label, value, min, max, onChange) {
   ]);
 }
 
+/* ==========================================================================
+   FILES: Save file, Open file, Load Exercise List (spec 5.12, 5.13)
+   Every file the user opens is untrusted: it is parsed and checked before anything is used.
+   ========================================================================== */
+
+var MAX_PROGRAM_FILE_BYTES = 5 * 1024 * 1024;     // a program file is small
+var MAX_BACKUP_FILE_BYTES = 100 * 1024 * 1024;    // a GymLog backup can hold a lot of history
+var BACKUP_EXERCISE_LIST_KEY = 'gymapp_exercise_list_v1'; // a key INSIDE the backup file; the builder never touches GymLog's localStorage
+var MAX_EXERCISE_NAMES = 5000;
+
+// The file name for Save file: the program name without characters that are unsafe in file
+// names, followed by ".program.json" (spec 5.13).
+function programFileName(name) {
+  var safe = String(name)
+    .replace(/[\\/:*?"<>|\u0000-\u001F]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s.]+|[\s.]+$/g, '');
+  if (safe.length > 100) safe = safe.slice(0, 100).replace(/[\s.]+$/g, '');
+  if (safe === '') safe = 'Program';
+  return safe + '.program.json';
+}
+
+// Reads the text of a program file and returns a checked program, or null if it can not be opened.
+function parseProgramFile(text) {
+  var data;
+  try { data = JSON.parse(text); } catch (err) { return null; }
+  migrateOldPatterns(data); // files saved by an earlier build of the builder
+  if (!isValidProgram(data)) return null;
+  var seen = {};
+  var unique = true;
+  data.workouts.forEach(function (w) {
+    if (seen[w.id]) unique = false;
+    seen[w.id] = true;
+    w.exercises.forEach(function (ex) {
+      if (seen[ex.id]) unique = false;
+      seen[ex.id] = true;
+    });
+  });
+  if (!unique) return null;
+  data.workouts.forEach(purgeBrokenPairs);
+  return data;
+}
+
+// Finds the Exercise List in the text of a GymLog "Backup All Data" file. That key holds a
+// JSON-encoded string, so it is parsed a second time. Returns a clean array of names, or null.
+function parseExerciseListFromBackup(text) {
+  try {
+    var backup = JSON.parse(text);
+    if (!backup || typeof backup !== 'object' || Array.isArray(backup)) return null;
+    if (!Object.prototype.hasOwnProperty.call(backup, BACKUP_EXERCISE_LIST_KEY)) return null;
+    var value = backup[BACKUP_EXERCISE_LIST_KEY];
+    var list = typeof value === 'string' ? JSON.parse(value) : value;
+    if (!Array.isArray(list)) return null;
+    var names = [];
+    var seen = Object.create(null);
+    list.forEach(function (n) {
+      if (typeof n !== 'string') return;
+      var t = n.trim().slice(0, 200);
+      if (t === '' || Object.prototype.hasOwnProperty.call(seen, t)) return;
+      seen[t] = true;
+      names.push(t);
+    });
+    if (names.length === 0 || names.length > MAX_EXERCISE_NAMES) return null;
+    return names;
+  } catch (err) {
+    return null;
+  }
+}
+
+// A simple message dialog with a Close button.
+function showMessage(title, text) {
+  openModal({
+    title: title,
+    body: el('p', { text: text }),
+    actions: [el('button', { className: 'primary', text: 'Close', onclick: closeModal })]
+  });
+}
+
+// Opens the browser's file picker (it must be called from a click) and passes the file's text on.
+function pickTextFile(maxBytes, onText, onTooBig) {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json,application/json';
+  input.addEventListener('change', function () {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    if (file.size > maxBytes) { onTooBig(); return; }
+    var reader = new FileReader();
+    reader.onload = function () { onText(String(reader.result)); };
+    reader.onerror = function () { onTooBig(); };
+    reader.readAsText(file);
+  });
+  input.click();
+}
+
+// Save file: downloads the program as JSON. Clears the unsaved-changes flag.
+function saveProgramFile() {
+  var name = programFileName(program.name);
+  var blob = new Blob([JSON.stringify(program, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  dirty = false;
+  showNotice('Saved as ' + name + '.');
+}
+
+function replaceProgram(data) {
+  program = data;
+  syncIdCounter(program);
+  selected = null;
+  draftSaved = saveDraft(program);
+  dirty = false;
+  render();
+}
+
+// Open file: reads and checks a program file. If the current draft has changes that were not
+// saved to a file, asks before replacing it. An invalid file changes nothing.
+function openProgramFile() {
+  function cannotOpen() { showMessage('Open file', "This file can't be opened."); }
+  pickTextFile(MAX_PROGRAM_FILE_BYTES, function (text) {
+    var data = parseProgramFile(text);
+    if (!data) { cannotOpen(); return; }
+    if (dirty) {
+      showConfirm({
+        title: 'Replace current program?',
+        text: "Changes that haven't been saved to a file will be lost.",
+        confirmLabel: 'Replace',
+        onConfirm: function () { replaceProgram(data); }
+      });
+    } else {
+      replaceProgram(data);
+    }
+  }, cannotOpen);
+}
+
+// Load Exercise List: reads a GymLog backup file, keeps only the Exercise List (it replaces any
+// list saved before) and nothing else from the backup.
+function loadExerciseListFile() {
+  function noList() { showMessage('Load Exercise List', "This file doesn't contain an Exercise List."); }
+  pickTextFile(MAX_BACKUP_FILE_BYTES, function (text) {
+    var names = parseExerciseListFromBackup(text);
+    if (!names) { noList(); return; }
+    try {
+      localStorage.setItem(EXERCISE_LIST_KEY, JSON.stringify(names));
+    } catch (err) {
+      showMessage('Load Exercise List', 'The Exercise List could not be saved in this browser.');
+      return;
+    }
+    showNotice(names.length + (names.length === 1 ? ' exercise loaded.' : ' exercises loaded.'));
+  }, noList);
+}
+
 // Placeholder for features that arrive in later build steps.
 function laterButton(label, step, extraClass) {
   return el('button', {
@@ -965,9 +1122,9 @@ function renderHeader() {
   header.appendChild(stepper('Weeks', program.weeks, 1, MAX_WEEKS, setWeekCount));
   header.appendChild(stepper('Workouts / week', program.workoutsPerWeek, 1, MAX_WORKOUTS, setWorkoutCount));
   header.appendChild(el('div', { className: 'header-buttons' }, [
-    laterButton('Open file', 7),
-    laterButton('Save file', 7),
-    laterButton('Load Exercise List', 7),
+    el('button', { text: 'Open file', onclick: openProgramFile }),
+    el('button', { text: 'Save file', onclick: saveProgramFile }),
+    el('button', { text: 'Load Exercise List', onclick: loadExerciseListFile }),
     el('button', { text: 'New Program', onclick: startNewProgram }),
     laterButton('Copy AI prompt', 8, 'primary')
   ]));
