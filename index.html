@@ -137,11 +137,18 @@
     background: var(--surface); border-top: 2px solid var(--accent);
   }
   .detail[hidden] { display: none; }
+  .detail-resizer {
+    flex: 0 0 auto; height: 12px; cursor: ns-resize; touch-action: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .detail-resizer::before { content: ''; width: 56px; height: 4px; border-radius: 2px; background: var(--line); }
+  .detail-resizer:hover::before, .detail-resizer:focus-visible::before { background: var(--accent); }
+  .detail-resizer:focus-visible { outline: none; }
   .detail-head {
     display: flex; justify-content: space-between; align-items: center;
     padding: 8px 20px; border-bottom: 1px solid var(--line);
   }
-  .detail-body { overflow: auto; }
+  .detail-body { overflow: auto; flex: 1 1 auto; min-height: 0; }
   table.detail-table { border-collapse: separate; border-spacing: 0; width: 100%; }
   .detail-table th, .detail-table td {
     padding: 8px 10px; text-align: left; vertical-align: top;
@@ -746,6 +753,7 @@ function changedQuietly() {
 }
 
 function startUp() {
+  loadDetailHeight();
   var draft = loadDraft();
   if (draft) {
     program = draft;
@@ -2185,6 +2193,81 @@ function buildActionsCell(workout, wi, ex, rowCount) {
   return actions;
 }
 
+/* ---- Adjustable height of the table (the split between the grid and the table) ---- */
+
+var DETAIL_HEIGHT_KEY = 'builder_detail_height_v1'; // a screen preference, not part of the program
+var DETAIL_MIN_HEIGHT = 120;
+var detailHeight = null; // null = the default (fits the content, at most 380px); otherwise pixels
+
+function loadDetailHeight() {
+  try {
+    var n = Number(localStorage.getItem(DETAIL_HEIGHT_KEY));
+    if (isFinite(n) && n >= DETAIL_MIN_HEIGHT && n <= 5000) detailHeight = Math.round(n);
+  } catch (err) { /* no saved preference */ }
+}
+
+function saveDetailHeight() {
+  try {
+    if (detailHeight === null) localStorage.removeItem(DETAIL_HEIGHT_KEY);
+    else localStorage.setItem(DETAIL_HEIGHT_KEY, String(detailHeight));
+  } catch (err) { /* the preference just is not remembered */ }
+}
+
+function applyDetailHeight(box) {
+  if (detailHeight === null) {
+    box.style.height = '';
+    box.style.maxHeight = '';
+  } else {
+    box.style.height = detailHeight + 'px';
+    box.style.maxHeight = 'none';
+  }
+}
+
+function setDetailHeight(box, pixels) {
+  var max = Math.floor(window.innerHeight * 0.9);
+  detailHeight = Math.max(DETAIL_MIN_HEIGHT, Math.min(max, Math.round(pixels)));
+  applyDetailHeight(box);
+}
+
+// The bar on the top edge of the table. Drag it up or down, or use the arrow keys when it
+// is focused; double-click puts the height back to the default.
+function makeDetailResizer(box) {
+  var bar = el('div', {
+    className: 'detail-resizer', role: 'separator', 'aria-orientation': 'horizontal', tabindex: '0',
+    title: 'Drag to resize the table. Double-click to reset.', 'aria-label': 'Resize the table'
+  });
+  bar.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    bar.setPointerCapture(e.pointerId);
+    function move(ev) {
+      // The table's bottom edge is fixed, so its new height is the distance from the pointer to it.
+      setDetailHeight(box, box.getBoundingClientRect().bottom - ev.clientY);
+    }
+    function stop() {
+      bar.removeEventListener('pointermove', move);
+      bar.removeEventListener('pointerup', stop);
+      bar.removeEventListener('pointercancel', stop);
+      saveDetailHeight();
+    }
+    bar.addEventListener('pointermove', move);
+    bar.addEventListener('pointerup', stop);
+    bar.addEventListener('pointercancel', stop);
+  });
+  bar.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    var current = box.getBoundingClientRect().height;
+    setDetailHeight(box, current + (e.key === 'ArrowUp' ? 30 : -30));
+    saveDetailHeight();
+  });
+  bar.addEventListener('dblclick', function () {
+    detailHeight = null;
+    applyDetailHeight(box);
+    saveDetailHeight();
+  });
+  return bar;
+}
+
 function renderDetail() {
   var box = document.getElementById('detail');
   var oldBody = box.querySelector('.detail-body');
@@ -2200,6 +2283,8 @@ function renderDetail() {
   }
   box.hidden = false;
   box.textContent = '';
+  applyDetailHeight(box);
+  box.appendChild(makeDetailResizer(box));
   var wi = selected.wi;
   var workout = found.workout;
   var title = 'Workout ' + (wi + 1) + (workout.description ? ' – ' + workout.description : '');

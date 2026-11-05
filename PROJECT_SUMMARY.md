@@ -23,8 +23,8 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 | 5. Progression patterns | Done, committed |
 | 6. Supersets and reordering | Done as 6.1 (set-group pairs), committed |
 | 7. Save/Open file, Exercise List | Done, committed |
-| 8. Copy AI prompt | Built, awaiting user test |
-| 9. Acceptance tests, real block | Not started |
+| 8. Copy AI prompt | Done, committed |
+| 9. Acceptance tests, real block | In progress: automated tests pass; user tests and the real block remain |
 
 ## Data model (implemented in `index.html`)
 One `program` object, as spec section 6: `format`, `version`, `name`, `block`, `weeks`, `workoutsPerWeek`, `workouts[]` (each with `id`, `description`, `exercises[]`). Each exercise has `id`, `name`, `rest` (seconds), `notes`, `supersetId`, `pattern {kind,type,amount}` and one `weeks[]` entry per program week (`included`, `edited`, `groups[]` of `{sets,reps,loadType,load,rpe,kg}`).
@@ -133,3 +133,13 @@ No automated tests; everything is checked by hand in a browser (open `index.html
 - `Copy AI prompt` (`copyAiPrompt`): with no exercises it shows `Add an exercise first.` and copies nothing. If some set groups in included weeks have no load, it first asks (`N loads are blank. The AI will suggest values for them.`, Cancel / `Copy prompt`). The prompt is built by `buildAiPrompt` from the template `AI_PROMPT_LINES` (spec section 7) with the program name and the exact program JSON (`JSON.stringify(program, null, 2)`, the same as a saved file). `Prompt copied.` on success; if the clipboard is unavailable or refuses, `showPromptBox` shows the prompt in a text box.
 - The prompt template gained a "HOW TO READ THE PROGRAM JSON" section (weeks, groups, patterns, supersets, rest per set group) and a line about blank loads with a pattern, because the data model changed after the first spec draft. The spec (section 7) has the same text.
 - `showConfirm` accepts `primary: true` for a green confirm button (red stays the default for destructive confirms).
+
+## Step 9: acceptance tests (spec section 10)
+Run by script in the preview pane (a throwaway test harness, not kept in the repo), all passing: 1-6, 8, 9 (with a stub list), 10-22, 24-38a, 42-45 (45 checked for New Program), 48, 49 and 50 (clipboard failure simulated). Test 7 passes for the fixed Workout column (checked by scrolling a 12-week grid).
+
+Left for a real browser with the user (the preview pane blocks storage, downloads and file pickers): 23 (table stays visible while scrolling), 39 (draft survives a reload), 40 and 41 (Save file / Open file), 45 (Open file warning), 46 (real backup loads only the Exercise List), 47 (no `gymapp_` keys created), and the end-to-end tests 51-54 with the AI and GymLog.
+
+Testing limit: there is no automated test suite in the repo; everything is checked by hand or by throwaway scripts.
+
+## Adjustable table height (user request during step 9)
+- The bar on the top edge of the bottom table (`makeDetailResizer`) resizes it: drag, arrow keys when focused, double-click to reset. Range 120px to 90% of the window; the default still fits the content up to 380px. The choice is saved under `builder_detail_height_v1` (a screen preference, not part of the program). Spec 5.5 and the storage key list were updated.

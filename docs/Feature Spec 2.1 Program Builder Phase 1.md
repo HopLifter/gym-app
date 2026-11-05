@@ -102,7 +102,7 @@ Clicking an exercise in the grid:
 - Highlights that exercise in every week.
 - Opens a table below the grid. The table shows the selected exercise. If some of its set groups are in a superset, each paired set group is shown together with its partner's line, framed as a pair, in GymLog order (for example selecting Curls shows Bench with Curls, then Incline Bench with Curls). Partner lines are fully editable, and clicking a partner's name selects it.
 
-The table stays visible while the grid scrolls, up to 380px tall. `Close` hides it and clears the highlight.
+The table stays visible while the grid scrolls. By default it fits its content, up to 380px tall. The user can drag the bar on its top edge (or focus it and use the up and down arrow keys) to make the table taller or shorter, from 120px up to 90% of the window height; double-clicking the bar resets it. The chosen height is remembered in `localStorage` under `builder_detail_height_v1`. `Close` hides the table and clears the highlight.
 
 The table is laid out with one line per set group, so each set group's load type, pattern and weekly values line up on the same line. The exercise shows:
 - Exercise name, and for each set group its set scheme and its own rest time (editable).
@@ -315,6 +315,7 @@ Saved in the draft and in program files:
 **Other storage keys**
 - `builder_draft_v1`: the program above.
 - `builder_exercise_list_v1`: an array of exercise names.
+- `builder_detail_height_v1`: the height in pixels of the bottom table, if the user resized it.
 
 ## 7. AI prompt
 
