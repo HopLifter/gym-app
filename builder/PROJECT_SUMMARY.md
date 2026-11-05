@@ -3,9 +3,11 @@
 Hand-over document. Keep this accurate at the end of every session.
 
 ## What this is
-A separate desktop website for building training programs (GymLog Epic 2.1, Phase 1). Plain HTML/CSS/JS in one `index.html`. No frameworks, build tools or service worker. Planned hosting: GitHub Pages, `HopLifter/gym-program-builder` (repo not yet created on GitHub).
+A separate desktop website for building training programs (GymLog Epic 2.1, Phase 1). Plain HTML/CSS/JS in one `index.html`. No frameworks, build tools or service worker. Lives in the `builder/` folder of the `HopLifter/gym-app` repo and is published with GitHub Pages at https://hoplifter.github.io/gym-app/builder/. (It started as its own repo, `HopLifter/gym-program-builder`, and was moved here with its history.)
 
-Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marked "(reference)" are read-only copies from GymLog.
+Spec: `../docs/specs/Feature Spec 2.1 Program Builder Phase 1.md`. The GymLog roadmap, import format and project summary are in the repo root and `../docs/`: there is one copy of each, so nothing here is a reference copy.
+
+**How to read this file:** the sections after "Key functions" are a log in the order the work happened. Steps 2 to 6 contain choices that later rounds changed (for example fixed `+2.5 kg` options, per-exercise `pattern`, `rest` and `supersetId`). The latest round wins; the Data model section below is current.
 
 ## Hard rules
 - Never read or write a `gymapp_` localStorage key. Builder keys start with `builder_`.
@@ -27,11 +29,11 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 | 9. Acceptance tests, real block | In progress: automated tests pass; user tests and the real block remain |
 
 ## Data model (implemented in `index.html`)
-One `program` object, as spec section 6: `format`, `version`, `name`, `block`, `weeks`, `workoutsPerWeek`, `workouts[]` (each with `id`, `description`, `exercises[]`). Each exercise has `id`, `name`, `rest` (seconds), `notes`, `supersetId`, `pattern {kind,type,amount}` and one `weeks[]` entry per program week (`included`, `edited`, `groups[]` of `{sets,reps,loadType,load,rpe,kg}`).
+One `program` object, as spec section 6: `format`, `version`, `name`, `block`, `weeks`, `workoutsPerWeek`, `workouts[]` (each with `id`, `description`, `exercises[]`). Each exercise has `id`, `name`, `notes`, `patterns[]` (one per Week 1 set group), `supersets[]` (one per Week 1 set group: null or a pair id shared by exactly two groups) and one `weeks[]` entry per program week (`included`, `edited`, `groups[]` of `{sets,reps,loadType,load,rpe,kg,rest}`). Load type and rest (seconds) are per set group. See spec section 6.
 
-Defaults for a new exercise (step 1 choice, to be revisited when the Add Exercise modal is built in step 3): 3 sets, 10 reps, kg, blank load, rest 90 s, pattern `same`.
+Defaults for a new set group (`newGroup`): 3 sets, 10 reps, kg, blank load, rest 90 s; the pattern is `same`.
 
-Storage keys: `builder_draft_v1` (the program), `builder_exercise_list_v1` (array of names; not used yet).
+Storage keys: `builder_draft_v1` (the program), `builder_exercise_list_v1` (array of names loaded from a GymLog backup), `builder_detail_height_v1` (table height preference).
 
 ## Key functions so far
 - `createDefaultProgram()`, `newWorkout()`, `newExercise(name, weekCount)`, `newGroup()`: build model objects.

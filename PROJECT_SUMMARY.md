@@ -7,8 +7,16 @@ no subscriptions.
 
 ## Live setup
 - Hosted on GitHub Pages: https://hoplifter.github.io/gym-app/
-- Repo: github.com/HopLifter/gym-app
-- Files: `index.html` (the whole app) + `sw.js` (offline caching)
+- Repo: github.com/HopLifter/gym-app (local clone `C:\Projects\gym-app`).
+  It holds both GymLog and the Program Builder. Git history and the repo
+  files are the source of truth; the dated folders in OneDrive are only a
+  read-only archive. Read `docs/WORKFLOW.md` for the working rules.
+- Repo layout: `index.html` (the whole app) + `sw.js` (offline caching);
+  `builder/` (Program Builder, own `PROJECT_SUMMARY.md`); `ROADMAP.md`;
+  `PROJECT_SUMMARY.md` (this file); `CLAUDE.md`; `docs/` (`WORKFLOW.md`,
+  `Program Import Format.md`, `specs/`, `reference/`, `mockups/`).
+- Section headings below that say "session" were written at different
+  times. Use `git log` for the real dates.
 - No backend/server — all data lives in the browser's localStorage on the phone
 - Cache version: `gym-app-cache-v62` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
@@ -47,13 +55,19 @@ no subscriptions.
 stays `gym-app-cache-v62`. `ROADMAP.md` is updated (Phase 1 implemented,
 builder decisions refreshed, order updated).
 
-The Program Builder is a **separate desktop website**, not part of GymLog:
-- Live: https://hoplifter.github.io/gym-program-builder/
-- Repo: github.com/HopLifter/gym-program-builder (local clone
-  `C:\Projects\gym-program-builder`). Plain HTML/CSS/JS in one `index.html`,
-  no service worker. Its own `PROJECT_SUMMARY.md` (data model, behaviour,
-  testing limits) and spec (`docs/Feature Spec 2.1 …`) are the hand-over
+The Program Builder is a **separate desktop page**, not part of the GymLog
+app (a different `index.html`, no shared code). It was built in its own repo
+(`HopLifter/gym-program-builder`) and then moved into this repo, with its
+history, as the `builder/` folder:
+- Live: https://hoplifter.github.io/gym-app/builder/ (after the move is
+  pushed; the old address `hoplifter.github.io/gym-program-builder/` is the
+  previous home). Plain HTML/CSS/JS in one `index.html`, no service worker.
+  `builder/PROJECT_SUMMARY.md` (data model, behaviour, testing limits) and
+  `docs/specs/Feature Spec 2.1 Program Builder Phase 1.md` are the hand-over
   documents for it.
+- GymLog's service worker covers the whole `/gym-app/` path, but it only
+  caches `index.html` and `sw.js`; any other request, including the builder,
+  goes to the network as normal.
 - **Storage:** it shares the origin `hoplifter.github.io` with GymLog, so it
   must never touch GymLog's `gymapp_` keys, and does not. Its own keys all
   start with `builder_` (`builder_draft_v1`, `builder_exercise_list_v1`,
@@ -74,9 +88,10 @@ The Program Builder is a **separate desktop website**, not part of GymLog:
   combination is a separate entry.
 - **Status:** all built steps and the scripted acceptance tests pass. A real
   block going through the AI prompt, into GymLog, and back into the builder
-  (spec tests 39-41, 46-47 and 51-54) was being tried when this was written.
+  (spec tests 23, 39-41, 45 (Open file warning), 46-47 and 51-54) was being
+  tried when this was written.
 
-## New/changed this session: Superset Import (Roadmap 1.7, v62, build 20261104)
+## Superset Import (Roadmap 1.7, v62, build 20261104)
 Source: Feature Spec 1.7. All in `index.html`; `sw.js` only has the version
 bump to `gym-app-cache-v62` (`APP_VERSION` matches).
 
@@ -128,7 +143,7 @@ Workout view still shows the "Workout comment" label, so the text is
 identified there. Supersedes the label/placeholder wording in the 1.5
 section below. Cache version is `gym-app-cache-v61`.
 
-## New/changed this session: Workout Description and Comment (Roadmap 1.5, v60)
+## Workout Description and Comment (Roadmap 1.5, v60)
 Source: Feature Spec 1.5 (Option B, comment at top of page). All in
 `index.html`; `sw.js` only has the version bump. Builds on v59 (Program
 Queue, unpublished at the time of this build).
@@ -171,7 +186,7 @@ Queue, unpublished at the time of this build).
   buttons by tap, full-reload persistence and backup round trip of the new
   fields on-device.
 
-## Previous session: Program Queue (Roadmap 1.4, v59)
+## Program Queue (Roadmap 1.4, v59)
 Add a new program without replacing the current one. Source: Feature Spec
 1.4. All code in `index.html`; `sw.js` only has the version bump.
 
@@ -222,7 +237,7 @@ Add a new program without replacing the current one. Source: Feature Spec
   install; confirm dialog flows by tap, the undo-banner position under the
   taller Queue header, and restoring a real v58 backup file on-device.
 
-## Previous session: Set Progress Tracking (Roadmap 1.2, v58)
+## Set Progress Tracking (Roadmap 1.2, v58)
 Shows which set you are on while the rest timer bar is open. All in
 `index.html`; nothing is saved (in-memory only, lost on full app close).
 
@@ -255,7 +270,7 @@ Shows which set you are on while the rest timer bar is open. All in
   as before and All Sets Complete has no running interval. Test 22 was
   checked only by not touching those areas.
 
-## Previous session: Workout Timer Resets When Its Workout Stops Being Today's
+## Workout Timer Resets When Its Workout Stops Being Today's
 **Why**: a paused timer used to stay attached to its workout after another
 workout was put in front of it (reorder, or restoring from History). When
 that workout became Today's again it still showed the old elapsed time.
@@ -284,7 +299,7 @@ clock; same after moving Today's down then back up while paused; a running
 Today's timer is untouched by saves; a stale timer planted on a
 non-first workout is removed on reload (memory and localStorage).
 
-## Previous session: Restore to Queue Now Becomes Today's Workout
+## Restore to Queue Now Becomes Today's Workout
 **Behavior change**: "Restore to Queue" (History list ⋮ menu and the Past
 Workout header ⋮ menu) used to append the workout to the *end* of the queue.
 It now makes the restored workout **Today's Workout** (front of the queue);
@@ -311,9 +326,10 @@ no longer true.
 **Tested** (browser, against a copy of the real backup): blocked from both
 entry points while running; allowed while paused; order/renumbering; the
 restored workout carries no timer or duration; the previous Today's paused
-timer is preserved; History list path with no timer.
+timer is preserved (superseded in v57: it is now reset); History list path
+with no timer.
 
-## Previous session: Workout Timer Reset + Hold-to-Pause (follow-up to 1.1)
+## Workout Timer Reset + Hold-to-Pause (follow-up to 1.1)
 **Why**: found while using v54 on the phone. Starting the timer by accident
 (e.g. checking the day's program in the morning, gym in the afternoon) had
 no undo, and an accidental Pause silently stops the clock mid-workout.
@@ -340,7 +356,7 @@ no undo, and an accidental Pause silently stops the clock mid-workout.
 pause); it was tested with synthetic pointer events in the browser pane,
 not yet with a real finger on the phone (gloves/sweaty hands untested).
 
-## Previous session: Global Workout Timer (Roadmap 1.1)
+## Global Workout Timer (Roadmap 1.1)
 **What**: tracks total time spent on Today's Workout, separate from the
 rest timer. Explicit Start / Pause / Resume on Today's Workout only; the
 elapsed clock sits in the sticky header on the same row as the date badge
@@ -397,7 +413,7 @@ allowed while paused, Finish while paused, History view/edit/Save/Leave/
 clear, Restore, End Program guard, Add Workout position and empty queue,
 header height. Not tested on a real phone: lock screen / app-kill timing.
 
-## Previous session: Rest Timer Overtime Display
+## Rest Timer Overtime Display
 **Why**: a PWA can't notify the user when the timer ends while another app
 is in the foreground, so the timer now shows how long ago it finished when
 the user comes back to GymLog.
@@ -435,7 +451,7 @@ completion time once the countdown ended.
 the backlog). Overtime is not persisted, so it's lost if the app is fully
 closed (same as the rest of the timer).
 
-## New/changed (previous session): Removed Automatic-Save Notice, Added Animated Save Indicator
+## Removed Automatic-Save Notice, Added Animated Save Indicator
 **Why**: the permanent "Changes save automatically on this phone" line at
 the bottom of the Workout screen was no longer needed and just added
 visual clutter. But its replacement — a brief "Saved just now" text flash
@@ -504,7 +520,7 @@ History/Settings still fires the flash, but it's invisible until the
 user returns to the Workout screen (same limitation the old text status
 had; not a regression).
 
-## Bug fix (previous session): Unsaved History Edits Persisted After "Leave"
+## Bug fix: Unsaved History Edits Persisted After "Leave"
 **Why**: editing a completed (History) workout and then choosing "Leave
 without saving" on the unsaved-changes prompt didn't actually discard
 anything — the workout kept whatever changes had been made.
@@ -574,7 +590,7 @@ to Queue / Delete from History actions while mid-edit (these have their
 own separate confirms already, but won't offer to discard/keep the
 in-progress draft). Not addressed here — same scope boundary as before.
 
-## New/changed (previous session): Timer Reset Automatically Restarts
+## Timer Reset Automatically Restarts
 **Why**: pressing Reset on the rest timer used to just zero the clock and
 stop — you then had to tap Resume/Start separately to actually begin
 resting again. That's an extra tap every time you want to restart a
@@ -614,7 +630,7 @@ correctly via the existing `visibilitychange` handler.
 **Limitations**: none identified — this was a small, isolated change to
 one function.
 
-## New/changed (previous session): Condensed History (Past Workout) View
+## Condensed History (Past Workout) View
 **Why**: opening a completed workout from History reused the same
 card-based layout as Today/Queue — editable-looking input boxes, one tall
 card per exercise, lots of scrolling for anything but the shortest
@@ -707,7 +723,7 @@ it's purely a new read-only presentation layer over the existing
 that the data model already supported are just formatted differently
 (as "–") for display, nothing new was added to support it.
 
-## Feature added (2 sessions ago): Superset State Consistency and Group Behavior
+## Feature added: Superset State Consistency and Group Behavior
 **Why**: supersets had three related problems — removing a superset left
 the *other* exercise's `supersetId` stale (so it kept showing "Remove
 Superset" even though it was no longer paired), the two exercises'
@@ -743,7 +759,7 @@ handlers:
   and share one set of container-level event listeners, all three fixes
   apply everywhere superset editing is possible.
 
-## Bug fix (3 sessions ago)
+## Bug fix (earlier)
 - **"New Exercise" option was unresponsive on a brand-new exercise.** A
   freshly added exercise has `name: ""`, and the name dropdown always
   lists "New Exercise" as its first `<option>` — so with nothing else
@@ -756,22 +772,25 @@ handlers:
   Exercise" is always a real value change from `""` → `__custom__`.
 
 ## Data model
-Two new optional fields this session (no new localStorage key, no
-migration — absent means idle / no duration, so old data and old backups
-load unchanged). localStorage keys:
-- `gymapp_program_v1` — the currently active imported program, if any:
-  `{ id, name, importedAt }`. `null`/absent if no program is active.
+localStorage keys. Optional fields (`timer`, `durationSec`, `description`,
+`comment`) need no migration: absent means idle / no duration / empty, so old
+data and old backups load unchanged.
+- `gymapp_programs_v1` — array of every imported program:
+  `{ id, name, importedAt, status: "current"|"next"|"ended", endedAt? }`
+  (see "Program Queue"). It replaced the old single `gymapp_program_v1`,
+  which is migrated and removed at startup; restoring a pre-v59 backup
+  still works.
 - `gymapp_queue_v1` — array of planned workouts, each:
-  `{ id, programId, label, date, status: "queued", order, exercises,
-  timer? }` where `timer` is
+  `{ id, programId, label, description?, comment?, date, status: "queued",
+  order, exercises, timer? }` where `timer` is
   `{ status: "running" | "paused", startedAt: <ms epoch> | null,
   accumulatedMs }` (absent = idle).
   `order` determines queue position (ascending); the lowest `order` is the
   "Today's Workout" / active workout. `date` is `null` until the workout is
   completed. `programId` is `null` for ad-hoc workouts.
 - `gymapp_history_v1` — array of completed workouts, each:
-  `{ id, programId, label, date, status: "completed", note, exercises,
-  durationSec? }` (no `order` field — history is sorted by `date`, newest
+  `{ id, programId, label, description?, comment?, date, status:
+  "completed", note, exercises, durationSec? }` (no `order` field — history is sorted by `date`, newest
   first). `durationSec` is the workout timer's total, absent if never started.
 - `gymapp_exercise_list_v1` — flat array of strings, the standardized
   exercise list. Always kept sorted alphabetically by the code that writes it.
@@ -966,6 +985,12 @@ confirm helper and one `data-action` name each.
 - Queue screen lists all planned workouts in order; reorder, delete, or
   add a one-off "Add Workout" ad-hoc entry (inserted right after Today's
   Workout).
+- Each workout can carry a read-only `description` (from the import file,
+  shown under the title and on the Queue list) and an auto-saving
+  `comment` box written by the user (read-only on Past Workouts). See
+  "Workout Description and Comment".
+- Set squares: a row of numbered set squares in the rest timer bar shows
+  which set you are on (see "Set Progress Tracking").
 - Global workout timer on Today's Workout (Start, hold-to-Pause, Resume,
   Reset from the ⋮ menu; duration saved on Finish, shown in Past Workouts
   and editable there) — see the "Global Workout Timer" sections.
@@ -1108,42 +1133,15 @@ green border via direct DOM class toggle (editable card view only).
   the stylesheet is ever tidied up.
 
 ## Backlog / ideas not yet built
-- **Unit conversion (kg ⇄ lb) toggle in Settings** — all weight data is
-  currently assumed/stored in kg with no stored unit; a Settings-level
-  toggle to display (and enter) everything in lb was floated as a
-  future idea, not built.
-- Superset groups of more than two exercises
-- Dedicated superset-level editing controls (e.g. editing rest once at
-  the group level instead of via either member's field)
-- Restore from Backup: add a "merge" mode as an alternative to the
-  current full-replace-only behavior
-- Cloud backup/sync (e.g. auto-upload the same Backup JSON shape to a
-  cloud storage endpoint)
-- Rename an existing standardized exercise (currently: remove + re-add)
-- Merge two standardized exercises into one
-- Aliases/synonyms for a standardized exercise
-- Search/filter within the Exercise List page or the name dropdown
-- Import/export the exercise list
-- Usage stats (how often each standardized exercise is used)
-- Search past workouts / filter by exercise
-- Show personal records / estimated 1RM / volume trends
-- Match recent performance by a stable exercise ID instead of name
-- Bulk export of all workout history (not tied to a single program)
-- Automatic timer start after completing a set
-- Audio/vibration alert when the rest timer finishes
-- Extend the "leave without saving?" edit-mode guard to the ⋮ menu's
-  Restore/Delete actions, if that gap ever causes confusion in practice
-- Confirm with the user whether the Export Gym Log's target sheet
-  actually expects comma decimals and adjust `formatDecimalForExport()`
-  if not
-- Dedicated workout-sharing/export image, custom screenshot themes, or
-  GymLog branding on top of the condensed History view
-- Remove the now-unused `.status.saved` CSS rule as routine cleanup
+The backlog now lives in `ROADMAP.md` (section 6, "Smaller ideas"), together
+with the features and epics, so there is one list. Add new ideas there.
 
-## How to resume work in a new chat
-1. Upload the current `index.html` and `sw.js`
-2. Upload this summary file
-3. Say what you want to change or add next
+## How to resume work
+1. Open Claude Code in `C:\Projects\gym-app` and say which project the
+   session is for: GymLog, Program Builder, or planning.
+2. Claude reads `CLAUDE.md`, `docs/WORKFLOW.md` and this file (and
+   `builder/PROJECT_SUMMARY.md` for builder work). Nothing needs uploading.
+3. Say what you want to change or add next.
 
 ## Working preferences (apply every session)
 - This is my first project — explain new technical concepts at a first-year
@@ -1160,8 +1158,8 @@ green border via direct DOM class toggle (editable card view only).
   ending, without being asked:**
   1. Provide a git commit message for the session's changes.
   2. Update this file (`PROJECT_SUMMARY.md`) to reflect the current state
-     of the app — new features, data model changes, updated limitations/
-     backlog — and provide it as a file to save back into the project.
-     Since Claude has no memory between chats, this file (re-uploaded each
-     time) is the only thing that carries context forward — it must stay
-     accurate or the next session starts from stale information.
+     of the app — new features, data model changes, updated limitations —
+     and update `ROADMAP.md` (and `builder/PROJECT_SUMMARY.md` for builder
+     work). Claude has no memory between sessions, so these files are the
+     only thing that carries context forward — they must stay accurate or
+     the next session starts from stale information.

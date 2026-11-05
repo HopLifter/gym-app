@@ -1,6 +1,6 @@
 # GymLog – Feature Spec 2.1: Program Builder Phase 1 (Core Builder)
 
-**Status:** Ready to implement  
+**Status:** Built (steps 1 to 8 done). Step 9, the real-browser tests and one real block, is in progress. See `builder/PROJECT_SUMMARY.md`.  
 **Roadmap item:** 2.1 Program Builder Epic, Phase 1  
 **Build order:** Implement after Spec 1.7.  
 **Chosen design:** Combined layout: Program Grid with an exercise table below it (see the Program Builder Layouts canvas)
@@ -37,7 +37,7 @@ Give the user a desktop website for building a training program faster and more 
 
 ## 3. Setup
 
-- New public GitHub repo: `HopLifter/gym-program-builder`, hosted on GitHub Pages.
+- Published from the `builder/` folder of the `HopLifter/gym-app` repo (it began as its own repo, `HopLifter/gym-program-builder`), hosted on GitHub Pages.
 - Plain HTML, CSS and JavaScript, with no frameworks and no build tools.
 - One `index.html`, matching GymLog, plus `PROJECT_SUMMARY.md`.
 - No service worker.
@@ -184,7 +184,7 @@ There are no fixed `+2.5` or `+5` options: Custom covers them. RPE is subjective
 
 **Edited weeks:** if any week was edited by hand (including through `Set each week manually`) and the user applies a pattern other than manual, the picker asks what to do with those weeks: `Keep the edited weeks as they are` (the default) or `Replace the edited weeks with the new pattern`. Replacing puts the new pattern's value into that set group in each edited week, and the week stops being marked edited if it then matches the patterns.
 
-- The picker also has a load type control (which applies to the whole exercise) and a `Start` value, which sets Week 1 of that set group. Changing the load type uses the same confirm as 5.8.
+- The picker also has a load type control (which applies to that set group) and a `Start` value, which sets Week 1 of that set group. Changing the load type uses the same confirm as 5.8.
 - A preview shows the load for each week and updates immediately. A blank load shows the planned change, such as `Set load + 5 kg`.
 - With `Set each week manually`, the preview becomes one input per week for that set group, and each of those weeks is marked as edited.
 - `Apply` saves the pattern. `Cancel` changes nothing.

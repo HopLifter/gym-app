@@ -1,7 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
-**Last updated:** 5 November 2026 (Program Builder Phase 1 implemented; 1.7 implemented, v62)  
+**Last updated:** 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -16,7 +16,7 @@ These are relatively independent features that can be designed and implemented s
 - Track elapsed workout time independently of the existing rest timer.
 - Continue tracking accurately when switching apps or locking the phone.
 - Display total workout duration in the workout interface.
-- Status: implemented (before v58).
+- Status: implemented (v54, with follow-ups to v57).
 
 **Complexity:** 2/5  
 **UX/UI Improvement:** 4/5
@@ -171,7 +171,7 @@ The builder does not export directly to GymLog.
 
 **Phases:**
 
-1. Core builder: create, edit, save and reopen programs, and copy the AI prompt. Status: implemented (5 November 2026) as a separate desktop website, https://hoplifter.github.io/gym-program-builder/ (repo github.com/HopLifter/gym-program-builder, plain HTML/CSS/JS, no change to GymLog itself). Its own `PROJECT_SUMMARY.md` and spec describe it. The end-to-end run (AI prompt, GymLog import, reopening the AI's program file) is still being tried with a real block.
+1. Core builder: create, edit, save and reopen programs, and copy the AI prompt. Status: implemented (5 November 2026) as a separate desktop page in the `builder/` folder of this repo, https://hoplifter.github.io/gym-app/builder/ (it began as its own repo, plain HTML/CSS/JS, no change to GymLog itself). Its own `PROJECT_SUMMARY.md` and spec describe it. The end-to-end run (AI prompt, GymLog import, reopening the AI's program file) is still being tried with a real block.
 2. Reuse: templates, duplication and versions.
 3. Analysis: weekly and per-exercise workload.
 4. History: import backups and compare planned with actual (best after 1.8 to 1.10).
@@ -252,3 +252,39 @@ Until 1.8 is built, the builder stores sets individually, and each different wei
 All items in this document are exploratory ideas, not approved implementation requirements.
 
 New ideas should first be discussed and refined, then added to this roadmap. Detailed feature specifications should only be created once the underlying problem, desired behavior and scope are sufficiently clear.
+
+## 6. Smaller ideas
+
+Small or unscheduled ideas that came out of building GymLog. They are not ordered. Move one into section 1 when it is ready to specify.
+
+- **Unit conversion (kg ⇄ lb) toggle in Settings** — all weight data is
+  currently assumed/stored in kg with no stored unit; a Settings-level
+  toggle to display (and enter) everything in lb was floated as a
+  future idea, not built.
+- Superset groups of more than two exercises
+- Dedicated superset-level editing controls (e.g. editing rest once at
+  the group level instead of via either member's field)
+- Restore from Backup: add a "merge" mode as an alternative to the
+  current full-replace-only behavior
+- Cloud backup/sync (e.g. auto-upload the same Backup JSON shape to a
+  cloud storage endpoint)
+- Rename an existing standardized exercise (currently: remove + re-add)
+- Merge two standardized exercises into one
+- Aliases/synonyms for a standardized exercise
+- Search/filter within the Exercise List page or the name dropdown
+- Import/export the exercise list
+- Usage stats (how often each standardized exercise is used)
+- Search past workouts / filter by exercise
+- Show personal records / estimated 1RM / volume trends
+- Match recent performance by a stable exercise ID instead of name
+- Bulk export of all workout history (not tied to a single program)
+- Automatic timer start after completing a set
+- Audio/vibration alert when the rest timer finishes
+- Extend the "leave without saving?" edit-mode guard to the ⋮ menu's
+  Restore/Delete actions, if that gap ever causes confusion in practice
+- Confirm with the user whether the Export Gym Log's target sheet
+  actually expects comma decimals and adjust `formatDecimalForExport()`
+  if not
+- Dedicated workout-sharing/export image, custom screenshot themes, or
+  GymLog branding on top of the condensed History view
+- Remove the now-unused `.status.saved` CSS rule as routine cleanup
