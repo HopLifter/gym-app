@@ -1,0 +1,9 @@
+# Personal data must never be committed (this repo and its Pages site are public).
+TestData/
+*backup*.json
+program_import*.json
+*.program.json
+*.gymlog.json
+*.xlsx
+00_EXPORT_NOTES.md
+gymlog-export*

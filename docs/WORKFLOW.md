@@ -43,7 +43,7 @@ Only publish when the user says they are happy and asks for it. A request to pub
 5. Report the result and the live links. Remind the user to reopen the app on the phone to pick up the new version.
 
 ## Cautions
-- Both the repo and its Pages site are public. Never commit personal data (backups, real training files, `TestData\`).
+- Both the repo and its Pages site are public. Never commit personal data (backups, real training files, `TestData`). `.gitignore` and a local pre-commit hook block the usual file names, but check what you stage.
 - Never push without the user's explicit request for that push.
 - Never force-push, and never rewrite history on `main`.
 - Never put passwords or tokens into any file.
