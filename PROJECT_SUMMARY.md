@@ -19,8 +19,8 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 | 1. Data model and draft save | Done, committed and pushed |
 | 2. Header, steppers, grid | Done, committed |
 | 3. Add exercises, week cell editing | Done, committed |
-| 4. Exercise table, load type switching | Built, awaiting user test |
-| 5. Progression patterns | Not started |
+| 4. Exercise table, load type switching | Done, committed |
+| 5. Progression patterns | Built (fourth round of changes done), awaiting user test |
 | 6. Supersets and reordering | Not started |
 | 7. Save/Open file, Exercise List | Not started |
 | 8. Copy AI prompt | Not started |
@@ -72,3 +72,36 @@ No automated tests; everything is checked by hand in a browser (open `index.html
 - Each set group shows sets × reps and its load on one line (wraps only if the column is too narrow).
 - All load types (kg, %, RPE) use the accent green. The text still names the type.
 - The table shows only the selected exercise, not the whole workout. Clicking another exercise in the grid swaps the table.
+
+## Step 5 additions
+- Pattern picker `openPatternPicker(wi, ex)`, opened from the table's Pattern button. Title `Repeat across weeks`. Options per load type follow the spec 5.9 table (Percentage increase only for kg). Custom uses a stepper (kg 1.25, % 0.5, RPE 0.25, can go negative, limit +/-50 kg, 20%, 5 RPE).
+- Stored pattern is only `{kind, type, amount}`. Small, Large and Custom are all `kind: "add"`; the picker works out which one is selected from the amount (`patternOption`).
+- Start value (Week 1 of the first set group) is hidden with more than one set group. Preview is computed on a copy with `generateWeeks`, so Cancel changes nothing. Edited weeks show `(edited)` and a note `N edited weeks will stay as they are.`
+- Set each week manually: inputs for Weeks 2 and up (first set group only), prefilled from the previous preview. Apply sets those loads and marks every one of those weeks edited. Other set groups in those weeks are left alone.
+- Load type control in the picker uses the same confirm as the table. After Change or Cancel the picker reopens.
+- A changed load clears that group's kg value.
+
+## Step 5 feedback changes (user requests, deviate from the spec)
+- Pattern options show only amounts (`+2.5 kg per week`, `+5 kg per week`), not "Small increase" or "Large increase".
+- RPE offers only `+1 RPE`, Custom (steps of 1) and Manual, plus Same every week. RPE is subjective, so no 0.5 or 0.25 steps.
+- New `Add set group` button in the table's actions column (with Move Up and Move Down). It opens the Week 1 editor with a new set group added; Save applies it and regenerates unedited weeks, Cancel adds nothing. Hidden on superset pairs.
+
+## Step 5 second round of changes (user requests; the spec in `docs/` was updated to match)
+- **Patterns are per set group.** Data model: `exercise.pattern` became `exercise.patterns[]`, one entry per Week 1 set group, same order. `generateWeeks` applies `patterns[k]` to set group k. The week editor keeps each row's pattern attached when groups are added or deleted in Week 1; new groups start as `Same every week`. `loadDraft` converts old drafts that still have a single `pattern` (`migrateOldPatterns`).
+- Pattern picker `openPatternPicker(wi, ex, k)` works on one set group; the table shows one pattern button per set group. `Start` is always shown (it sets Week 1 of that set group). The spec's "Start hidden with several set groups" rule is gone.
+- Pattern options, in order. kg: Same every week, Custom change per week, Percentage increase, Set each week manually. %: Same, Custom, Manual. RPE: Same, `+1 RPE per week`, Manual. No fixed +2.5 or +5 options. Custom and Percentage amounts are typed (comma or period) and also have - and + buttons; Custom may be negative. Generated RPE never goes above 10.
+- Blank loads show the planned change counted from Week 1, e.g. `Set load + 5 kg` in Week 2 and `+ 10 kg` in Week 3 (`plannedChange`). Edited weeks show plain `Set load`.
+- Add exercise modal: one row per set group (sets, reps, load), `Add set group`, delete per row.
+- Manual entry marks the weeks it sets as edited, so later changes to the exercise's other set groups no longer flow into those weeks (the picker warns about this).
+
+## Step 5 third round of changes (user requests; the spec in `docs/` was updated to match)
+- **Rest is per set group.** `exercise.rest` is gone; every set group has `rest` (seconds). Week 1 is the source, so changing it in the table regenerates the weeks that are not edited. A superset pair shares rest (`setGroupRest` updates the partner). Old drafts are converted in `migrateOldPatterns`.
+- **Load type is per set group.** The table, the Add exercise rows and the pattern picker each use the group's own kg / % / RPE control (`loadTypeControl`, `setGroupLoadType`). Changing it asks first if that group has values, then clears that group's loads and pattern. Weeks edited by hand stay marked edited (spec 5.8 used to clear edits). The week editor can only choose a type for a group added there.
+- **Table layout:** one table line per set group, so the load type, pattern and week values of each group line up. Columns: Exercise, Set group (scheme and rest), Load type, Pattern, Weeks, Actions. A week that does not include the exercise is one tall cell.
+- **Percentage increase rounding:** the picker lets the user choose the rounding step in kg and nearest / up / down. Stored as `step` and `mode` on the `percent` pattern (defaults 2.5 and nearest).
+- **Edited weeks:** when applying a non-manual pattern with hand-edited weeks, the picker offers Keep (default) or Replace (`replaceEditedGroup`).
+- **RPE cap:** blank RPE loads keep showing `Set load + N RPE`. Once a start value is given and `+1 RPE` would pass 10, the picker warns that RPE stays at 10.
+
+## Step 5 fourth round of changes (user requests)
+- In the pattern picker the `+` button sits directly beside the value (`[-] value [+] unit per week`).
+- Changing a set group's load type when some weeks were edited by hand now asks: keep the edited weeks as they are (default) or clear them too (`setGroupLoadType`, `applyGroupLoadType(ex, k, type, replaceEdited)`). This replaces the earlier decision that edited weeks always stay marked edited.

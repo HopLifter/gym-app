@@ -48,7 +48,7 @@ Give the user a desktop website for building a training program faster and more 
 ## 4. Key concepts
 
 - **Workout:** a row in the grid. It holds one list of exercises, and each exercise can be included in all weeks or only some of them.
-- **Week 1:** the source for each exercise. Later weeks are generated from Week 1 and the exercise's pattern.
+- **Week 1:** the source for each exercise. Later weeks are generated from Week 1 and each set group's pattern.
 - **Edited week:** a later week changed by hand. Generated values never overwrite it.
 - **Set group:** one or more identical sets, such as `3 × 5 at 97.5 kg`. An exercise can have several, such as `3 × 5` then a back-off `1 × 8`.
 - **Prescription:** the planned load, as kg, % of 1RM or RPE.
@@ -75,7 +75,7 @@ The header shows, from left to right:
 
 The grid updates immediately when a stepper changes.
 
-- **Adding a week:** generates the new week from Week 1 and the pattern.
+- **Adding a week:** generates the new week from Week 1 and the patterns.
 - **Adding a workout:** adds an empty workout.
 - **Removing a week:** removes the last week. If it has edited cells or kg values, confirm first.
 - **Removing a workout:** removes the last workout. If it has exercises, confirm first.
@@ -85,46 +85,45 @@ The grid updates immediately when a stepper changes.
 - Weeks run across and workouts run down.
 - The left column shows `Workout N`, followed by its editable description.
 - Each cell lists the exercises for that week.
-- Each exercise shows its name, sets × reps and load.
+- Each exercise shows its name, then one line per set group with sets × reps, the target RPE (if set) and the load, all on the same line.
 - Supersets show `A1` and `A2`, with letters restarting in each workout.
-- An exercise with more than one set group shows its first group, then `+N more`.
+- An exercise with more than one set group shows every set group, one per line. There is no `+N more`.
 - An exercise that isn't included in a week doesn't appear in that week's cell.
 - An edited week shows `(edited)`.
 - When a kg value exists, the load shows as `75% · 120 kg`.
 - Every week cell has an `Add exercise` button at the end of its list.
-- Loads use one colour per type: kg in `--text`, % in `--accent` and RPE in `#8FC7FF`. The text also names the type, so colour is never the only signal.
+- All loads (kg, % and RPE) use `--accent`. The text names the type (`97.5 kg`, `75%`, `RPE 8`), so colour is never the only signal.
+- A blank load shows `Set load`. If its set group's pattern changes the load, later weeks also show the planned change counted from Week 1, such as `Set load + 5 kg` in Week 2 and `Set load + 10 kg` in Week 3. Edited weeks show plain `Set load`.
 - The grid scrolls sideways when needed, and the Workout column stays fixed.
 
 ### 5.5 Exercise table
 
 Clicking an exercise in the grid:
 - Highlights that exercise in every week.
-- Opens a table for that workout below the grid.
+- Opens a table below the grid. The table has one row, for that exercise only.
 
 The table stays visible while the grid scrolls, up to 380px tall. `Close` hides it and clears the highlight.
 
-Each row shows:
-- Exercise name, set scheme and rest.
-- A kg, %, RPE load type control.
-- The progression pattern. Clicking it opens the pattern picker.
+The table is laid out with one line per set group, so each set group's load type, pattern and weekly values line up on the same line. The exercise shows:
+- Exercise name, and for each set group its set scheme and its own rest time (editable).
+- For each set group, its own kg, %, RPE load type control. Set groups of one exercise can use different load types, such as a single at 103% of 1RM followed by 3 × 3 at RPE 7.
+- One progression pattern button for each set group. Clicking one opens the pattern picker for that set group.
 - One cell per week.
-- Move Up, Move Down, Superset and Delete actions.
+- Add set group, Move Up, Move Down, Superset and Delete actions, at the far right. `Add set group` opens the Week 1 editor with a new set group added, and is hidden on superset pairs.
 
-Clicking another exercise in either the grid or the table updates both.
+Clicking another exercise in the grid replaces the exercise in the table.
 
 ### 5.6 Adding an exercise
 
 `Add exercise` opens a modal with:
 - Name, a dropdown of the Exercise List with `New Exercise` at the top. That option shows a free-text field.
-- Sets, default 3.
-- Reps, default 10.
 - Load type, default kg.
-- Load, which may be blank.
-- Rest in minutes, default 1.5.
+- One row per set group, each with sets (default 3), reps (default 10) and load (which may be blank, meaning "set later"). `Add set group` adds a row, and each row except the last can be deleted, so every group's start values can be entered straight away.
+- Each set group row also has its own load type and rest in minutes (default 1.5), so groups can rest for different times.
 - Notes, optional.
 - Add to, with the options `All weeks` and `This week only`. The default is `All weeks`.
 
-**All weeks:** The exercise is included in every week with the pattern `Same every week`.
+**All weeks:** The exercise is included in every week with the pattern `Same every week` on every set group.
 
 **This week only:** The exercise is included only in the week whose button was clicked. That week is marked as edited. The entered values are also kept in the other weeks' hidden entries, so `Add to this week` has values to start from.
 
@@ -135,7 +134,7 @@ If the Exercise List hasn't been loaded, only the free-text field shows.
 ### 5.7 Editing a week
 
 Clicking a week cell in the table opens a small editor with:
-- One row per set group: sets, reps, load and optional target RPE.
+- One row per set group: sets, reps, load type (changeable only on a group added here; the table's control changes existing groups), load, optional target RPE and rest.
 - `Add set group` and a delete action on each group, except the last.
 - `Remove from this week`.
 - `Use pattern value`, shown only on edited weeks. It clears the edit.
@@ -152,12 +151,14 @@ If removing an exercise from a week would leave it in no weeks, confirm first, t
 
 ### 5.8 Switching load type
 
-Changing the load type control on an exercise opens a confirm if any load has a value:
+Changing the load type control on a set group opens a confirm if any of that group's loads has a value:
 - **Title:** `Change load type?`
-- **Text:** `All loads for this exercise will be cleared.`
+- **Text:** `All loads for this set group will be cleared.`
 - **Buttons:** Cancel and red `Change`
 
-On confirm, every set group in every week uses the new type with a blank load, target RPE and kg value are cleared, edits are cleared, and the pattern resets to `Same every week`.
+On confirm, that set group uses the new type with a blank load in every week, its target RPE and kg value are cleared, and its pattern resets to `Same every week`.
+
+If some weeks were edited by hand, the confirm also asks what to do with them: `Keep the edited weeks as they are` (the default) or `Clear the edited weeks too`. Kept weeks stay exactly as they are.
 
 A blank load shows `Set load` in the grid and table.
 
@@ -165,25 +166,31 @@ If the exercise's set groups use different load types, the control shows none as
 
 ### 5.9 Progression patterns
 
-Clicking the pattern opens the picker, titled `Repeat across weeks`, showing the exercise and workout.
+Each set group has its own pattern. Clicking a set group's pattern opens the picker, titled `Repeat across weeks`, showing the exercise, workout and (with several set groups) which set group.
+
+Options, in order:
 
 | Option | kg | % of 1RM | RPE |
 |---|---|---|---|
 | Same every week | Yes | Yes | Yes |
-| Small increase | +2.5 kg | +2.5% of 1RM | +0.5 RPE |
-| Large increase | +5 kg | +5% of 1RM | +1 RPE |
-| Percentage increase | +5%, rounded to the nearest 2.5 kg | No | No |
-| Custom change per week | Steps of 1.25 kg | Steps of 0.5% | Steps of 0.25 RPE |
+| Custom change per week | Any amount, typed or nudged in steps of 1.25 kg. May be negative. | Any amount, typed or nudged in steps of 0.5%. May be negative. | No |
+| +1 RPE per week | No | No | Yes |
+| Percentage increase | Any percentage above 0 (steps of 0.5%), with rounding set by the user | No | No |
 | Set each week manually | Yes | Yes | Yes |
 
-- The picker also has a load type control and a `Start` value, which sets Week 1 of the first set group. Changing the load type uses the same confirm as 5.8.
-- `Start` is hidden while the exercise has more than one set group.
-- A preview shows the load for each week and updates immediately.
-- With `Set each week manually`, the preview becomes one input per week, and each week is marked as edited.
-- `Apply` saves the pattern. `Cancel` changes nothing.
-- If edited weeks would be kept, the picker shows `N edited weeks will stay as they are.`
+There are no fixed `+2.5` or `+5` options: Custom covers them. RPE is subjective and tops out at 10, so it has no custom option, and generated RPE loads never go above 10. With `+1 RPE per week` and a start value, the picker warns if the pattern would pass 10: `RPE is capped at 10. Every week after it reaches 10 stays at 10.`
 
-**Calculation:** Each week starts from the previous week's generated value, and Week 1 is the start value. The change applies to every set group using the pattern's load type. Other set groups copy their Week 1 values. A blank Week 1 load stays blank in every generated week.
+**Rounding (Percentage increase):** the user chooses the rounding step in kg (for example 2.5 or 1.25, depending on the plates available) and the direction: to the nearest, up to, or down to that step. The default is to the nearest 2.5 kg.
+
+**Edited weeks:** if any week was edited by hand (including through `Set each week manually`) and the user applies a pattern other than manual, the picker asks what to do with those weeks: `Keep the edited weeks as they are` (the default) or `Replace the edited weeks with the new pattern`. Replacing puts the new pattern's value into that set group in each edited week, and the week stops being marked edited if it then matches the patterns.
+
+- The picker also has a load type control (which applies to the whole exercise) and a `Start` value, which sets Week 1 of that set group. Changing the load type uses the same confirm as 5.8.
+- A preview shows the load for each week and updates immediately. A blank load shows the planned change, such as `Set load + 5 kg`.
+- With `Set each week manually`, the preview becomes one input per week for that set group, and each of those weeks is marked as edited.
+- `Apply` saves the pattern. `Cancel` changes nothing.
+- A blank load shows its planned change, for example `Set load + 5 kg`.
+
+**Calculation:** Each week starts from the previous week's generated value, and Week 1 is the start value. Each set group follows its own pattern. A blank Week 1 load stays blank in every generated week.
 
 **Rounding example:** `+5%` from 100 kg gives `100, 105, 110, 115`. Each result is calculated as `round(previous × 1.05 ÷ 2.5) × 2.5`.
 
@@ -192,7 +199,7 @@ Clicking the pattern opens the picker, titled `Repeat across weeks`, showing the
 - The `Superset` action pairs an exercise with the exercise below it.
 - It isn't available on the last exercise, or if either exercise is already paired or has more than one set group.
 - `Remove Superset` clears both exercises.
-- A pair shares one rest time. The second exercise adopts the first's rest, and editing either updates both.
+- A pair shares one rest time (each exercise in a pair has one set group). The second exercise adopts the first's rest, and editing either updates both.
 - Move Up and Move Down move the pair together.
 - Deleting one exercise clears the pair, and the other exercise stays.
 - `Add set group` is hidden on paired exercises.
@@ -265,17 +272,19 @@ Saved in the draft and in program files:
         {
           "id": "ex_1",
           "name": "Bench Press",
-          "rest": 180,
           "notes": "",
           "supersetId": null,
-          "pattern": { "kind": "add", "type": "kg", "amount": 2.5 },
+          "patterns": [
+            { "kind": "add", "type": "kg", "amount": 2.5 },
+            { "kind": "same", "type": "kg", "amount": 0 }
+          ],
           "weeks": [
             {
               "included": true,
               "edited": false,
               "groups": [
-                { "sets": 3, "reps": 5, "loadType": "kg", "load": 97.5, "rpe": 8, "kg": null },
-                { "sets": 1, "reps": 8, "loadType": "kg", "load": 82.5, "rpe": null, "kg": null }
+                { "sets": 3, "reps": 5, "loadType": "kg", "load": 97.5, "rpe": 8, "kg": null, "rest": 180 },
+                { "sets": 1, "reps": 8, "loadType": "kg", "load": 82.5, "rpe": null, "kg": null, "rest": 120 }
               ]
             }
           ]
@@ -286,14 +295,16 @@ Saved in the draft and in program files:
 }
 ```
 
-- `rest` is in seconds, matching GymLog. The screens show minutes.
+- `rest` belongs to each set group and is in seconds, matching GymLog. The screens show minutes.
 - `loadType` is `kg`, `pct` or `rpe`.
 - `load` is a number or `null`. A `pct` load of `75` means 75% of 1RM.
 - `rpe` is an optional target for kg and % loads. It is always `null` when `loadType` is `rpe`.
 - `kg` is a number or `null`, and only the AI or an opened file sets it.
-- `pattern.kind` is `same`, `add`, `percent` or `manual`.
+- `patterns` has one entry per set group of Week 1, in the same order. Set groups in later weeks follow the pattern with the same position.
+- `pattern.kind` is `same`, `add`, `percent` or `manual`. `add` covers Custom and +1 RPE.
 - `pattern.type` is the load type it changes.
-- `pattern.amount` is the weekly change. It is unused for `same` and `manual`, and is `5` for `percent`.
+- `pattern.amount` is the weekly change (it may be negative for `add`). It is unused for `same` and `manual`, and is the percentage for `percent`.
+- `percent` patterns also have `step` (the rounding step in kg, default 2.5) and `mode` (`nearest`, `up` or `down`, default `nearest`).
 - Each exercise has one `weeks` entry per program week, even for weeks where `included` is `false`.
 - Generated values still update in weeks where `included` is `false`, unless that week is edited.
 
@@ -414,7 +425,7 @@ Stop after each step so the user can test it.
 **Grid and size**
 1. A new program shows 4 weeks and 3 workouts.
 2. Each stepper updates the grid immediately and stops at its limits.
-3. A new week follows each exercise's pattern.
+3. A new week follows each set group's pattern.
 4. A new workout starts empty.
 5. Removing a week with edits or kg values asks first.
 6. Removing a workout with exercises asks first.
@@ -430,27 +441,27 @@ Stop after each step so the user can test it.
 14. Changing a later week marks it as edited.
 15. `Use pattern value` clears an edit.
 16. `Remove from this week` hides the exercise in that week's grid cell, and `Add to this week` brings it back. Removing it from its only week asks first, then deletes it.
-17. A second set group shows as `+1 more` in the grid.
-18. Changing load type asks first, then clears the loads and pattern.
+17. A second set group shows in full in the grid, with no `+1 more`.
+18. Changing a set group's load type asks first, then clears that group's loads and pattern. Set groups can have different load types and rest times.
 19. Comma and period decimals are both accepted.
 
 **Table**
 20. Clicking an exercise highlights it in every week and opens its workout's table.
-21. Clicking another exercise updates both views.
+21. Clicking another exercise in the grid replaces the exercise in the table and moves the highlight.
 22. Close hides the table and clears the highlight.
 23. The table stays visible while scrolling.
 
 **Patterns**
-24. Each option in 5.9 appears for the correct load type.
-25. `+2.5 kg` from 100 kg gives 100, 102.5, 105, 107.5.
-26. `+2.5%` from 75% gives 75, 77.5, 80, 82.5.
-27. `+0.5 RPE` from 7 gives 7, 7.5, 8, 8.5.
-28. `+5%` from 100 kg gives 100, 105, 110, 115.
+24. Each option in 5.9 appears for the correct load type, in the listed order. Each set group has its own pattern and start value.
+25. Custom `+2.5 kg` from 100 kg gives 100, 102.5, 105, 107.5.
+26. Custom `+2.5%` from 75% gives 75, 77.5, 80, 82.5.
+27. `+1 RPE` from 7 gives 7, 8, 9, 10, and never goes above 10.
+28. Percentage increase of 5 from 100 kg gives 100, 105, 110, 115, and the percentage can be changed.
 29. Custom changes update the preview.
 30. Manual inputs save and mark weeks as edited.
 31. Edited weeks stay unchanged, and the picker says so.
 32. Cancel changes nothing.
-33. A blank Week 1 load stays blank.
+33. A blank Week 1 load stays blank, and later weeks show the planned change, such as `Set load + 5 kg`.
 
 **Supersets**
 34. Pairing shows A1 and A2 in the grid and table.
