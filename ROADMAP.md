@@ -1,7 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
-**Last updated:** 4 November 2026 (1.7 implemented, v62)  
+**Last updated:** 5 November 2026 (Program Builder Phase 1 implemented; 1.7 implemented, v62)  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -145,10 +145,12 @@ Epics are larger initiatives that must be broken down into smaller features and 
 - Update the layout immediately when the number of weeks or workouts per week changes.
 - Support mixed programming within one program: fixed kg, % of 1RM and RPE targets, with easy switching between them. Percentages are always % of 1RM.
 - The builder keeps every load as written and does not convert it to kg.
-- Offer progression as a pick list of patterns, similar to a Google Calendar series: same every week, a kg or % change per week, a custom change, or set each week manually.
+- Offer progression as a pick list of patterns, similar to a Google Calendar series: same every week, a custom change per week, a percentage increase (kg only, with the rounding chosen by the user), +1 RPE per week (RPE only, capped at 10), or set each week manually. Each set group has its own pattern.
 - Suggestions never change a program until the user approves them.
 - Add no AI costs. The tool outputs a prompt to use with AI separately.
-- Support supersets.
+- Support supersets. A superset pairs one set group of an exercise with one set group of another exercise, with equal set counts (a larger group can be split, e.g. Curls 6 sets into 3 + 3). In the GymLog import file each pair becomes two adjacent entries, so one exercise can appear several times in a workout.
+- Each set group has its own load type (kg, % of 1RM or RPE) and its own rest time.
+- A blank load stays blank, and later weeks show the planned change (for example `Set load + 5 kg`).
 - Exercise names come from the GymLog Exercise List.
 - Single user for now, but avoid choices that would block future users.
 - Sets per muscle group is out of scope for now.
@@ -169,7 +171,7 @@ The builder does not export directly to GymLog.
 
 **Phases:**
 
-1. Core builder: create, edit, save and reopen programs, and copy the AI prompt. Spec ready, not built.
+1. Core builder: create, edit, save and reopen programs, and copy the AI prompt. Status: implemented (5 November 2026) as a separate desktop website, https://hoplifter.github.io/gym-program-builder/ (repo github.com/HopLifter/gym-program-builder, plain HTML/CSS/JS, no change to GymLog itself). Its own `PROJECT_SUMMARY.md` and spec describe it. The end-to-end run (AI prompt, GymLog import, reopening the AI's program file) is still being tried with a real block.
 2. Reuse: templates, duplication and versions.
 3. Analysis: weekly and per-exercise workload.
 4. History: import backups and compare planned with actual (best after 1.8 to 1.10).
@@ -221,7 +223,7 @@ An initial suggested sequence, subject to further exploration:
 3. Program Queue (done).
 4. Workout Description and Comment (done).
 5. Superset Import (done).
-6. Program Builder Epic, Phases 1 to 3.
+6. Program Builder Epic, Phases 1 to 3 (Phase 1 done).
 7. Set-by-Set Logging.
 8. Planned vs. Actual Tracking.
 9. Missed Reps Logging.

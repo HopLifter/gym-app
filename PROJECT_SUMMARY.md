@@ -42,6 +42,40 @@ no subscriptions.
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
 
+## Docs-only build 20261105: Program Builder Phase 1 built (Roadmap 2.1)
+`index.html` and `sw.js` are unchanged from 20261104, so the cache version
+stays `gym-app-cache-v62`. `ROADMAP.md` is updated (Phase 1 implemented,
+builder decisions refreshed, order updated).
+
+The Program Builder is a **separate desktop website**, not part of GymLog:
+- Live: https://hoplifter.github.io/gym-program-builder/
+- Repo: github.com/HopLifter/gym-program-builder (local clone
+  `C:\Projects\gym-program-builder`). Plain HTML/CSS/JS in one `index.html`,
+  no service worker. Its own `PROJECT_SUMMARY.md` (data model, behaviour,
+  testing limits) and spec (`docs/Feature Spec 2.1 …`) are the hand-over
+  documents for it.
+- **Storage:** it shares the origin `hoplifter.github.io` with GymLog, so it
+  must never touch GymLog's `gymapp_` keys, and does not. Its own keys all
+  start with `builder_` (`builder_draft_v1`, `builder_exercise_list_v1`,
+  `builder_detail_height_v1`). The only thing it reads from GymLog is a
+  Backup All Data file the user picks: just `gymapp_exercise_list_v1`, kept as
+  `builder_exercise_list_v1` and used for the exercise name dropdown.
+- **What it hands to GymLog:** the builder copies an AI prompt. The AI
+  returns an import file in the existing Program Import Format (including the
+  `superset` field from 1.7) plus a copy of the program with kg values for the
+  builder. Nothing new is needed in GymLog.
+- **Things worth knowing when reading its import files:** each set group is
+  its own exercise entry, in order. A superset pairs one set group with one
+  set group of another exercise (equal set counts), so one exercise name can
+  appear in several entries and several pairs in a workout, with the pair
+  next to each other. Rest is per entry. Load types can differ between set
+  groups of one exercise; the file only holds kg weights. This matches the
+  note in `ROADMAP.md` that until 1.8 each different weight and rep
+  combination is a separate entry.
+- **Status:** all built steps and the scripted acceptance tests pass. A real
+  block going through the AI prompt, into GymLog, and back into the builder
+  (spec tests 39-41, 46-47 and 51-54) was being tried when this was written.
+
 ## New/changed this session: Superset Import (Roadmap 1.7, v62, build 20261104)
 Source: Feature Spec 1.7. All in `index.html`; `sw.js` only has the version
 bump to `gym-app-cache-v62` (`APP_VERSION` matches).
