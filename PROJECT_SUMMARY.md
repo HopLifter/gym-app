@@ -22,8 +22,8 @@ Spec: `docs/Feature Spec 2.1 Program Builder Phase 1.md`. Files in `docs/` marke
 | 4. Exercise table, load type switching | Done, committed |
 | 5. Progression patterns | Done, committed |
 | 6. Supersets and reordering | Done as 6.1 (set-group pairs), committed |
-| 7. Save/Open file, Exercise List | Built, awaiting user test |
-| 8. Copy AI prompt | Not started |
+| 7. Save/Open file, Exercise List | Done, committed |
+| 8. Copy AI prompt | Built, awaiting user test |
 | 9. Acceptance tests, real block | Not started |
 
 ## Data model (implemented in `index.html`)
@@ -128,3 +128,8 @@ No automated tests; everything is checked by hand in a browser (open `index.html
 - `Open file` (`openProgramFile`, `parseProgramFile`): reads the file (max 5 MB), converts old formats (`migrateOldPatterns`), checks it with `isValidProgram`, rejects duplicate ids and a higher `version`, and unpairs any broken superset. Invalid: the message "This file can't be opened." and nothing changes. If there are unsaved changes it asks `Replace current program?` first, after the file has been checked.
 - `Load Exercise List` (`loadExerciseListFile`, `parseExerciseListFromBackup`): reads a GymLog backup (max 100 MB), takes only `gymapp_exercise_list_v1` (a JSON string inside the file, parsed a second time), trims, removes duplicates and non-text items, and stores the names under `builder_exercise_list_v1`, replacing any earlier list. Shows `N exercises loaded.`; otherwise "This file doesn't contain an Exercise List." Nothing else from the backup is kept.
 - The builder never reads or writes a `gymapp_` localStorage key. The only `gymapp_` text in the code is the key name looked up inside the opened backup file.
+
+## Step 8 additions
+- `Copy AI prompt` (`copyAiPrompt`): with no exercises it shows `Add an exercise first.` and copies nothing. If some set groups in included weeks have no load, it first asks (`N loads are blank. The AI will suggest values for them.`, Cancel / `Copy prompt`). The prompt is built by `buildAiPrompt` from the template `AI_PROMPT_LINES` (spec section 7) with the program name and the exact program JSON (`JSON.stringify(program, null, 2)`, the same as a saved file). `Prompt copied.` on success; if the clipboard is unavailable or refuses, `showPromptBox` shows the prompt in a text box.
+- The prompt template gained a "HOW TO READ THE PROGRAM JSON" section (weeks, groups, patterns, supersets, rest per set group) and a line about blank loads with a pattern, because the data model changed after the first spec draft. The spec (section 7) has the same text.
+- `showConfirm` accepts `primary: true` for a green confirm button (red stays the default for destructive confirms).

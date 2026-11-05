@@ -197,6 +197,7 @@
     border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit;
   }
   .modal textarea { resize: vertical; min-height: 56px; }
+  .modal textarea.prompt-box { height: 340px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
   .modal select:focus, .modal textarea:focus { outline: none; border-color: var(--accent); }
   .form-warning { color: var(--rpe); font-size: 12px; margin-top: -6px; margin-bottom: 12px; }
   .form-error { color: var(--danger); margin-bottom: 12px; }
@@ -876,7 +877,7 @@ function showConfirm(opts) {
     onclick: function () { closeModal(); if (opts.onCancel) opts.onCancel(); }
   });
   var okBtn = el('button', {
-    className: 'danger',
+    className: opts.primary ? 'primary' : 'danger', // red for destructive confirms, green for the rest
     text: opts.confirmLabel,
     onclick: function () { closeModal(); opts.onConfirm(); }
   });
@@ -1086,13 +1087,152 @@ function loadExerciseListFile() {
   }, noList);
 }
 
-// Placeholder for features that arrive in later build steps.
-function laterButton(label, step, extraClass) {
-  return el('button', {
-    text: label, className: extraClass || '', disabled: 'disabled',
-    title: 'Coming in build step ' + step
-  });
+/* ==========================================================================
+   COPY AI PROMPT (spec 5.14, section 7)
+   The prompt text below is the template from section 7 of the spec. [program name] and
+   [program JSON] are filled in when the button is pressed.
+   ========================================================================== */
+
+var AI_PROMPT_LINES = [
+  'You are helping me turn a training program into real weights for my workout app, GymLog.',
+  '',
+  'PROGRAM: [program name]',
+  '',
+  'MY DATA',
+  'Before starting, ask me for my 1RM for every lift that uses a % load. I may also attach a GymLog backup file with my workout history. Use it for RPE-based and blank loads.',
+  '',
+  'HOW TO READ THE PROGRAM JSON',
+  '- "workouts" lists the workouts of one week. Each exercise has "weeks": one entry for each program week, in order (the first is Week 1). A week entry has "included" (false means the exercise is not done that week), "edited" and "groups".',
+  '- A group is a set group: "sets" × "reps" at "load". "loadType" says what the load means: "kg" (kilograms), "pct" (percent of my 1RM) or "rpe" (target RPE). "rpe" is an optional target RPE for kg and pct loads. "rest" is in seconds. "kg" is the real weight you fill in; it is null for now.',
+  '- Each exercise\'s "patterns" and "supersets" lists have one entry for each set group of its first week, in the same order. A blank load ("load": null) with a pattern changes every week by that pattern: "add" adds "amount" per week (in the unit of the load), and "percent" multiplies the previous weight by 1 + "amount" ÷ 100 and rounds to a multiple of "step" kg ("mode" says nearest, up or down). RPE never goes above 10.',
+  '',
+  'STEP 1: SUGGEST WEIGHTS',
+  'Work out a kg value for every set group in a week where "included" is true:',
+  '- "pct" load: 1RM × load ÷ 100, rounded to the nearest 2.5 kg.',
+  '- "kg" load: use the load, unless I ask you to change it.',
+  '- "rpe" or blank load: suggest a weight from my history. If there is no useful history, ask me for one. For a blank load with a pattern, suggest the first week\'s weight and follow the pattern for later weeks.',
+  'Do not guess a 1RM. Ask if one is missing.',
+  '',
+  'STEP 2: SHOW ME A TABLE',
+  'Show one table per workout, with these columns: Week, Exercise, Sets × Reps, Prescription, Suggested kg, Target RPE, Rest (min), Reasoning.',
+  'Keep the Reasoning short. Group superset exercises together, and label them.',
+  'Then ask me what I want to change.',
+  '',
+  'STEP 3: UPDATE AND CONFIRM',
+  'Update the table with my changes. Ask whether I confirm it. Do not create any final files until I clearly confirm.',
+  '',
+  'STEP 4: CREATE TWO FILES',
+  'After I confirm, create both files, and check that each one is valid JSON.',
+  '',
+  'File 1: [program name].gymlog.json, for import into GymLog:',
+  '{',
+  '  "program": { "name": "<name>" },',
+  '  "workouts": [',
+  '    {',
+  '      "label": "Block <block> - Wk<week> D<workout>",',
+  '      "description": "<description>",',
+  '      "exercises": [',
+  '        { "name": "<name>", "sets": 3, "reps": 5, "weight": 120, "rpe": 8, "rest": 180, "notes": "", "superset": "A" }',
+  '      ]',
+  '    }',
+  '  ]',
+  '}',
+  'Rules for File 1:',
+  '- Create one workout for every week and workout, in order: all of Week 1, then all of Week 2.',
+  '- Leave out an exercise in any week where its "included" value is false.',
+  '- Leave out a workout that has no included exercises in that week.',
+  '- If an exercise has several set groups, create a separate exercise entry for each, in order.',
+  '- "weight" is always in kg. "rest" is always in seconds.',
+  '- Use a period for decimals.',
+  '- "rpe" is the target RPE, or the load if the load type is "rpe". Leave it out if there is neither.',
+  '- For two set groups with the same value in their exercises\' "supersets" list (the same pair id), give both entries the same "superset" letter if both exercises are included that week and both have that set group. Each pair gets its own letter. Letters restart in each workout. Put the two entries next to each other, at the position of the earlier one. An exercise with several paired set groups therefore appears several times.',
+  '- Leave "superset" out for all other entries, including a paired set group when its partner isn\'t included that week.',
+  '',
+  'File 2: [program name].program.json, for my Program Builder:',
+  '- Return the exact program JSON below, unchanged, except:',
+  '  - Set "kg" on every set group in an included week to the confirmed weight.',
+  '  - If I changed a sets, reps, load or rest value in the table, update that value too. For a load changed in a later week, also set that week\'s "edited" to true.',
+  '',
+  'After the files, tell me how many workouts File 1 contains.',
+  '',
+  'PROGRAM JSON',
+  '[program JSON]'
+];
+
+// The full prompt for the current program. split/join is used instead of replace so that
+// characters like "$" in a program name are copied as they are.
+function buildAiPrompt() {
+  var text = AI_PROMPT_LINES.join('\n');
+  text = text.split('[program name]').join(program.name);
+  return text.split('[program JSON]').join(JSON.stringify(program, null, 2));
 }
+
+// How many set groups in included weeks have no load yet (the AI will suggest values for them).
+function countBlankLoads() {
+  var count = 0;
+  program.workouts.forEach(function (w) {
+    w.exercises.forEach(function (ex) {
+      ex.weeks.forEach(function (entry) {
+        if (!entry.included) return;
+        entry.groups.forEach(function (g) { if (g.load === null) count++; });
+      });
+    });
+  });
+  return count;
+}
+
+// Shown when the browser does not allow copying: the prompt in a text box to copy by hand.
+function showPromptBox(text) {
+  var box = el('textarea', { className: 'prompt-box', readonly: 'readonly', 'aria-label': 'AI prompt' });
+  box.value = text;
+  openModal({
+    title: 'Copy the prompt',
+    wide: true,
+    body: el('div', null, [
+      el('p', { text: 'Your browser did not allow copying. Select all the text below and copy it yourself.' }),
+      box
+    ]),
+    actions: [
+      el('button', { text: 'Select all', onclick: function () { box.focus(); box.select(); } }),
+      el('button', { className: 'primary', text: 'Close', onclick: closeModal })
+    ]
+  });
+  box.focus();
+  box.select();
+}
+
+function copyPromptNow() {
+  var text = buildAiPrompt();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      function () { showNotice('Prompt copied.'); },
+      function () { showPromptBox(text); }
+    );
+  } else {
+    showPromptBox(text);
+  }
+}
+
+// Copy AI prompt (spec 5.14): needs at least one exercise, and asks first if some loads are blank.
+function copyAiPrompt() {
+  if (!programHasExercises(program)) {
+    showNotice('Add an exercise first.');
+    return;
+  }
+  var blank = countBlankLoads();
+  if (blank > 0) {
+    showConfirm({
+      title: 'Copy AI prompt?',
+      text: blank + (blank === 1 ? ' load is blank.' : ' loads are blank.') + ' The AI will suggest values for them.',
+      confirmLabel: 'Copy prompt',
+      primary: true,
+      onConfirm: copyPromptNow
+    });
+  } else {
+    copyPromptNow();
+  }
+}
+
 
 function renderHeader() {
   var header = document.getElementById('header');
@@ -1126,7 +1266,7 @@ function renderHeader() {
     el('button', { text: 'Save file', onclick: saveProgramFile }),
     el('button', { text: 'Load Exercise List', onclick: loadExerciseListFile }),
     el('button', { text: 'New Program', onclick: startNewProgram }),
-    laterButton('Copy AI prompt', 8, 'primary')
+    el('button', { className: 'primary', text: 'Copy AI prompt', onclick: copyAiPrompt })
   ]));
 }
 

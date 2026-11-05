@@ -328,11 +328,16 @@ PROGRAM: [program name]
 MY DATA
 Before starting, ask me for my 1RM for every lift that uses a % load. I may also attach a GymLog backup file with my workout history. Use it for RPE-based and blank loads.
 
+HOW TO READ THE PROGRAM JSON
+- "workouts" lists the workouts of one week. Each exercise has "weeks": one entry for each program week, in order (the first is Week 1). A week entry has "included" (false means the exercise is not done that week), "edited" and "groups".
+- A group is a set group: "sets" × "reps" at "load". "loadType" says what the load means: "kg" (kilograms), "pct" (percent of my 1RM) or "rpe" (target RPE). "rpe" is an optional target RPE for kg and pct loads. "rest" is in seconds. "kg" is the real weight you fill in; it is null for now.
+- Each exercise's "patterns" and "supersets" lists have one entry for each set group of its first week, in the same order. A blank load ("load": null) with a pattern changes every week by that pattern: "add" adds "amount" per week (in the unit of the load), and "percent" multiplies the previous weight by 1 + "amount" ÷ 100 and rounds to a multiple of "step" kg ("mode" says nearest, up or down). RPE never goes above 10.
+
 STEP 1: SUGGEST WEIGHTS
 Work out a kg value for every set group in a week where "included" is true:
 - "pct" load: 1RM × load ÷ 100, rounded to the nearest 2.5 kg.
 - "kg" load: use the load, unless I ask you to change it.
-- "rpe" or blank load: suggest a weight from my history. If there is no useful history, ask me for one.
+- "rpe" or blank load: suggest a weight from my history. If there is no useful history, ask me for one. For a blank load with a pattern, suggest the first week's weight and follow the pattern for later weeks.
 Do not guess a 1RM. Ask if one is missing.
 
 STEP 2: SHOW ME A TABLE
