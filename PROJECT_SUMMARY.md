@@ -1,4 +1,4 @@
-# Gym Workout App — Project Summary
+# GymLog — Project Summary
 
 ## What this is
 A free, offline-first workout tracker for personal phone use. Built as a
@@ -49,6 +49,9 @@ no subscriptions.
   locale uses (often mm/dd/yyyy), and there's no way to force that. Any
   future date input should follow the same pattern (see "Date Handling"
   below) rather than reaching for `type="date"`.
+
+## Name
+The app is called **GymLog** everywhere (page title and Settings → About changed from "Today's Lift" in v63; the home-screen label of an already installed shortcut keeps its old name until it is re-added).
 
 ## Offline fix (v63, 5 November 2026) — still to be tested on the iPhone
 `sw.js` cached `index.html` but not the folder address `https://hoplifter.github.io/gym-app/`
