@@ -1,6 +1,6 @@
 # GymLog – Feature Spec 2.1: Program Builder Phase 2 (Reuse and Coaching Tools)
 
-**Status:** Reviewed and all open questions decided (6 November 2026). Ready to build, step 1 first. Nothing is built yet.
+**Status:** Reviewed (6 November 2026); all questions decided and the Library mockup approved (`docs/mockups/Program Builder Library - Athlete-centred (revised).html`). Ready to build, step 1 first. Nothing is built yet.
 **Applies to:** `builder/index.html` only. GymLog itself does not change: new fields reach the phone through the existing `notes`, `rpe` and `weight` import fields.
 **Builds on:** `Feature Spec 2.1 Program Builder Phase 1.md` (the "Phase 1 spec") and `builder/PROJECT_SUMMARY.md`. Where this spec does not mention something, Phase 1 behaviour stays.
 **Source of the ideas:** coach feedback, `ROADMAP.md` section 2.1 ("Coach feedback, 6 November 2026").
@@ -27,7 +27,7 @@ Let a coach build a block once, reuse it for many athletes, and use the tools co
 6. Duplication (week, workout, program) and manual version snapshots.
 7. Metrics charts (sets, tonnage, average intensity per lift per week).
 
-**Out of scope (later):** body heat map by muscle group, cluster sets, band and chain tension, block phase names, autoregulation rules, an RPE-chart load estimate, drag-and-drop reordering, printable or PDF program, comments per week, multi-athlete dashboard, mobile layout, automatic snapshots, undo and redo, an automated test suite, and any change to GymLog or its import format.
+**Out of scope (later):** body heat map by muscle group, cluster sets, band and chain tension, block phase names, autoregulation rules, an RPE-chart load estimate, drag-and-drop reordering, dragging a template onto an athlete (a later shortcut for `Use for athlete…`), printable or PDF program, comments per week, multi-athlete dashboard, mobile layout, automatic snapshots, undo and redo, an automated test suite, and any change to GymLog or its import format.
 
 ## 3. Decisions already made
 
@@ -42,6 +42,8 @@ These come from the coach feedback session and this planning session. Do not reo
 | Accessories | Three tiers: variations use a main lift's 1RM; other lifts the coach wants by % are added to the profile as extra lifts; true accessories have no reference and use kg, RPE or blank. See section 7. |
 | Storage | Everything lives in the browser library. "Export everything" and "Import everything" protect against the browser losing data. |
 | Programs | All programs go in the library, not only templates and profiles. |
+| Library layout | Athlete-centred (mockup option C, adjusted): templates at the top, athletes below as collapsible blocks that hold their programs. Coach flow: make templates, add an athlete, apply a template to the athlete, and the new program appears under that athlete. |
+| Applying a template | Click first (`Use for athlete…`); drag onto an athlete comes later. The generated program is saved to the library immediately. |
 | Coaching fields in GymLog | Written automatically into the exercise `notes` on export. No GymLog change. |
 | Training max | Included, simple version: optional per lift, and the profile says which value percentages use. |
 | Versions | Manual snapshots only ("Save version"), at most 10 per program (to protect browser storage). |
@@ -112,7 +114,15 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 
 **Goal:** replace the single draft with a library, without losing Phase 1 behaviour.
 
-**1.1 Library screen.** A `Library` button in the header opens a full-page screen (Back returns to the editor) with three tabs: Programs, Templates, Athletes. Each tab is a list, newest edited first. A row shows the name, the last edited date (dd/mm/yyyy) and, for programs, `Weeks × workouts/week`. Row actions: Open, Duplicate, Rename, Delete, Export. A `New` button creates an item. The Athletes tab uses the profile screen of step 3.
+**1.1 Library screen (athlete-centred layout, chosen from the mockup options).** A `Library` button in the header opens a full-page screen (Back returns to the editor). From top to bottom:
+- **Header bar:** Back, title, Import everything, Export everything.
+- **Templates** (at the top): a list, newest edited first, with `+ New template`. A row shows the name, the last edited date (dd/mm/yyyy), `Weeks × workouts/week`, and the buttons `Use for athlete…`, Open, Duplicate, Rename, Delete, Export.
+- **Athletes:** one block per athlete, with `+ New athlete` and an `Expand all` / `Collapse all` button beside it. The button is one control whose label follows the state: `Expand all` while any athlete is collapsed, `Collapse all` once every athlete is expanded. It does not affect the "Not linked to an athlete" section. A block shows the name, the main lifts (for example `Squat 200 · Bench 130 · Deadlift 240`), a count such as `4 programs`, and the buttons `Edit profile` and `New program…`. **Blocks are collapsed by default**, except the athlete whose program was edited last. Expanding a block lists that athlete's programs, newest edited first, each with Open, Duplicate, Rename, Delete, Export. A program that is open in the editor is marked `Open now`.
+- **Not linked to an athlete** (programs only; collapsed by default; hidden when empty): programs without an athlete, for example Phase 1 programs. **This section is temporary.** Once programs are made from templates and athletes it empties out, so it is kept minimal and easy to remove: it is drawn by one function (`renderUnlinkedSection`) with one call from the Library screen, has no buttons of its own beyond the normal program buttons, and there is no `Link to athlete…` action. Removing it later means deleting that function and its call. Step 1's single program list is this same section.
+- **Footer:** `Last exported` and the storage meter.
+- **Empty first visit:** with nothing in the library the screen shows one prompt, `Create your first template`, and a second button `Import (restore backup)`.
+- **Build order.** The screen grows with the steps. Step 1 builds the screen, the footer and a single list of programs (the "Not linked to an athlete" section). Step 3 adds the Athletes section with profiles. Step 4 adds Templates and `Use for athlete…`, and from then on a generated program appears under its athlete. The layout above is the finished result.
+- Dragging a template onto an athlete is a later shortcut for `Use for athlete…` (see section 2, out of scope). It is not part of step 1.
 
 **1.2 Autosave replaces the draft.** The open program saves into its library entry after every edit (what `changed()` does today for the draft). New Program creates a new library entry. There is no "unsaved changes" warning for the library; the warning stays only where a file is replaced (Open file with a program that has changed since its last export). Save file and Open file keep working as Phase 1 describes. Open file adds the file's program to the library as a new entry instead of replacing the open one.
 
@@ -139,6 +149,11 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 - T1.10: Fill storage artificially: the notice appears and editing continues.
 - T1.11: No `gymapp_` key is read or written.
 - T1.12: `.gitignore` blocks `*library*.json`.
+- T1.13: With nothing in the library (and no Phase 1 draft) the Library shows `Create your first template` and `Import (restore backup)`, and nothing else.
+- T1.14: Footer shows `Last exported` and the storage meter on every state of the screen.
+- T1.15 (from step 3): An athlete block starts collapsed unless it holds the last edited program; clicking the heading expands and collapses it, and the choice is remembered while the screen stays open.
+- T1.15a (from step 3): `Expand all` opens every athlete block and the button then reads `Collapse all`; collapsing one block by hand turns it back to `Expand all`; `Collapse all` closes them all.
+- T1.16 (from step 4): A program generated for an athlete appears under that athlete, not in `Not linked to an athlete`.
 
 ### Step 2 – Coaching fields
 
@@ -233,7 +248,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 
 **4.1 Templates.** `Save as template` (editor menu) copies the open program into the Templates tab with all `kg` set to null. A template opens in the same editor as a program, with a `Template` tag in the header. Differences: no kg shown and no GymLog export (a template has no kg to export). `New` on the Templates tab creates an empty one. A template's `source` is always null.
 
-**4.2 Generate.** Library > Templates > Generate (or the editor menu): choose a template and a profile. The dialog shows the name for the new program (default `<template> – <athlete>`), a count of how many % set groups will get a kg value, and a list of problems (for example `Pause Squat uses Back Squat: no 1RM`, or `Leg Press: not available for Sam`). Generate is allowed with problems; those groups stay blank and the new program shows a warning bar. Result: a new program in the library, opened in the editor.
+**4.2 Generate.** In the Library, click `Use for athlete…` on a template and pick the athlete, or click `New program…` on an athlete block and pick the template (or use the editor menu). Either way a template and a profile are chosen. The dialog shows the name for the new program (default `<template> – <athlete>`), a count of how many % set groups will get a kg value, and a list of problems (for example `Pause Squat uses Back Squat: no 1RM`, or `Leg Press: not available for Sam`). Generate is allowed with problems; those groups stay blank and the new program shows a warning bar. Result: a new program, saved to the library at once (it appears under the athlete) and opened in the editor. It can be deleted if it is not wanted.
 - Each % set group gets `kg = kgForPercent(load, refLift, profile)`.
 - kg and RPE set groups and all blank loads are copied unchanged.
 - `source` and `profileUsed` are filled in (section 5).
@@ -367,7 +382,7 @@ If the coach wants a % for an accessory with no 1RM, the builder leaves it blank
 
 ## 8. Visual design
 
-Same tokens as Phase 1 spec section 8. New screens (Library, profile form, metrics) follow the same layout rules. A mockup of the Library screen and the Metrics panel is shown and agreed before step 1.1 and step 7 are built (project working preference).
+Same tokens as Phase 1 spec section 8. **Use as few boxes as possible.** Group things with headings, spacing and thin divider lines, not with a border and background around each block or list item: boxes waste space and force extra gaps between them. Boxes stay only where they do a job: dialogs, input fields, and warning bars. New screens (Library, profile form, metrics) follow the same layout rules. A mockup of the Library screen and the Metrics panel is shown and agreed before step 1.1 and step 7 are built (project working preference).
 
 ## 9. Risks and open points
 
@@ -393,13 +408,15 @@ Step 3 can be built before step 2 if the coach wants Generate sooner; they do no
 
 ## 11. Open questions to confirm before building
 
-None open. All questions were decided in review on 6 November 2026 (also recorded in section 3):
+Questions 1 to 6 were decided in review on 6 November 2026 (also recorded in section 3).
 
 1. **Deload and effort targets (5.3):** RPE and RIR loads and targets are unchanged in a deload week.
 2. **Autosave (1.2):** the library autosaves and the "unsaved changes" warning goes away. Export everything, the Last exported reminder and versions are the safety net.
 3. **Library import (1.5):** two modes only, Add as copies and Replace everything. No smart merge.
 4. **Back-offs (5.4):** no limit on top sets; any set group can take its load from any other set group of the same exercise (no loops).
 5. **Unavailable exercises on Generate (4.2):** flagged and kept in the new program.
+
+6. **Linking an existing program to an athlete:** not built. The "Not linked to an athlete" section is temporary (1.1), so it gets no `Link to athlete…` action. To use an old program for an athlete, save it as a template (step 4) and use it for that athlete.
 
 New questions that come up while building go here before they are decided.
 

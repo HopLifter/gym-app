@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Builder Library – Athlete-centred (revised)</title>
+<style>
+:root{--bg:#0B0D0C;--surface:#161917;--line:#2A2F2B;--text:#EDEEEA;--dim:#8C948C;--accent:#C6FF3D;--sel:#232A1A;--danger:#E05C4E;--amber:#E8B04A}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;padding:24px}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:16px;margin:40px 0 4px;color:var(--accent)}
+p.note{color:var(--dim);margin:4px 0 12px;max-width:900px}
+.frame{background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:hidden;max-width:1100px;position:relative}
+.hdr{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line)}
+.hdr .name{font-weight:600}
+.btn{border:1px solid var(--line);background:transparent;color:var(--text);padding:5px 11px;border-radius:6px;font:inherit;font-size:13px;cursor:pointer}
+.btn.p{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.sp{flex:1}
+.dim{color:var(--dim)}
+.sect{padding:14px 14px 6px;font-weight:600;display:flex;align-items:center;gap:10px}
+.sect small{color:var(--dim);font-weight:400}
+.row{display:flex;align-items:center;gap:12px;padding:9px 14px;border-top:1px solid var(--line)}
+.row:hover{background:#1a1e1b}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block}
+.row .t span{color:var(--dim);font-size:12px}
+.row.sel{background:var(--sel);box-shadow:inset 3px 0 var(--accent)}
+.act{display:flex;gap:6px}
+.act span{font-size:12px;color:var(--dim);padding:3px 7px;border:1px solid var(--line);border-radius:5px}
+.tag{font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.tag.g{color:var(--accent);border-color:#3b4a1c}
+.tag.w{color:var(--amber);border-color:#5a4720}
+.ath{border-top:1px solid var(--line)}
+.ah{display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer}
+.ah:hover{background:#1a1e1b}
+.ath .body .row{padding-left:38px;border-top:1px solid #1d211e}
+.ah .car{width:14px;color:var(--dim);transition:transform .15s}
+.ath.open .car{transform:rotate(90deg)}
+.ah b{min-width:96px}
+.ah .lifts{flex:1;color:var(--dim);font-size:12px}
+.ath .body{display:none}
+.ath.open .body{display:block}
+.foot{display:flex;gap:16px;align-items:center;padding:9px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--dim);margin-top:6px}
+.am{color:var(--amber)}
+.meter{width:120px;height:6px;background:var(--line);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+.meter i{display:block;height:100%;width:24%;background:var(--accent)}
+.empty{padding:60px 14px;text-align:center}
+.empty h3{margin:0 0 6px;font-size:18px}
+.empty p{color:var(--dim);margin:0 0 16px}
+.modal{position:absolute;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:5}
+.modal.on{display:flex}
+.dlg{width:440px;max-width:92%;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.dlg h3{margin:0 0 10px;font-size:16px}
+.dlg label{display:block;font-size:12px;color:var(--dim);margin:10px 0 4px}
+.dlg .field{border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--bg)}
+.pick{border:1px solid var(--line);border-radius:6px;background:var(--bg);max-height:150px;overflow:auto}
+.pick div{padding:7px 10px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:8px}
+.pick div:last-child{border:0}
+.pick div.on{background:var(--sel);box-shadow:inset 3px 0 var(--accent)}
+.pick div span{margin-left:auto;color:var(--dim);font-size:12px}
+.prob{margin-top:10px;font-size:12px;color:var(--amber);border:1px solid #5a4720;border-radius:6px;padding:8px 10px;background:#2a2310}
+.ok{color:var(--accent)}
+.bt{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+</style>
+</head>
+<body>
+<h1>Program Builder – Library, athlete-centred (revised)</h1>
+<p class="note">Reflects your flow: templates at the top, athletes below as collapsible blocks that hold their programs. Click an athlete heading to expand or collapse it. In the populated state, click <b>Use for athlete…</b> on a template to see the picker dialog. Dates are dd/mm/yyyy.</p>
+
+<h2>State 1 – First visit (empty library)</h2>
+<div class="frame">
+  <div class="hdr"><span class="name">Program Builder · Library</span><span class="sp"></span><span class="btn">Import everything</span></div>
+  <div class="empty"><h3>Your library is empty</h3><p>Start with a template: a program with no kg, which you can reuse for any athlete.</p><span class="btn p">Create your first template</span> <span class="btn">Import (restore backup)</span></div>
+  <div class="foot"><span>Last exported: never</span><span class="sp"></span><span>Browser storage: 0 MB of about 5 MB <span class="meter"><i style="width:0"></i></span></span></div>
+</div>
+
+<h2>State 2 – A working library (athletes collapsed, one expanded)</h2>
+<div class="frame" id="f2">
+  <div class="hdr"><span class="btn">← Back to editor</span><span class="name">Library</span><span class="sp"></span><span class="btn">Import everything</span><span class="btn">Export everything</span></div>
+
+  <div class="sect">Templates <small>3 · no kg</small><span class="sp"></span><span class="btn">Compare…</span><span class="btn p">+ New template</span></div>
+  <div class="row"><div class="t"><b>Powerlifting Peaking 6wk</b><span>6 weeks × 4 workouts · avg intensity 81%</span></div><span class="dim">30/10/2026</span><div class="act"><span class="btn p" style="padding:3px 10px;font-size:12px" onclick="openDlg()">Use for athlete…</span><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  <div class="row"><div class="t"><b>Upper/Lower Hypertrophy 8wk</b><span>8 weeks × 4 workouts · avg intensity 68%</span></div><span class="dim">15/10/2026</span><div class="act"><span class="btn p" style="padding:3px 10px;font-size:12px" onclick="openDlg()">Use for athlete…</span><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  <div class="row"><div class="t"><b>Linear Strength 4wk</b><span>4 weeks × 3 workouts · avg intensity 77%</span></div><span class="dim">12/08/2026</span><div class="act"><span class="btn p" style="padding:3px 10px;font-size:12px" onclick="openDlg()">Use for athlete…</span><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+
+  <div class="sect">Athletes <small>3</small><span class="sp"></span><span class="btn" id="ea" onclick="allAth()">Expand all</span><span class="btn p">+ New athlete</span></div>
+
+  <div class="ath open">
+    <div class="ah" onclick="tog(this)"><span class="car">▶</span><b>Sam Lee</b><span class="lifts">Squat 200 · Bench 130 · Deadlift 240 · 2.5 kg</span><span class="tag">3 programs</span><span class="btn" onclick="event.stopPropagation()">Edit profile</span><span class="btn p" onclick="event.stopPropagation();openDlg()">New program…</span></div>
+    <div class="body">
+      <div class="row sel"><div class="t"><b>Block 3 – Peaking</b><span>6 weeks × 4 workouts · from Powerlifting Peaking 6wk · 3 versions</span></div><span class="tag g">Open now</span><span class="dim">06/11/2026</span><div class="act"><span>Duplicate</span><span>Rename</span><span>Export</span><span>Delete</span></div></div>
+      <div class="row"><div class="t"><b>Block 2 – Strength</b><span>4 weeks × 3 workouts · from Linear Strength 4wk · 1 version</span></div><span class="dim">28/10/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Rename</span><span>Export</span><span>Delete</span></div></div>
+      <div class="row"><div class="t"><b>Block 1 – Base</b><span>4 weeks × 3 workouts · from Linear Strength 4wk · 2 versions</span></div><span class="dim">02/09/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Rename</span><span>Export</span><span>Delete</span></div></div>
+    </div>
+  </div>
+
+  <div class="ath">
+    <div class="ah" onclick="tog(this)"><span class="car">▶</span><b>Jo Park</b><span class="lifts">Squat 110 · Bench 70 · Deadlift 135 · 1.25 kg</span><span class="tag">1 program</span><span class="btn" onclick="event.stopPropagation()">Edit profile</span><span class="btn p" onclick="event.stopPropagation();openDlg()">New program…</span></div>
+    <div class="body">
+      <div class="row"><div class="t"><b>Hypertrophy Base</b><span>8 weeks × 4 workouts · from Upper/Lower Hypertrophy 8wk · 1 version</span></div><span class="dim">03/11/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Rename</span><span>Export</span><span>Delete</span></div></div>
+    </div>
+  </div>
+
+  <div class="ath">
+    <div class="ah" onclick="tog(this)"><span class="car">▶</span><b>Alex Mora</b><span class="lifts">Squat 165 (TM 150) · Bench 105 · Deadlift 190 · OHP 62.5</span><span class="tag">0 programs</span><span class="tag w">6 exercises unavailable</span><span class="btn" onclick="event.stopPropagation()">Edit profile</span><span class="btn p" onclick="event.stopPropagation();openDlg()">New program…</span></div>
+    <div class="body"><div class="row"><div class="t dim">No programs yet. Use a template above, or click New program…</div></div></div>
+  </div>
+
+  <div class="ath">
+    <div class="ah" onclick="tog(this)"><span class="car">▶</span><b>Not linked to an athlete</b><span class="lifts">Programs made without an athlete, such as Phase 1 programs</span><span class="tag">1 program</span></div>
+    <div class="body"><div class="row"><div class="t"><b>Block 2 – Strength Cycle</b><span>4 weeks × 3 workouts · 0 versions</span></div><span class="dim">28/10/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div></div>
+  </div>
+
+  <div class="foot"><span>Last exported: <span class="am">19/10/2026 (18 days ago)</span></span><span class="sp"></span><span>Browser storage: 1.2 MB of about 5 MB <span class="meter"><i></i></span></span></div>
+
+  <div class="modal" id="dlg"><div class="dlg">
+    <h3>Use template for an athlete</h3>
+    <label>Template</label>
+    <div class="field">Powerlifting Peaking 6wk</div>
+    <label>Athlete</label>
+    <div class="pick" id="pk">
+      <div class="on" onclick="pick(this)">Sam Lee <span>Squat 200 · Bench 130 · DL 240</span></div>
+      <div onclick="pick(this)">Jo Park <span>Squat 110 · Bench 70 · DL 135</span></div>
+      <div onclick="pick(this)">Alex Mora <span>Squat 165 · Bench 105 · DL 190</span></div>
+    </div>
+    <label>Name for the new program</label>
+    <div class="field">Powerlifting Peaking 6wk – Sam Lee</div>
+    <div class="prob"><span class="ok">34 of 36 percentage loads will get a kg value.</span><br>Problems (the program is still created):<br>• Pause Squat uses Back Squat: no 1RM entered (2 set groups stay blank)<br>• Leg Press: not available for Sam Lee</div>
+    <div class="bt"><span class="btn" onclick="closeDlg()">Cancel</span><span class="btn p" onclick="closeDlg()">Create program</span></div>
+  </div></div>
+</div>
+
+<script>
+function aths(){return Array.prototype.filter.call(document.querySelectorAll('#f2 .ath'),function(a){return a.querySelector('b').textContent.indexOf('Not linked')!==0})}
+function upd(){var any=aths().some(function(a){return !a.classList.contains('open')});document.getElementById('ea').textContent=any?'Expand all':'Collapse all'}
+function allAth(){var any=aths().some(function(a){return !a.classList.contains('open')});aths().forEach(function(a){a.classList.toggle('open',any)});upd()}
+function tog(h){h.parentNode.classList.toggle('open');upd()}
+function openDlg(){document.getElementById('dlg').classList.add('on')}
+function closeDlg(){document.getElementById('dlg').classList.remove('on')}
+function pick(e){document.querySelectorAll('#pk div').forEach(function(x){x.classList.remove('on')});e.classList.add('on')}
+</script>
+</body>
+</html>

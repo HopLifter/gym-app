@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Builder Library – Layout Options</title>
+<style>
+:root{--bg:#0B0D0C;--surface:#161917;--line:#2A2F2B;--text:#EDEEEA;--dim:#8C948C;--accent:#C6FF3D;--sel:#232A1A;--danger:#E05C4E;--amber:#E8B04A}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;padding:24px}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:16px;margin:40px 0 4px;color:var(--accent)}
+p.note{color:var(--dim);margin:4px 0 12px;max-width:900px}
+.pc{display:flex;gap:24px;max-width:1000px;margin:6px 0 14px}
+.pc div{flex:1;font-size:13px;color:var(--dim)}
+.pc b{color:var(--text)}
+.frame{background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:hidden;max-width:1180px}
+.hdr{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
+.hdr .name{font-weight:600}
+.btn{border:1px solid var(--line);background:transparent;color:var(--text);padding:5px 11px;border-radius:6px;font:inherit;font-size:13px;cursor:default}
+.btn.p{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.btn.d{color:var(--danger)}
+.sp{flex:1}
+.dim{color:var(--dim)}
+.tabs{display:flex;gap:2px;padding:0 14px;border-bottom:1px solid var(--line)}
+.tab{padding:10px 14px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent}
+.tab.on{color:var(--text);border-color:var(--accent)}
+.row{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.row:hover{background:#1a1e1b}
+.row .t{flex:1;min-width:0}
+.row .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .t span{color:var(--dim);font-size:12px}
+.row.sel{background:var(--sel);box-shadow:inset 3px 0 var(--accent)}
+.tag{font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.tag.g{color:var(--accent);border-color:#3b4a1c}
+.tag.a{color:var(--amber);border-color:#5a4720}
+.foot{display:flex;gap:16px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);background:var(--surface);font-size:12px;color:var(--dim)}
+.foot .am{color:var(--amber)}
+.meter{width:120px;height:6px;background:var(--line);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle}
+.meter i{display:block;height:100%;width:24%;background:var(--accent)}
+.act{display:flex;gap:6px}
+.act span{font-size:12px;color:var(--dim);padding:3px 7px;border:1px solid var(--line);border-radius:5px}
+.cols{display:flex}
+.side{width:300px;border-right:1px solid var(--line);background:var(--surface);flex:none}
+.side h4{margin:0;padding:10px 14px 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.main{flex:1;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:14px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px}
+.card b{display:block}
+.card .m{color:var(--dim);font-size:12px;margin-top:2px}
+.card .bt{display:flex;gap:6px;margin-top:10px}
+.sect{padding:14px 14px 4px;font-weight:600;display:flex;align-items:center;gap:10px}
+.sect small{color:var(--dim);font-weight:400}
+.grp{margin:10px 14px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.grp .gh{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.grp .gh b{flex:1}
+.lifts{display:flex;gap:14px;font-size:12px;color:var(--dim);padding:0 12px 10px}
+.lifts span b{color:var(--text)}
+.edit{padding:14px;color:var(--dim);font-size:13px}
+.ghost{height:90px;border:1px dashed var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--dim);margin:14px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.cols{flex-direction:column}.side{width:auto}}
+</style>
+</head>
+<body>
+<h1>Program Builder – Library screen: layout options</h1>
+<p class="note">Realistic sample data in every option (3 athletes, 4 programs, 3 templates, 1.2 MB of browser storage). Click the tabs in Option A. All options show the same must-haves from the spec: list of items with last edited date (dd/mm/yyyy), Open / Duplicate / Rename / Delete / Export, Generate, Export everything, Import everything, "Last exported" reminder, and the storage meter.</p>
+
+<!-- ========== OPTION A ========== -->
+<h2>Option A – Full-page library with three tabs <span class="dim">(as written in the spec)</span></h2>
+<div class="pc"><div><b>Good:</b> Simple, familiar, every list has the whole page. Easy to build.</div><div><b>Less good:</b> Hides the editor while you browse. Programs for one athlete are not grouped. A program's athlete is only a small tag.</div></div>
+<div class="frame">
+  <div class="hdr"><span class="btn">← Back to editor</span><span class="name">Library</span><span class="sp"></span><span class="btn">Import everything</span><span class="btn">Export everything</span></div>
+  <div class="tabs" id="tabsA">
+    <div class="tab on" data-t="pA">Programs <span class="dim">4</span></div>
+    <div class="tab" data-t="tA">Templates <span class="dim">3</span></div>
+    <div class="tab" data-t="aA">Athletes <span class="dim">3</span></div>
+  </div>
+  <div id="pA">
+    <div class="row" style="background:var(--surface)"><span class="btn p">+ New program</span><span class="sp"></span><span class="dim" style="font-size:12px">Newest edited first</span></div>
+    <div class="row sel"><div class="t"><b>Block 3 – Peaking – Sam Lee</b><span>6 weeks × 4 workouts · from Powerlifting Peaking 6wk · 3 versions</span></div><span class="tag g">Open now</span><span class="dim">06/11/2026</span><div class="act"><span>Duplicate</span><span>Rename</span><span>Export</span><span>Delete</span></div></div>
+    <div class="row"><div class="t"><b>Hypertrophy Base – Jo Park</b><span>8 weeks × 4 workouts · from Upper/Lower Hypertrophy 8wk · 1 version</span></div><span class="dim">03/11/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Rename</span><span>Export</span><span>Delete</span></div></div>
+    <div class="row"><div class="t"><b>Block 2 – Strength Cycle</b><span>4 weeks × 3 workouts · no athlete · 0 versions</span></div><span class="dim">28/10/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Rename</span><span>Export</span><span>Delete</span></div></div>
+    <div class="row"><div class="t"><b>Block 1 – Base – Sam Lee</b><span>4 weeks × 3 workouts · from Linear Strength 4wk · 2 versions</span></div><span class="dim">02/09/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Rename</span><span>Export</span><span>Delete</span></div></div>
+  </div>
+  <div id="tA" style="display:none">
+    <div class="row" style="background:var(--surface)"><span class="btn p">+ New template</span><span class="btn">Compare selected…</span><span class="sp"></span></div>
+    <div class="row"><input type="checkbox"><div class="t"><b>Powerlifting Peaking 6wk</b><span>6 weeks × 4 workouts · 112 sets/week avg · avg intensity 81%</span></div><span class="dim">30/10/2026</span><div class="act"><span class="btn p" style="padding:3px 9px;color:var(--bg)">Generate</span><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+    <div class="row"><input type="checkbox"><div class="t"><b>Upper/Lower Hypertrophy 8wk</b><span>8 weeks × 4 workouts · 138 sets/week avg · avg intensity 68%</span></div><span class="dim">15/10/2026</span><div class="act"><span class="btn p" style="padding:3px 9px;color:var(--bg)">Generate</span><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+    <div class="row"><input type="checkbox"><div class="t"><b>Linear Strength 4wk</b><span>4 weeks × 3 workouts · 74 sets/week avg · avg intensity 77%</span></div><span class="dim">12/08/2026</span><div class="act"><span class="btn p" style="padding:3px 9px;color:var(--bg)">Generate</span><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  </div>
+  <div id="aA" style="display:none">
+    <div class="row" style="background:var(--surface)"><span class="btn p">+ New athlete</span><span class="sp"></span></div>
+    <div class="row"><div class="t"><b>Sam Lee</b><span>Squat 200 · Bench 130 · Deadlift 240 · rounding 2.5 kg · 2 exercises unavailable</span></div><span class="dim">05/11/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+    <div class="row"><div class="t"><b>Jo Park</b><span>Squat 110 · Bench 70 · Deadlift 135 · rounding 1.25 kg · 0 unavailable</span></div><span class="dim">03/11/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+    <div class="row"><div class="t"><b>Alex Mora</b><span>Squat 165 (TM 150) · Bench 105 · Deadlift 190 · OHP 62.5 · 6 unavailable</span></div><span class="dim">19/10/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  </div>
+  <div class="foot"><span>Last exported: <span class="am">19/10/2026 (18 days ago)</span></span><span class="sp"></span><span>Browser storage: 1.2 MB of about 5 MB <span class="meter"><i></i></span></span></div>
+</div>
+
+<!-- ========== OPTION B ========== -->
+<h2>Option B – Library as a side panel next to the editor</h2>
+<div class="pc"><div><b>Good:</b> You never leave the editor; switching programs is one click. Good on a wide desktop screen.</div><div><b>Less good:</b> Takes 300px from the grid (the week columns are already at least 220px). Needs a collapse button, which is more to build and test.</div></div>
+<div class="frame">
+  <div class="hdr"><span class="btn">☰ Library</span><span class="name">Block 3 – Peaking – Sam Lee</span><span class="tag">Linked: Sam Lee</span><span class="sp"></span><span class="btn">Versions</span><span class="btn">Save file</span><span class="btn p">Export for GymLog</span></div>
+  <div class="cols">
+    <div class="side">
+      <div class="row" style="gap:6px"><span class="btn p">+ Program</span><span class="btn">+ Template</span><span class="btn">+ Athlete</span></div>
+      <h4>Programs</h4>
+      <div class="row sel"><div class="t"><b>Block 3 – Peaking – Sam Lee</b><span>06/11/2026 · 6 wk × 4</span></div></div>
+      <div class="row"><div class="t"><b>Hypertrophy Base – Jo Park</b><span>03/11/2026 · 8 wk × 4</span></div></div>
+      <div class="row"><div class="t"><b>Block 2 – Strength Cycle</b><span>28/10/2026 · 4 wk × 3</span></div></div>
+      <div class="row"><div class="t"><b>Block 1 – Base – Sam Lee</b><span>02/09/2026 · 4 wk × 3</span></div></div>
+      <h4>Templates</h4>
+      <div class="row"><div class="t"><b>Powerlifting Peaking 6wk</b><span>30/10/2026</span></div><span class="btn p" style="padding:2px 8px">Generate</span></div>
+      <div class="row"><div class="t"><b>Upper/Lower Hypertrophy 8wk</b><span>15/10/2026</span></div><span class="btn p" style="padding:2px 8px">Generate</span></div>
+      <div class="row"><div class="t"><b>Linear Strength 4wk</b><span>12/08/2026</span></div><span class="btn p" style="padding:2px 8px">Generate</span></div>
+      <h4>Athletes</h4>
+      <div class="row"><div class="t"><b>Sam Lee</b><span>Squat 200 · Bench 130 · DL 240</span></div></div>
+      <div class="row"><div class="t"><b>Jo Park</b><span>Squat 110 · Bench 70 · DL 135</span></div></div>
+      <div class="row"><div class="t"><b>Alex Mora</b><span>Squat 165 · Bench 105 · DL 190</span></div></div>
+      <div class="foot" style="flex-direction:column;align-items:flex-start;gap:6px"><span>Last exported: <span class="am">19/10/2026</span></span><span>1.2 MB of ~5 MB <span class="meter"><i></i></span></span><span><span class="btn">Export everything</span> <span class="btn">Import</span></span></div>
+    </div>
+    <div class="main"><div class="edit">Program Grid (weeks across, workouts down) …<div class="ghost">Editor as today – 220px week columns start here</div></div></div>
+  </div>
+</div>
+
+<!-- ========== OPTION C ========== -->
+<h2>Option C – Athlete-centred library</h2>
+<div class="pc"><div><b>Good:</b> Matches how a coach thinks: pick the athlete, see their lifts, their programs and their unavailable exercises together. "Generate for this athlete" is one click per template.</div><div><b>Less good:</b> Programs without an athlete need their own section; templates are separate. A coach with many athletes scrolls a lot.</div></div>
+<div class="frame">
+  <div class="hdr"><span class="btn">← Back to editor</span><span class="name">Library</span><span class="sp"></span><span class="btn">+ New athlete</span><span class="btn">Import everything</span><span class="btn">Export everything</span></div>
+  <div class="grp">
+    <div class="gh"><b>Sam Lee</b><span class="tag">2 unavailable exercises</span><span class="btn">Edit profile</span><span class="btn p">Generate program…</span></div>
+    <div class="lifts"><span>Squat <b>200</b></span><span>Bench <b>130</b></span><span>Deadlift <b>240</b></span><span>Rounding <b>2.5 kg</b></span></div>
+    <div class="row sel"><div class="t"><b>Block 3 – Peaking</b><span>6 weeks × 4 workouts · 3 versions</span></div><span class="tag g">Open now</span><span class="dim">06/11/2026</span><div class="act"><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+    <div class="row"><div class="t"><b>Block 1 – Base</b><span>4 weeks × 3 workouts · 2 versions</span></div><span class="dim">02/09/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  </div>
+  <div class="grp">
+    <div class="gh"><b>Jo Park</b><span class="btn">Edit profile</span><span class="btn p">Generate program…</span></div>
+    <div class="lifts"><span>Squat <b>110</b></span><span>Bench <b>70</b></span><span>Deadlift <b>135</b></span><span>Rounding <b>1.25 kg</b></span></div>
+    <div class="row"><div class="t"><b>Hypertrophy Base</b><span>8 weeks × 4 workouts · 1 version</span></div><span class="dim">03/11/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  </div>
+  <div class="grp">
+    <div class="gh"><b>Alex Mora</b><span class="tag">6 unavailable exercises</span><span class="btn">Edit profile</span><span class="btn p">Generate program…</span></div>
+    <div class="lifts"><span>Squat <b>165</b> <span class="dim">(TM 150)</span></span><span>Bench <b>105</b></span><span>Deadlift <b>190</b></span><span>OHP <b>62.5</b></span></div>
+    <div class="row"><div class="t dim">No programs yet</div></div>
+  </div>
+  <div class="sect">Not linked to an athlete <small>programs</small></div>
+  <div class="row"><div class="t"><b>Block 2 – Strength Cycle</b><span>4 weeks × 3 workouts · 0 versions</span></div><span class="dim">28/10/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  <div class="sect">Templates <small>3 · no kg</small><span class="sp"></span><span class="btn">+ New template</span><span class="btn">Compare…</span></div>
+  <div class="row"><div class="t"><b>Powerlifting Peaking 6wk</b><span>6 weeks × 4 workouts · avg intensity 81%</span></div><span class="dim">30/10/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  <div class="row"><div class="t"><b>Upper/Lower Hypertrophy 8wk</b><span>8 weeks × 4 workouts · avg intensity 68%</span></div><span class="dim">15/10/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  <div class="row"><div class="t"><b>Linear Strength 4wk</b><span>4 weeks × 3 workouts · avg intensity 77%</span></div><span class="dim">12/08/2026</span><div class="act"><span>Open</span><span>Duplicate</span><span>Export</span><span>Delete</span></div></div>
+  <div class="foot"><span>Last exported: <span class="am">19/10/2026 (18 days ago)</span></span><span class="sp"></span><span>Browser storage: 1.2 MB of about 5 MB <span class="meter"><i></i></span></span></div>
+</div>
+
+<!-- ========== OPTION D ========== -->
+<h2>Option D – Home dashboard with cards</h2>
+<div class="pc"><div><b>Good:</b> Quick re-entry ("Continue where you left off"), a visible backup warning, and short card lists per kind. Feels like a start page.</div><div><b>Less good:</b> Shows only the latest few items, so "see all" screens are still needed (so it is Option A plus a front page). More to build.</div></div>
+<div class="frame">
+  <div class="hdr"><span class="name">Program Builder</span><span class="sp"></span><span class="btn">Import everything</span><span class="btn">Export everything</span></div>
+  <div class="row" style="background:#2a2310;border-color:#5a4720"><div class="t"><b style="color:var(--amber)">Back up your library</b><span>Last exported 19/10/2026 (18 days ago). Browser storage can be cleared.</span></div><span class="btn p">Export everything now</span></div>
+  <div class="sect">Continue where you left off</div>
+  <div class="grid" style="grid-template-columns:1fr">
+    <div class="card" style="border-color:var(--accent);background:var(--sel)"><b>Block 3 – Peaking – Sam Lee</b><div class="m">6 weeks × 4 workouts · edited today 06/11/2026 · 3 versions</div><div class="bt"><span class="btn p">Open</span><span class="btn">Versions</span></div></div>
+  </div>
+  <div class="sect">Programs <small>4</small><span class="sp"></span><span class="btn">+ New</span><span class="btn">See all</span></div>
+  <div class="grid">
+    <div class="card"><b>Hypertrophy Base – Jo Park</b><div class="m">8 wk × 4 · 03/11/2026</div><div class="bt"><span class="btn">Open</span><span class="btn">⋯</span></div></div>
+    <div class="card"><b>Block 2 – Strength Cycle</b><div class="m">4 wk × 3 · 28/10/2026</div><div class="bt"><span class="btn">Open</span><span class="btn">⋯</span></div></div>
+    <div class="card"><b>Block 1 – Base – Sam Lee</b><div class="m">4 wk × 3 · 02/09/2026</div><div class="bt"><span class="btn">Open</span><span class="btn">⋯</span></div></div>
+  </div>
+  <div class="sect">Templates <small>3</small><span class="sp"></span><span class="btn">+ New</span><span class="btn">Compare</span></div>
+  <div class="grid">
+    <div class="card"><b>Powerlifting Peaking 6wk</b><div class="m">6 wk × 4 · intensity 81%</div><div class="bt"><span class="btn p">Generate</span><span class="btn">Open</span><span class="btn">⋯</span></div></div>
+    <div class="card"><b>Upper/Lower Hypertrophy 8wk</b><div class="m">8 wk × 4 · intensity 68%</div><div class="bt"><span class="btn p">Generate</span><span class="btn">Open</span><span class="btn">⋯</span></div></div>
+    <div class="card"><b>Linear Strength 4wk</b><div class="m">4 wk × 3 · intensity 77%</div><div class="bt"><span class="btn p">Generate</span><span class="btn">Open</span><span class="btn">⋯</span></div></div>
+  </div>
+  <div class="sect">Athletes <small>3</small><span class="sp"></span><span class="btn">+ New</span></div>
+  <div class="grid">
+    <div class="card"><b>Sam Lee</b><div class="m">Squat 200 · Bench 130 · DL 240</div><div class="bt"><span class="btn">Open profile</span></div></div>
+    <div class="card"><b>Jo Park</b><div class="m">Squat 110 · Bench 70 · DL 135</div><div class="bt"><span class="btn">Open profile</span></div></div>
+    <div class="card"><b>Alex Mora</b><div class="m">Squat 165 · Bench 105 · DL 190</div><div class="bt"><span class="btn">Open profile</span></div></div>
+  </div>
+  <div class="foot"><span>Browser storage: 1.2 MB of about 5 MB <span class="meter"><i></i></span></span></div>
+</div>
+
+<script>
+document.querySelectorAll('#tabsA .tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('#tabsA .tab').forEach(function(x){x.classList.remove('on');document.getElementById(x.dataset.t).style.display='none'});
+    t.classList.add('on');document.getElementById(t.dataset.t).style.display='block';
+  });
+});
+</script>
+</body>
+</html>
