@@ -136,7 +136,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 
 **1.7 Migration.** On first load with no library, a Phase 1 draft becomes a program in the library (see section 5). No draft: a new empty program.
 
-**Build progress.** Step 1 is built in two stops. Stop 1 (built 6 November 2026): 1.1 (single program list), 1.2, 1.3, 1.6 meter, 1.7, and Export per program. Stop 2: 1.4 and 1.5 (Export / Import everything, Last exported), the storage-full notice, T1.12. An empty library cannot happen yet: deleting the last program creates a new empty one.
+**Build progress.** Step 1 is built in two stops. Stop 1 (built 6 November 2026): 1.1 (single program list), 1.2, 1.3, 1.6 meter, 1.7, and Export per program. Stop 2 (built 6 November 2026, awaiting user test): 1.4 and 1.5 (Export / Import everything, Last exported), the storage-full notice with an Export everything button, T1.12. Step 1 is then complete apart from the template-dependent tests. An empty library cannot happen yet: deleting the last program creates a new empty one.
 
 **Acceptance tests**
 - T1.1: A Phase 1 draft present on first load appears as one program in the library, and the editor opens it.

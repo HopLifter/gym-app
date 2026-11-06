@@ -7,3 +7,4 @@ program_import*.json
 *.xlsx
 00_EXPORT_NOTES.md
 gymlog-export*
+*library*.json

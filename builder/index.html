@@ -244,7 +244,9 @@
     background: var(--surface); border: 1px solid var(--accent); color: var(--text);
     padding: 10px 18px; border-radius: 8px; z-index: 200;
   }
-  #save-warning { color: var(--danger); padding: 8px 20px 0; }
+  #save-warning { color: var(--danger); padding: 8px 20px 0; display: flex; align-items: center; gap: 12px; }
+  #save-warning[hidden] { display: none; }
+  #save-warning button { padding: 3px 10px; font-size: 12px; }
 
   /* ---- Library screen (Phase 2 spec 1.1). Flat: dividers and spacing, no boxes around items. ---- */
   .header[hidden], .main[hidden], #library[hidden] { display: none; }
@@ -266,6 +268,8 @@
   .lib-row .acts button { padding: 3px 9px; font-size: 12px; }
   .tag-now { font-size: 11px; padding: 1px 7px; border-radius: 9px; border: 1px solid #3b4a1c; color: var(--accent); white-space: nowrap; }
   .lib-foot { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-top: 1px solid var(--line); margin-top: 8px; color: var(--text-dim); font-size: 12px; }
+  .lib-foot .grow { flex: 1; }
+  .lib-foot .stale { color: #E8B04A; }
   .meter { width: 120px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
   .meter i { display: block; height: 100%; background: var(--accent); }
   .meter.warn i { background: var(--danger); }
@@ -273,7 +277,7 @@
 </head>
 <body>
   <div class="header" id="header"></div>
-  <div id="save-warning" hidden>This browser could not save your changes. They will be lost when the page closes.</div>
+  <div id="save-warning" hidden><span>This browser could not save your last change. It will be lost when the page closes.</span><button id="warn-export">Export everything</button></div>
   <div id="library" hidden></div>
   <div class="main" id="main"><div class="grid-wrap" id="grid"></div></div>
   <div class="detail" id="detail" hidden></div>
@@ -289,6 +293,11 @@
 var DRAFT_KEY = 'builder_draft_v1';         // Phase 1 draft: read once to move it into the library, never written or deleted
 var PROGRAMS_KEY = 'builder_programs_v1';   // the library: array of { id, name, modified, program }
 var OPEN_KEY = 'builder_open_v1';           // { kind: 'program', id } of the item open in the editor
+var LAST_EXPORT_KEY = 'builder_lastexport_v1'; // ISO date-time of the last Export everything
+var LIBRARY_FORMAT = 'gym-builder-library';    // the backup file made by Export everything
+var LIBRARY_FORMAT_VERSION = 1;
+var MAX_LIBRARY_FILE_BYTES = 20 * 1024 * 1024;
+var EXPORT_REMINDER_DAYS = 14;              // "Last exported" turns amber after this many days
 var STORAGE_LIMIT_CHARS = 5 * 1024 * 1024;  // browsers allow about 5 MB of text per site
 var EXERCISE_LIST_KEY = 'builder_exercise_list_v1';
 var FORMAT_NAME = 'gym-program-builder';
@@ -496,6 +505,18 @@ function newLibraryId() {
   return 'lib_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+// Checks one library entry from storage or from a file. Returns a clean entry, or null if
+// anything about it is wrong (the program gets the same full check as an opened program file).
+function cleanLibraryEntry(entry) {
+  if (!entry || typeof entry !== 'object') return null;
+  if (typeof entry.id !== 'string' || !/^lib_[a-z0-9]+$/.test(entry.id)) return null;
+  if (typeof entry.modified !== 'string' || isNaN(new Date(entry.modified).getTime())) return null;
+  migrateOldPatterns(entry.program);
+  if (!isValidProgram(entry.program)) return null;
+  entry.program.workouts.forEach(purgeBrokenPairs);
+  return { id: entry.id, name: entry.program.name, modified: entry.modified, program: entry.program };
+}
+
 // Returns the saved programs. An entry that fails the checks is skipped, never half-used.
 function libraryLoadPrograms() {
   try {
@@ -503,20 +524,77 @@ function libraryLoadPrograms() {
     if (!Array.isArray(data)) return [];
     var seen = {};
     var good = [];
-    data.forEach(function (entry) {
-      if (!entry || typeof entry !== 'object') return;
-      if (typeof entry.id !== 'string' || !/^lib_[a-z0-9]+$/.test(entry.id) || seen[entry.id]) return;
-      if (typeof entry.modified !== 'string' || isNaN(new Date(entry.modified).getTime())) return;
-      migrateOldPatterns(entry.program);
-      if (!isValidProgram(entry.program)) return;
-      entry.program.workouts.forEach(purgeBrokenPairs);
+    data.forEach(function (raw) {
+      var entry = cleanLibraryEntry(raw);
+      if (!entry || seen[entry.id]) return;
       seen[entry.id] = true;
-      good.push({ id: entry.id, name: entry.program.name, modified: entry.modified, program: entry.program });
+      good.push(entry);
     });
     return good;
   } catch (err) {
     return [];
   }
+}
+
+// ---- Export everything / Import everything (Phase 2 spec 1.4 and 1.5) ----
+
+// The date and time of the last Export everything (ISO text), or null if never.
+function libraryReadLastExport() {
+  try {
+    var text = localStorage.getItem(LAST_EXPORT_KEY);
+    return text && !isNaN(new Date(text).getTime()) ? text : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+// Builds the backup file's content. Templates, profiles and versions arrive in later steps, so
+// their lists are empty for now; the file already has a place for them.
+function buildLibraryFile(exportedOn) {
+  return {
+    format: LIBRARY_FORMAT,
+    version: LIBRARY_FORMAT_VERSION,
+    exportedOn: exportedOn,
+    programs: library.map(function (e) { return { id: e.id, name: e.name, modified: e.modified, program: e.program }; }),
+    templates: [],
+    profiles: [],
+    versions: [],
+    exerciseList: loadExerciseList()
+  };
+}
+
+// Reads and checks a library file. Returns { entries, exerciseList } or null. One broken item
+// refuses the whole file: a half-imported backup would be worse than none.
+function parseLibraryFile(text) {
+  var data;
+  try { data = JSON.parse(text); } catch (err) { return null; }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+  if (data.format !== LIBRARY_FORMAT) return null;
+  if (!isWholeBetween(data.version, 1, LIBRARY_FORMAT_VERSION)) return null; // a newer file is refused
+  if (!Array.isArray(data.programs)) return null;
+  var lists = ['templates', 'profiles', 'versions'];
+  for (var i = 0; i < lists.length; i++) {
+    if (data[lists[i]] !== undefined && !Array.isArray(data[lists[i]])) return null;
+  }
+  var seen = {};
+  var entries = [];
+  for (var j = 0; j < data.programs.length; j++) {
+    var entry = cleanLibraryEntry(data.programs[j]);
+    if (!entry || seen[entry.id]) return null;
+    seen[entry.id] = true;
+    entries.push(entry);
+  }
+  var names = [];
+  if (data.exerciseList !== undefined) {
+    if (!Array.isArray(data.exerciseList) || data.exerciseList.length > MAX_EXERCISE_NAMES) return null;
+    var have = {};
+    data.exerciseList.forEach(function (n) {
+      if (typeof n !== 'string') return;
+      var t = n.trim();
+      if (t !== '' && t.length <= 200 && !have[t]) { have[t] = true; names.push(t); }
+    });
+  }
+  return { entries: entries, exerciseList: names };
 }
 
 // Returns true if the write worked (localStorage can fail: private mode, full storage).
@@ -893,6 +971,7 @@ function setCurrent(entry) {
 
 function startUp() {
   loadDetailHeight();
+  document.getElementById('warn-export').addEventListener('click', exportEverything);
   library = libraryLoadPrograms();
   if (library.length === 0) {
     // First visit to the library: move the Phase 1 draft in (the draft key itself is left alone),
@@ -1163,10 +1242,9 @@ function saveProgramFile() {
   downloadProgram(program);
 }
 
-// Downloads any program as a file (used by Save file and by Export in the Library).
-function downloadProgram(p) {
-  var name = programFileName(p.name);
-  var blob = new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' });
+// Downloads an object as a JSON file with the given name.
+function downloadJson(name, data) {
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
   var link = document.createElement('a');
   link.href = url;
@@ -1175,7 +1253,101 @@ function downloadProgram(p) {
   link.click();
   link.remove();
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+}
+
+// Downloads any program as a file (used by Save file and by Export in the Library).
+function downloadProgram(p) {
+  var name = programFileName(p.name);
+  downloadJson(name, p);
   showNotice('Saved as ' + name + '.');
+}
+
+// Export everything (spec 1.4): one backup file with the whole library, and the date is remembered
+// for the "Last exported" reminder.
+function exportEverything() {
+  var now = new Date();
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  var stamp = now.getFullYear() + two(now.getMonth() + 1) + two(now.getDate());
+  var name = 'GymLog-Builder-Library-' + stamp + '.json';
+  downloadJson(name, buildLibraryFile(now.toISOString()));
+  try { localStorage.setItem(LAST_EXPORT_KEY, now.toISOString()); } catch (err) { /* the reminder is a convenience */ }
+  showNotice('Saved as ' + name + '.');
+  render();
+}
+
+// Import everything (spec 1.5): checks the file, then asks how to bring it in.
+function importEverything() {
+  function cannotOpen() { showMessage('Import everything', "This file can't be opened."); }
+  pickTextFile(MAX_LIBRARY_FILE_BYTES, function (text) {
+    var data = parseLibraryFile(text);
+    if (!data) { cannotOpen(); return; }
+    askImportMode(data);
+  }, cannotOpen);
+}
+
+function askImportMode(data) {
+  var mode = 'add';
+  function radio(value, label, desc) {
+    var input = el('input', { type: 'radio', name: 'import-mode', value: value });
+    if (value === mode) input.checked = true;
+    input.addEventListener('change', function () { mode = value; });
+    return el('label', { className: 'opt' }, [input, el('span', null, [
+      el('span', { className: 'opt-label', text: label }),
+      el('span', { className: 'opt-desc', text: ' ' + desc })
+    ])]);
+  }
+  var summary = 'This file holds ' + plural(data.entries.length, 'program') +
+    (data.exerciseList.length ? ' and an Exercise List of ' + plural(data.exerciseList.length, 'exercise') : '') + '.';
+  function go() {
+    closeModal();
+    if (mode === 'replace') {
+      showConfirm({
+        title: 'Replace everything?',
+        text: 'All ' + plural(library.length, 'program') + ' in this browser will be deleted and replaced by the file. This cannot be undone.',
+        confirmLabel: 'Replace',
+        onConfirm: function () { applyImport(data, 'replace'); }
+      });
+    } else {
+      applyImport(data, 'add');
+    }
+  }
+  openModal({
+    title: 'Import everything',
+    body: el('div', null, [
+      el('p', { text: summary }),
+      radio('add', 'Add as copies', 'Keeps everything you have and adds the programs from the file.'),
+      radio('replace', 'Replace everything', 'Deletes what you have and uses the file instead.')
+    ]),
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', { className: 'primary', text: 'Import', onclick: go })
+    ]
+  });
+}
+
+function applyImport(data, mode) {
+  if (mode === 'replace') {
+    library = data.entries.slice();
+    if (library.length === 0) addProgramEntry(createDefaultProgram());
+  } else {
+    var used = {};
+    library.forEach(function (e) { used[e.name] = true; });
+    data.entries.forEach(function (e) {
+      var p = e.program;
+      if (used[p.name]) p.name = (p.name + ' (imported)').slice(0, 200);
+      used[p.name] = true;
+      var added = addProgramEntry(p); // gets a new id
+      added.modified = e.modified;
+    });
+  }
+  // The Exercise List: Replace uses the file's list (if it has one); Add only fills in a missing one.
+  if (data.exerciseList.length && (mode === 'replace' || loadExerciseList().length === 0)) {
+    try { localStorage.setItem(EXERCISE_LIST_KEY, JSON.stringify(data.exerciseList)); } catch (err) { /* reported below if the library fails too */ }
+  }
+  if (!findEntry(currentId)) setCurrent(mostRecentEntry());
+  if (!saveLibrary()) showMessage('Import everything', 'The imported programs could not be saved in this browser. They are in memory only until the page closes.');
+  render();
+  showNotice('Imported ' + plural(data.entries.length, 'program') + '.');
 }
 
 // Open file: reads and checks a program file and adds it to the library as a new program, then
@@ -2630,12 +2802,27 @@ function renderUnlinkedSection() {
   return wrap;
 }
 
+// "never", or "dd/mm/yyyy (N days ago)", and whether to show it as a warning.
+function lastExportInfo() {
+  var iso = libraryReadLastExport();
+  if (!iso) return { text: 'never', stale: true };
+  var days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days < 0) days = 0;
+  return { text: formatDate(iso) + (days === 0 ? ' (today)' : ' (' + plural(days, 'day') + ' ago)'), stale: days > EXPORT_REMINDER_DAYS };
+}
+
 function renderLibraryFooter() {
   var used = libraryStorageChars();
   var mb = used / (1024 * 1024);
   var share = Math.min(100, Math.round(used / STORAGE_LIMIT_CHARS * 100));
   var label = (mb < 0.1 ? '<0.1' : mb.toFixed(1)) + ' MB';
+  var last = lastExportInfo();
   return el('div', { className: 'lib-foot' }, [
+    el('span', null, [
+      el('span', { text: 'Last exported: ' }),
+      el('span', { className: last.stale ? 'stale' : null, text: last.text })
+    ]),
+    el('span', { className: 'grow' }),
     el('span', null, [
       el('span', { text: 'Browser storage: ' + label + ' of about 5 MB' }),
       el('span', { className: 'meter' + (share >= 80 ? ' warn' : '') }, [el('i', { style: 'width:' + share + '%' })])
@@ -2650,9 +2837,8 @@ function renderLibrary() {
     el('button', { text: '← Back to editor', onclick: closeLibrary }),
     el('span', { className: 'title', text: 'Library' }),
     el('div', { className: 'spacer' }, [
-      // Built in the next step of Phase 2 spec step 1 (1.4 and 1.5).
-      el('button', { text: 'Import everything', disabled: 'disabled', title: 'Coming in the next build step' }),
-      el('button', { text: 'Export everything', disabled: 'disabled', title: 'Coming in the next build step' })
+      el('button', { text: 'Import everything', onclick: importEverything }),
+      el('button', { text: 'Export everything', onclick: exportEverything })
     ])
   ]));
   box.appendChild(renderUnlinkedSection());
