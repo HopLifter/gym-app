@@ -1,7 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
-**Last updated:** 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
+**Last updated:** 6 November 2026 (coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -177,6 +177,17 @@ The builder does not export directly to GymLog.
 4. History: import backups and compare planned with actual (best after 1.8 to 1.10).
 5. Suggestions: AI suggestions based on workout history, approved by the user.
 6. Mobile: move the builder into GymLog.
+
+**Coach feedback (6 November 2026, planning session).** An experienced powerlifting coach review of Phase 1 produced the items below. They are ideas, not approved specs; review them together before any build. Decisions made so far:
+
+- **Templates and athlete profiles are one feature.** The builder stores a collection of block templates (structure and prescriptions, no kg). An athlete profile holds a name, a 1RM per main lift (optionally a training max) and the plate rounding (usually 2.5 kg). Generate = template + profile gives a populated program with kg values; the coach reviews and edits it, then the builder writes the GymLog import file directly. The AI round trip is no longer needed for percentage loads.
+- **RPE and blank loads stay blank** after generation (decided). The athlete or coach fills them in. A labelled estimate from an RPE chart may come later.
+- **Percentage reference lift (decided).** Each exercise gets a "% of which lift" field (for example pause squat: Squat; close-grip bench: Bench). Percent loads use that lift's 1RM (or training max).
+- **Metrics on the programming screen.** Charts for sets, tonnage and average intensity per lift per week, updating as exercises and loads are added. The same metrics show on the template selection screen so templates can be compared. Bonus, later: a body diagram heat map by muscle group; it needs an exercise-to-muscle table with weights, so design the exercise data to allow it.
+- **Progression tools for coaches** (agreed; order): 1) percentage ramp (start and end %, weeks in between fill linearly); 2) per-week table (percentage and reps for each week in one row); 3) deload week flag (reduces sets or intensity, coach can override); 4) top set plus back-offs (back-offs as a % of the top set); 5) wave loading; 6) rep progression in a range.
+- **Coaching options to add slowly** (cheapest first): RIR, set-type labels (warm-up, top set, back-off, AMRAP, drop set), rep ranges, tempo, pause length, deload/test/competition week flags. Later: cluster sets, band/chain tension, block phase names, autoregulation rules, training max (%TM).
+- **Considered for the long term:** desktop-only layout limits (mobile is Phase 6); a safety net beyond one localStorage draft (version history, undo and redo); an automated test suite.
+- **Other quality-of-life ideas:** duplicate week, day or program; copy a day across weeks; drag-and-drop reordering; printable or PDF program for athletes; search in the exercise picker; comments per week; a multi-athlete dashboard.
 
 Potential features:
 
