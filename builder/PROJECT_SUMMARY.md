@@ -33,7 +33,7 @@ One `program` object, as spec section 6: `format`, `version`, `name`, `block`, `
 
 Defaults for a new set group (`newGroup`): 3 sets, 10 reps, kg, blank load, rest 90 s; the pattern is `same`.
 
-Storage keys: `builder_draft_v1` (the program), `builder_exercise_list_v1` (array of names loaded from a GymLog backup), `builder_detail_height_v1` (table height preference).
+Storage keys (current, see "Phase 2 step 1" at the end): `builder_programs_v1` (the library), `builder_open_v1` (which program is open), `builder_draft_v1` (Phase 1 draft: now only read once to migrate it into the library), `builder_exercise_list_v1` (array of names loaded from a GymLog backup), `builder_detail_height_v1` (table height preference).
 
 ## Key functions so far
 - `createDefaultProgram()`, `newWorkout()`, `newExercise(name, weekCount)`, `newGroup()`: build model objects.
@@ -145,3 +145,12 @@ Testing limit: there is no automated test suite in the repo; everything is check
 
 ## Adjustable table height (user request during step 9)
 - The bar on the top edge of the bottom table (`makeDetailResizer`) resizes it: drag, arrow keys when focused, double-click to reset. Range 120px to 90% of the window; the default still fits the content up to 380px. The choice is saved under `builder_detail_height_v1` (a screen preference, not part of the program). Spec 5.5 and the storage key list were updated.
+
+## Phase 2 step 1, stop 1: Library (6 November 2026, awaiting user test)
+Spec: `../docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`, mockup `../docs/mockups/Program Builder Library - Athlete-centred (revised).html`.
+- **The single draft is gone.** All programs live in the library, `builder_programs_v1`: an array of `{ id, name, modified, program }`. `builder_open_v1` is `{ kind: 'program', id }`. A Phase 1 draft is moved in once on first load (the `builder_draft_v1` key is left alone). Every edit saves to the open program's entry at once (`changed()` and `changedQuietly()` call `touchCurrent()` and `saveLibrary()`); the entry shares the `program` object with the editor.
+- **No unsaved-changes warning.** `dirty`, the leave-page warning and the "Replace current program?" confirms were removed. New Program adds a program and opens it. Open file adds the file as a new library program and opens it (nothing is replaced). Save file is unchanged (`downloadProgram(p)` is shared with the per-row Export).
+- **Library screen** (`Library` button in the header; `renderLibrary`): flat list with thin dividers (no boxes). Step 1 has one section, `Not linked to an athlete`, drawn by `renderUnlinkedSection()` (TEMPORARY: removing it later means deleting that function and its one call). Rows: name, `N weeks × M workouts`, last edited (dd/mm/yyyy), `Open now` tag, Open, Duplicate (`<name> copy`), Rename (modal), Export (program file), Delete (confirm). Deleting the open program opens the most recent other one, or a new empty program if it was the last. Footer: storage meter (amber/red from 80%). Import everything and Export everything are disabled placeholders until stop 2.
+- Functions: `libraryLoadPrograms` (skips invalid entries), `librarySavePrograms`, `libraryReadOpenId`/`libraryWriteOpenId`, `libraryStorageChars`, `formatDate`, `findEntry`, `mostRecentEntry`, `addProgramEntry`, `setCurrent`, `openLibrary`/`closeLibrary`/`openFromLibrary`, `duplicateProgram`, `renameProgram`, `deleteProgram`.
+- Tested by script with a stand-in for localStorage (the preview pane blocks storage): T1.1 to T1.4, delete, bad entries skipped, screen switching. Not yet done in a real browser: reload persistence, real file Open/Export.
+- Known: `libraryLoadPrograms` drops invalid entries, so a corrupted library key would be overwritten by the next save; a backup export (stop 2) is the safeguard.

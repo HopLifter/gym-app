@@ -136,6 +136,8 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 
 **1.7 Migration.** On first load with no library, a Phase 1 draft becomes a program in the library (see section 5). No draft: a new empty program.
 
+**Build progress.** Step 1 is built in two stops. Stop 1 (built 6 November 2026): 1.1 (single program list), 1.2, 1.3, 1.6 meter, 1.7, and Export per program. Stop 2: 1.4 and 1.5 (Export / Import everything, Last exported), the storage-full notice, T1.12. An empty library cannot happen yet: deleting the last program creates a new empty one.
+
 **Acceptance tests**
 - T1.1: A Phase 1 draft present on first load appears as one program in the library, and the editor opens it.
 - T1.2: Editing then reloading keeps the edit with no manual save.
@@ -149,7 +151,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 - T1.10: Fill storage artificially: the notice appears and editing continues.
 - T1.11: No `gymapp_` key is read or written.
 - T1.12: `.gitignore` blocks `*library*.json`.
-- T1.13: With nothing in the library (and no Phase 1 draft) the Library shows `Create your first template` and `Import (restore backup)`, and nothing else.
+- T1.13 (from step 4, because it offers `Create your first template`): With nothing in the library (and no Phase 1 draft) the Library shows `Create your first template` and `Import (restore backup)`, and nothing else.
 - T1.14: Footer shows `Last exported` and the storage meter on every state of the screen.
 - T1.15 (from step 3): An athlete block starts collapsed unless it holds the last edited program; clicking the heading expands and collapses it, and the choice is remembered while the screen stays open.
 - T1.15a (from step 3): `Expand all` opens every athlete block and the button then reads `Collapse all`; collapsing one block by hand turns it back to `Expand all`; `Collapse all` closes them all.

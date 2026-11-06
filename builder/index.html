@@ -245,12 +245,37 @@
     padding: 10px 18px; border-radius: 8px; z-index: 200;
   }
   #save-warning { color: var(--danger); padding: 8px 20px 0; }
+
+  /* ---- Library screen (Phase 2 spec 1.1). Flat: dividers and spacing, no boxes around items. ---- */
+  .header[hidden], .main[hidden], #library[hidden] { display: none; }
+  .lib-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+  .lib-bar .title { font-size: 16px; font-weight: 600; }
+  .lib-bar .spacer { margin-left: auto; display: flex; gap: 8px; }
+  .lib-sect { display: flex; align-items: center; gap: 10px; padding: 14px 20px 8px; font-weight: 600; cursor: pointer; }
+  .lib-sect .car { width: 14px; color: var(--text-dim); }
+  .lib-sect .count { color: var(--text-dim); font-weight: 400; font-size: 12px; }
+  .lib-sect button { margin-left: auto; padding: 4px 10px; }
+  .lib-row { display: flex; align-items: center; gap: 12px; padding: 9px 20px 9px 44px; border-top: 1px solid var(--line); }
+  .lib-row:hover { background: var(--surface); }
+  .lib-row.current { background: var(--selected-bg); box-shadow: inset 3px 0 0 var(--accent); }
+  .lib-row .t { flex: 1; min-width: 0; }
+  .lib-row .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-row .t span { color: var(--text-dim); font-size: 12px; }
+  .lib-row .when { color: var(--text-dim); }
+  .lib-row .acts { display: flex; gap: 6px; }
+  .lib-row .acts button { padding: 3px 9px; font-size: 12px; }
+  .tag-now { font-size: 11px; padding: 1px 7px; border-radius: 9px; border: 1px solid #3b4a1c; color: var(--accent); white-space: nowrap; }
+  .lib-foot { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-top: 1px solid var(--line); margin-top: 8px; color: var(--text-dim); font-size: 12px; }
+  .meter { width: 120px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
+  .meter i { display: block; height: 100%; background: var(--accent); }
+  .meter.warn i { background: var(--danger); }
 </style>
 </head>
 <body>
   <div class="header" id="header"></div>
-  <div id="save-warning" hidden>The draft could not be saved in this browser. Changes will be lost when the page closes.</div>
-  <div class="main"><div class="grid-wrap" id="grid"></div></div>
+  <div id="save-warning" hidden>This browser could not save your changes. They will be lost when the page closes.</div>
+  <div id="library" hidden></div>
+  <div class="main" id="main"><div class="grid-wrap" id="grid"></div></div>
   <div class="detail" id="detail" hidden></div>
 
 <script>
@@ -261,7 +286,10 @@
    Pure functions: no drawing code here, so they are easy to test and reuse.
    ========================================================================== */
 
-var DRAFT_KEY = 'builder_draft_v1';
+var DRAFT_KEY = 'builder_draft_v1';         // Phase 1 draft: read once to move it into the library, never written or deleted
+var PROGRAMS_KEY = 'builder_programs_v1';   // the library: array of { id, name, modified, program }
+var OPEN_KEY = 'builder_open_v1';           // { kind: 'program', id } of the item open in the editor
+var STORAGE_LIMIT_CHARS = 5 * 1024 * 1024;  // browsers allow about 5 MB of text per site
 var EXERCISE_LIST_KEY = 'builder_exercise_list_v1';
 var FORMAT_NAME = 'gym-program-builder';
 var FORMAT_VERSION = 1;
@@ -424,15 +452,6 @@ function isValidProgram(p) {
    so every call is wrapped in try/catch.
    -------------------------------------------------------------------------- */
 
-function saveDraft(program) {
-  try {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(program));
-    return true;
-  } catch (err) {
-    return false;
-  }
-}
-
 // Older drafts had ONE pattern and ONE rest time per exercise (`pattern`, `rest`). Both now belong
 // to each set group (`patterns`, `group.rest`), so convert before validating. Anything odd is left
 // for validation to reject.
@@ -465,6 +484,82 @@ function migrateOldPatterns(p) {
       delete e.rest;
     });
   });
+}
+
+/* --------------------------------------------------------------------------
+   Library storage (Phase 2 spec step 1). All programs live in one localStorage key as an array
+   of { id, name, modified, program }. Everything that reads or writes the library goes through
+   these functions, so the storage can be changed later without touching the editor.
+   -------------------------------------------------------------------------- */
+
+function newLibraryId() {
+  return 'lib_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// Returns the saved programs. An entry that fails the checks is skipped, never half-used.
+function libraryLoadPrograms() {
+  try {
+    var data = JSON.parse(localStorage.getItem(PROGRAMS_KEY));
+    if (!Array.isArray(data)) return [];
+    var seen = {};
+    var good = [];
+    data.forEach(function (entry) {
+      if (!entry || typeof entry !== 'object') return;
+      if (typeof entry.id !== 'string' || !/^lib_[a-z0-9]+$/.test(entry.id) || seen[entry.id]) return;
+      if (typeof entry.modified !== 'string' || isNaN(new Date(entry.modified).getTime())) return;
+      migrateOldPatterns(entry.program);
+      if (!isValidProgram(entry.program)) return;
+      entry.program.workouts.forEach(purgeBrokenPairs);
+      seen[entry.id] = true;
+      good.push({ id: entry.id, name: entry.program.name, modified: entry.modified, program: entry.program });
+    });
+    return good;
+  } catch (err) {
+    return [];
+  }
+}
+
+// Returns true if the write worked (localStorage can fail: private mode, full storage).
+function librarySavePrograms(list) {
+  try {
+    localStorage.setItem(PROGRAMS_KEY, JSON.stringify(list));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+function libraryReadOpenId() {
+  try {
+    var data = JSON.parse(localStorage.getItem(OPEN_KEY));
+    return data && data.kind === 'program' && typeof data.id === 'string' ? data.id : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function libraryWriteOpenId(id) {
+  try { localStorage.setItem(OPEN_KEY, JSON.stringify({ kind: 'program', id: id })); } catch (err) { /* the open item is a convenience */ }
+}
+
+// How much of the browser's storage the builder uses, in characters (about the same as bytes of text).
+function libraryStorageChars() {
+  var total = 0;
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var key = localStorage.key(i);
+      if (key.indexOf('builder_') === 0) total += key.length + (localStorage.getItem(key) || '').length;
+    }
+  } catch (err) { /* report what we have */ }
+  return total;
+}
+
+// dd/mm/yyyy (the project's date format) from a stored ISO date.
+function formatDate(iso) {
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  function two(n) { return (n < 10 ? '0' : '') + n; }
+  return two(d.getDate()) + '/' + two(d.getMonth() + 1) + '/' + d.getFullYear();
 }
 
 // Returns a valid program, or null if there is no draft or it is damaged.
@@ -734,38 +829,78 @@ function programHasExercises(prog) {
    One `program` object; render() redraws everything from it.
    ========================================================================== */
 
-var program = null;
-var dirty = false;       // true when there are changes not yet saved to a file (spec 5.13)
-var draftSaved = true;   // false if the last localStorage write failed
+var program = null;        // the program open in the editor: the same object as `program` in its library entry
+var library = [];          // every saved program: { id, name, modified, program }
+var currentId = null;      // id of the library entry open in the editor
+var libraryOpen = false;   // true while the Library screen is showing instead of the editor
+var draftSaved = true;     // false if the last localStorage write failed (shows a warning)
 
-// Call this after EVERY change that needs a redraw.
+function findEntry(id) {
+  for (var i = 0; i < library.length; i++) if (library[i].id === id) return library[i];
+  return null;
+}
+
+// The entry edited most recently (used when nothing else says which program to open).
+function mostRecentEntry() {
+  var best = null;
+  library.forEach(function (e) { if (!best || e.modified > best.modified) best = e; });
+  return best;
+}
+
+function saveLibrary() {
+  draftSaved = librarySavePrograms(library);
+  return draftSaved;
+}
+
+// Marks the open program as edited just now. Its entry shares the program object, so only the
+// name and date need copying across.
+function touchCurrent() {
+  var entry = findEntry(currentId);
+  if (!entry) return;
+  entry.name = program.name;
+  entry.modified = new Date().toISOString();
+}
+
+// Call this after EVERY change that needs a redraw. The library saves itself: there is no
+// separate "save" step and no unsaved-changes warning (Phase 2 spec 1.2).
 function changed() {
-  dirty = true;
-  draftSaved = saveDraft(program);
+  touchCurrent();
+  saveLibrary();
   render();
 }
 
 // For typing in text boxes: save, but do not redraw (a redraw would drop the cursor).
 function changedQuietly() {
-  dirty = true;
-  draftSaved = saveDraft(program);
+  touchCurrent();
+  saveLibrary();
   document.getElementById('save-warning').hidden = draftSaved;
+}
+
+function addProgramEntry(p) {
+  var entry = { id: newLibraryId(), name: p.name, modified: new Date().toISOString(), program: p };
+  library.push(entry);
+  return entry;
+}
+
+// Makes an entry the program in the editor. It does not redraw and does not leave the Library.
+function setCurrent(entry) {
+  currentId = entry.id;
+  program = entry.program;
+  syncIdCounter(program);
+  selected = null;
+  libraryWriteOpenId(entry.id);
 }
 
 function startUp() {
   loadDetailHeight();
-  var draft = loadDraft();
-  if (draft) {
-    program = draft;
-    syncIdCounter(program);
-    // We cannot know if a reloaded draft was saved to a file, so treat it as
-    // unsaved as soon as it holds any work.
-    dirty = programHasExercises(program) || program.name !== 'New Program';
-  } else {
-    program = createDefaultProgram();
-    draftSaved = saveDraft(program);
-    dirty = false;
+  library = libraryLoadPrograms();
+  if (library.length === 0) {
+    // First visit to the library: move the Phase 1 draft in (the draft key itself is left alone),
+    // or start with an empty program.
+    addProgramEntry(loadDraft() || createDefaultProgram());
+    saveLibrary();
   }
+  setCurrent(findEntry(libraryReadOpenId()) || mostRecentEntry());
   render();
 }
 
@@ -829,24 +964,14 @@ function setWorkoutCount(n) {
   }
 }
 
+// New Program adds an empty program to the library and opens it. Nothing is replaced, so there
+// is nothing to confirm.
 function startNewProgram() {
-  function go() {
-    program = createDefaultProgram();
-    selected = null;
-    draftSaved = saveDraft(program);
-    dirty = false;
-    render();
-  }
-  if (dirty) {
-    showConfirm({
-      title: 'Replace current program?',
-      text: "Changes that haven't been saved to a file will be lost.",
-      confirmLabel: 'Replace',
-      onConfirm: go
-    });
-  } else {
-    go();
-  }
+  var entry = addProgramEntry(createDefaultProgram());
+  saveLibrary();
+  setCurrent(entry);
+  libraryOpen = false;
+  render();
 }
 
 /* ==========================================================================
@@ -1033,10 +1158,15 @@ function pickTextFile(maxBytes, onText, onTooBig) {
   input.click();
 }
 
-// Save file: downloads the program as JSON. Clears the unsaved-changes flag.
+// Save file: downloads the open program as JSON.
 function saveProgramFile() {
-  var name = programFileName(program.name);
-  var blob = new Blob([JSON.stringify(program, null, 2)], { type: 'application/json' });
+  downloadProgram(program);
+}
+
+// Downloads any program as a file (used by Save file and by Export in the Library).
+function downloadProgram(p) {
+  var name = programFileName(p.name);
+  var blob = new Blob([JSON.stringify(p, null, 2)], { type: 'application/json' });
   var url = URL.createObjectURL(blob);
   var link = document.createElement('a');
   link.href = url;
@@ -1045,36 +1175,22 @@ function saveProgramFile() {
   link.click();
   link.remove();
   setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-  dirty = false;
   showNotice('Saved as ' + name + '.');
 }
 
-function replaceProgram(data) {
-  program = data;
-  syncIdCounter(program);
-  selected = null;
-  draftSaved = saveDraft(program);
-  dirty = false;
-  render();
-}
-
-// Open file: reads and checks a program file. If the current draft has changes that were not
-// saved to a file, asks before replacing it. An invalid file changes nothing.
+// Open file: reads and checks a program file and adds it to the library as a new program, then
+// opens it. Nothing is replaced. An invalid file changes nothing.
 function openProgramFile() {
   function cannotOpen() { showMessage('Open file', "This file can't be opened."); }
   pickTextFile(MAX_PROGRAM_FILE_BYTES, function (text) {
     var data = parseProgramFile(text);
     if (!data) { cannotOpen(); return; }
-    if (dirty) {
-      showConfirm({
-        title: 'Replace current program?',
-        text: "Changes that haven't been saved to a file will be lost.",
-        confirmLabel: 'Replace',
-        onConfirm: function () { replaceProgram(data); }
-      });
-    } else {
-      replaceProgram(data);
-    }
+    var entry = addProgramEntry(data);
+    saveLibrary();
+    setCurrent(entry);
+    libraryOpen = false;
+    render();
+    showNotice('Added to the Library.');
   }, cannotOpen);
 }
 
@@ -1270,6 +1386,7 @@ function renderHeader() {
   header.appendChild(stepper('Weeks', program.weeks, 1, MAX_WEEKS, setWeekCount));
   header.appendChild(stepper('Workouts / week', program.workoutsPerWeek, 1, MAX_WORKOUTS, setWorkoutCount));
   header.appendChild(el('div', { className: 'header-buttons' }, [
+    el('button', { text: 'Library', onclick: openLibrary }),
     el('button', { text: 'Open file', onclick: openProgramFile }),
     el('button', { text: 'Save file', onclick: saveProgramFile }),
     el('button', { text: 'Load Exercise List', onclick: loadExerciseListFile }),
@@ -2372,11 +2489,174 @@ function renderGrid() {
 }
 
 function render() {
+  var header = document.getElementById('header');
+  var main = document.getElementById('main');
+  var detail = document.getElementById('detail');
+  var lib = document.getElementById('library');
+  document.getElementById('save-warning').hidden = draftSaved;
+  if (libraryOpen) {
+    header.hidden = true;
+    main.hidden = true;
+    detail.hidden = true;
+    lib.hidden = false;
+    renderLibrary();
+    return;
+  }
+  lib.hidden = true;
+  header.hidden = false;
+  main.hidden = false;
   renderHeader();
   if (!findSelected()) selected = null;
   renderGrid();
   renderDetail();
-  document.getElementById('save-warning').hidden = draftSaved;
+}
+
+/* ==========================================================================
+   LIBRARY SCREEN (Phase 2 spec 1.1)
+   Step 1 shows one section, "Not linked to an athlete", holding every program. It is TEMPORARY:
+   athlete blocks arrive in step 3 and programs move under them. Everything that belongs only to
+   that section is in renderUnlinkedSection(); removing the section later means deleting that
+   function and its one call in renderLibrary().
+   ========================================================================== */
+
+var unlinkedOpen = true; // step 1 has no other section, so it starts open (spec: collapsed once athletes exist)
+
+function openLibrary() {
+  libraryOpen = true;
+  render();
+}
+
+function closeLibrary() {
+  libraryOpen = false;
+  render();
+}
+
+function openFromLibrary(entry) {
+  setCurrent(entry);
+  libraryOpen = false;
+  render();
+}
+
+function plural(n, word) {
+  return n + ' ' + word + (n === 1 ? '' : 's');
+}
+
+function duplicateProgram(entry) {
+  var copy = JSON.parse(JSON.stringify(entry.program));
+  copy.name = (entry.program.name + ' copy').slice(0, 200);
+  addProgramEntry(copy);
+  saveLibrary();
+  showNotice('Duplicated.');
+  render();
+}
+
+function renameProgram(entry) {
+  var input = textInput(entry.program.name, { maxlength: '200', 'aria-label': 'Program name' });
+  var error = el('div', { className: 'form-error' });
+  function save() {
+    var name = input.value.trim();
+    if (name === '') { error.textContent = 'Enter a name.'; return; }
+    entry.program.name = name;
+    entry.name = name;
+    entry.modified = new Date().toISOString();
+    closeModal();
+    saveLibrary();
+    render();
+  }
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter') save(); });
+  openModal({
+    title: 'Rename program',
+    body: el('div', null, [formRow('Name', input), error]),
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', { className: 'primary', text: 'Save', onclick: save })
+    ]
+  });
+  input.focus();
+  input.select();
+}
+
+// Deleting the open program opens the most recent other one, or a new empty program if it was the last.
+function deleteProgram(entry) {
+  showConfirm({
+    title: 'Delete "' + entry.name + '"?',
+    text: 'This cannot be undone.',
+    confirmLabel: 'Delete',
+    onConfirm: function () {
+      library = library.filter(function (e) { return e !== entry; });
+      if (library.length === 0) addProgramEntry(createDefaultProgram());
+      if (entry.id === currentId) setCurrent(mostRecentEntry());
+      saveLibrary();
+      render();
+    }
+  });
+}
+
+function renderProgramRow(entry) {
+  var p = entry.program;
+  var isCurrent = entry.id === currentId;
+  var acts = [];
+  if (!isCurrent) acts.push(el('button', { text: 'Open', onclick: function () { openFromLibrary(entry); } }));
+  acts.push(el('button', { text: 'Duplicate', onclick: function () { duplicateProgram(entry); } }));
+  acts.push(el('button', { text: 'Rename', onclick: function () { renameProgram(entry); } }));
+  acts.push(el('button', { text: 'Export', onclick: function () { downloadProgram(p); } }));
+  acts.push(el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteProgram(entry); } }));
+  return el('div', { className: 'lib-row' + (isCurrent ? ' current' : '') }, [
+    el('div', { className: 't' }, [
+      el('b', { text: entry.name === '' ? '(No name)' : entry.name }),
+      el('span', { text: plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout') })
+    ]),
+    isCurrent ? el('span', { className: 'tag-now', text: 'Open now' }) : el('span'),
+    el('span', { className: 'when', text: formatDate(entry.modified) }),
+    el('div', { className: 'acts' }, acts)
+  ]);
+}
+
+// TEMPORARY section (see the note above): every program, newest edited first.
+function renderUnlinkedSection() {
+  var wrap = el('div');
+  if (library.length === 0) return wrap; // hidden when empty
+  var sorted = library.slice().sort(function (a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; });
+  wrap.appendChild(el('div', {
+    className: 'lib-sect', role: 'button', tabindex: '0', 'aria-expanded': unlinkedOpen ? 'true' : 'false',
+    onclick: function () { unlinkedOpen = !unlinkedOpen; render(); }
+  }, [
+    el('span', { className: 'car', text: unlinkedOpen ? '▼' : '▶' }),
+    el('span', { text: 'Not linked to an athlete' }),
+    el('span', { className: 'count', text: plural(sorted.length, 'program') }),
+    el('button', { className: 'primary', text: '+ New program', onclick: function (e) { e.stopPropagation(); startNewProgram(); } })
+  ]));
+  if (unlinkedOpen) sorted.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry)); });
+  return wrap;
+}
+
+function renderLibraryFooter() {
+  var used = libraryStorageChars();
+  var mb = used / (1024 * 1024);
+  var share = Math.min(100, Math.round(used / STORAGE_LIMIT_CHARS * 100));
+  var label = (mb < 0.1 ? '<0.1' : mb.toFixed(1)) + ' MB';
+  return el('div', { className: 'lib-foot' }, [
+    el('span', null, [
+      el('span', { text: 'Browser storage: ' + label + ' of about 5 MB' }),
+      el('span', { className: 'meter' + (share >= 80 ? ' warn' : '') }, [el('i', { style: 'width:' + share + '%' })])
+    ])
+  ]);
+}
+
+function renderLibrary() {
+  var box = document.getElementById('library');
+  box.textContent = '';
+  box.appendChild(el('div', { className: 'lib-bar' }, [
+    el('button', { text: '← Back to editor', onclick: closeLibrary }),
+    el('span', { className: 'title', text: 'Library' }),
+    el('div', { className: 'spacer' }, [
+      // Built in the next step of Phase 2 spec step 1 (1.4 and 1.5).
+      el('button', { text: 'Import everything', disabled: 'disabled', title: 'Coming in the next build step' }),
+      el('button', { text: 'Export everything', disabled: 'disabled', title: 'Coming in the next build step' })
+    ])
+  ]));
+  box.appendChild(renderUnlinkedSection());
+  box.appendChild(renderLibraryFooter());
 }
 
 /* ==========================================================================
@@ -2838,13 +3118,7 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
 }
 
 
-// Warn before closing the tab if there are unsaved changes (spec 5.13).
-window.addEventListener('beforeunload', function (e) {
-  if (dirty) {
-    e.preventDefault();
-    e.returnValue = '';
-  }
-});
+// No "unsaved changes" warning on closing the tab: every edit is saved to the library at once.
 
 startUp();
 </script>
