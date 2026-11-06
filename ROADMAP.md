@@ -1,7 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
-**Last updated:** 6 November 2026 (coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
+**Last updated:** 6 November 2026 (Program Builder Phase 2 spec drafted; coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -172,7 +172,7 @@ The builder does not export directly to GymLog.
 **Phases:**
 
 1. Core builder: create, edit, save and reopen programs, and copy the AI prompt. Status: implemented (5 November 2026) as a separate desktop page in the `builder/` folder of this repo, https://hoplifter.github.io/gym-app/builder/ (it began as its own repo, plain HTML/CSS/JS, no change to GymLog itself). Its own `PROJECT_SUMMARY.md` and spec describe it. The end-to-end run (AI prompt, GymLog import, reopening the AI's program file) is still being tried with a real block.
-2. Reuse: templates, duplication and versions.
+2. Reuse: templates, duplication and versions. Status: spec written and reviewed (6 November 2026), `docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`, ready to build step 1. It covers seven steps: browser library with export/import of everything, coaching fields, reference lifts and athlete profiles, templates with Generate and direct GymLog file export, six progression tools, duplication and manual versions, and metrics charts.
 3. Analysis: weekly and per-exercise workload.
 4. History: import backups and compare planned with actual (best after 1.8 to 1.10).
 5. Suggestions: AI suggestions based on workout history, approved by the user.
