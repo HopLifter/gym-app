@@ -67,7 +67,6 @@
   .field { display: flex; align-items: center; gap: 8px; }
   .field label { color: var(--text-dim); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
   #name-input { width: 260px; font-size: 16px; font-weight: 600; }
-  #block-input { width: 56px; text-align: center; }
   .stepper { display: flex; align-items: center; }
   .stepper button { width: 32px; padding: 7px 0; font-size: 16px; line-height: 1; }
   .stepper .value { min-width: 36px; text-align: center; font-weight: 600; }
@@ -244,7 +243,14 @@
 
   /* ---- Library screen (Phase 2 spec 1.1). Flat: dividers and spacing, no boxes around items. ---- */
   .header, #save-warning, .detail { flex: none; }
-  #library { flex: 1 1 auto; min-height: 0; overflow: auto; }
+  #library { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .lib-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+  .lib-bar, .lib-foot { flex: none; }
+  .lib-row .t.clickable { cursor: pointer; }
+  .meta-text { color: var(--text-dim); }
+  .icon-btn { background: none; border: none; padding: 2px 6px; font-size: 17px; line-height: 1; color: var(--text-dim); }
+  .icon-btn:hover:not(:disabled) { color: var(--accent); border-color: transparent; }
+  .size-row { display: flex; gap: 28px; margin-bottom: 14px; }
   .header[hidden], #library[hidden] { display: none; }
   .lib-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
   .lib-bar .title { font-size: 16px; font-weight: 600; }
@@ -263,7 +269,7 @@
   .lib-row .acts { display: flex; gap: 6px; }
   .lib-row .acts button { padding: 3px 9px; font-size: 12px; }
   .tag-now { font-size: 11px; padding: 1px 7px; border-radius: 9px; border: 1px solid #3b4a1c; color: var(--accent); white-space: nowrap; }
-  .lib-foot { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-top: 1px solid var(--line); margin-top: 8px; color: var(--text-dim); font-size: 12px; }
+  .lib-foot { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-top: 1px solid var(--line); color: var(--text-dim); font-size: 12px; }
   .lib-foot .grow { flex: 1; }
   .lib-foot .stale { color: #E8B04A; }
   .meter { width: 120px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
@@ -360,18 +366,20 @@ function newWorkout() {
   return { id: makeId('wk'), description: '', exercises: [] };
 }
 
-// Spec 5.1: first visit opens "New Program", Block 1, 4 weeks, 3 workouts per week.
-function createDefaultProgram() {
+// A new empty program. `options` (all optional): name, weeks, workoutsPerWeek. There is no "block"
+// number any more: anything the block number told you belongs in the program name.
+function createDefaultProgram(options) {
+  options = options || {};
   nextIdNumber = 1;
+  var count = options.workoutsPerWeek || 3;
   var workouts = [];
-  for (var i = 0; i < 3; i++) workouts.push(newWorkout());
+  for (var i = 0; i < count; i++) workouts.push(newWorkout());
   return {
     format: FORMAT_NAME,
     version: FORMAT_VERSION,
-    name: 'New Program',
-    block: 1,
-    weeks: 4,
-    workoutsPerWeek: 3,
+    name: options.name || 'New Program',
+    weeks: options.weeks || 4,
+    workoutsPerWeek: count,
     workouts: workouts
   };
 }
@@ -437,7 +445,8 @@ function isValidProgram(p) {
   if (p.format !== FORMAT_NAME) return false;
   if (!isWholeBetween(p.version, 1, FORMAT_VERSION)) return false; // higher version = reject (spec 5.13)
   if (typeof p.name !== 'string' || p.name.length > 200) return false;
-  if (!isWholeBetween(p.block, 1, 9999)) return false;
+  // `block` is optional: older files have it, new programs do not.
+  if (p.block !== undefined && !isWholeBetween(p.block, 1, 9999)) return false;
   if (!isWholeBetween(p.weeks, 1, MAX_WEEKS)) return false;
   if (!isWholeBetween(p.workoutsPerWeek, 1, MAX_WORKOUTS)) return false;
   if (!Array.isArray(p.workouts) || p.workouts.length !== p.workoutsPerWeek) return false;
@@ -832,13 +841,13 @@ function replaceEditedGroup(ex, k) {
   });
 }
 
-// Does removing the last week lose edits or kg values? (spec 5.3)
-function lastWeekHasWork(prog) {
-  var last = prog.weeks - 1;
+// Does cutting the program down to `weekCount` weeks lose edits or kg values?
+function weeksHaveWork(prog, weekCount) {
   return prog.workouts.some(function (w) {
     return w.exercises.some(function (ex) {
-      var entry = ex.weeks[last];
-      return entry.edited || entry.groups.some(function (g) { return g.kg !== null; });
+      return ex.weeks.slice(weekCount).some(function (entry) {
+        return entry.edited || entry.groups.some(function (g) { return g.kg !== null; });
+      });
     });
   });
 }
@@ -924,77 +933,150 @@ function startUp() {
     saveLibrary();
   }
   setCurrent(findEntry(libraryReadOpenId()) || mostRecentEntry());
+  libraryOpen = true;   // the builder starts on the Library; pick a program to work on
   render();
 }
 
 /* ==========================================================================
-   CHANGING THE SIZE OF THE PROGRAM (spec 5.3)
+   NEW PROGRAM AND PROGRAM SETTINGS
+   The size of a program (weeks and workouts per week) is chosen when the program is created, and
+   changed later with the Edit button in the editor header.
    ========================================================================== */
 
-function setWeekCount(n) {
-  if (n < 1 || n > MAX_WEEKS || n === program.weeks) return;
-  if (n > program.weeks) {
-    program.weeks = n;
-    program.workouts.forEach(function (w) {
-      w.exercises.forEach(function (ex) { ex.weeks = generateWeeks(ex, n); });
-    });
-    changed();
-    return;
+// Two steppers (weeks, workouts per week) that write into `state`.
+function sizeSteppers(state) {
+  var box = el('div', { className: 'size-row' });
+  function draw() {
+    box.textContent = '';
+    box.appendChild(stepper('Weeks', state.weeks, 1, MAX_WEEKS, function (n) { state.weeks = n; draw(); if (state.onChange) state.onChange(); }));
+    box.appendChild(stepper('Workouts / week', state.workouts, 1, MAX_WORKOUTS, function (n) { state.workouts = n; draw(); if (state.onChange) state.onChange(); }));
   }
-  // Only ever removes the last week (steppers move one at a time).
-  function remove() {
-    program.weeks = n;
-    program.workouts.forEach(function (w) {
-      w.exercises.forEach(function (ex) { ex.weeks.length = n; });
-    });
-    changed();
-  }
-  if (lastWeekHasWork(program)) {
-    showConfirm({
-      title: 'Remove Week ' + program.weeks + '?',
-      text: 'This week has edited cells or kg values. They will be lost.',
-      confirmLabel: 'Remove',
-      onConfirm: remove
-    });
-  } else {
-    remove();
-  }
+  draw();
+  return box;
 }
 
-function setWorkoutCount(n) {
-  if (n < 1 || n > MAX_WORKOUTS || n === program.workoutsPerWeek) return;
-  if (n > program.workoutsPerWeek) {
-    program.workouts.push(newWorkout());
-    program.workoutsPerWeek = n;
-    changed();
-    return;
+// New program (opened from the Library): name, weeks and workouts per week. The new program is
+// added to the library and opened in the editor.
+function openNewProgramDialog() {
+  var state = { weeks: 4, workouts: 3 };
+  var nameInput = textInput('New Program', { maxlength: '200', 'aria-label': 'Program name' });
+  var error = el('div', { className: 'form-error' });
+  function create() {
+    var name = nameInput.value.trim();
+    if (name === '') { error.textContent = 'Enter a name.'; return; }
+    closeModal();
+    var entry = addProgramEntry(createDefaultProgram({ name: name, weeks: state.weeks, workoutsPerWeek: state.workouts }));
+    saveLibrary();
+    setCurrent(entry);
+    libraryOpen = false;
+    render();
   }
-  var last = program.workouts[program.workouts.length - 1];
-  function remove() {
-    program.workouts.pop();
-    program.workoutsPerWeek = n;
-    changed();
-  }
-  if (last.exercises.length > 0) {
-    showConfirm({
-      title: 'Remove Workout ' + program.workoutsPerWeek + '?',
-      text: 'This workout has exercises. They will be deleted.',
-      confirmLabel: 'Remove',
-      onConfirm: remove
-    });
-  } else {
-    remove();
-  }
+  nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') create(); });
+  openModal({
+    title: 'New program',
+    body: el('div', null, [
+      formRow('Name', nameInput),
+      sizeSteppers(state),
+      el('div', { className: 'sub', text: 'You can change the weeks and workouts later with Edit.' }),
+      error
+    ]),
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', { className: 'primary', text: 'Create', onclick: create })
+    ]
+  });
+  nameInput.focus();
+  nameInput.select();
 }
 
-// New Program adds an empty program to the library and opens it. Nothing is replaced, so there
-// is nothing to confirm.
-function startNewProgram() {
-  var entry = addProgramEntry(createDefaultProgram());
-  saveLibrary();
-  setCurrent(entry);
-  libraryOpen = false;
-  render();
+// Edit (editor header): change the number of weeks and workouts per week.
+function openProgramSettings() {
+  var state = { weeks: program.weeks, workouts: program.workoutsPerWeek };
+  var mode = 'extend';
+  var note = el('div');
+
+  function radio(value, label, desc) {
+    var input = el('input', { type: 'radio', name: 'new-weeks', value: value });
+    if (value === mode) input.checked = true;
+    input.addEventListener('change', function () { mode = value; });
+    return el('label', { className: 'opt' }, [input, el('span', null, [
+      el('span', { className: 'opt-label', text: label }),
+      el('span', { className: 'opt-desc', text: ' ' + desc })
+    ])]);
+  }
+  function drawNote() {
+    note.textContent = '';
+    if (state.weeks > program.weeks && programHasExercises(program)) {
+      note.appendChild(el('div', { className: 'sub', text: 'How should the new weeks start?' }));
+      note.appendChild(radio('extend', 'Extend existing workouts and patterns', 'The exercises continue into the new weeks.'));
+      note.appendChild(radio('blank', 'Leave the new weeks blank', 'The new weeks start with no exercises.'));
+    }
+    if (state.weeks < program.weeks) {
+      var first = state.weeks + 1;
+      note.appendChild(el('div', { className: 'form-warning', text: (first === program.weeks ? 'Week ' + first : 'Weeks ' + first + ' to ' + program.weeks) + ' will be removed.' }));
+    }
+    if (state.workouts < program.workoutsPerWeek) {
+      var firstW = state.workouts + 1;
+      note.appendChild(el('div', { className: 'form-warning', text: (firstW === program.workoutsPerWeek ? 'Workout ' + firstW : 'Workouts ' + firstW + ' to ' + program.workoutsPerWeek) + ' will be removed.' }));
+    }
+  }
+  state.onChange = drawNote;
+  drawNote();
+
+  openModal({
+    title: 'Program settings',
+    body: el('div', null, [sizeSteppers(state), note]),
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', {
+        className: 'primary', text: 'Save',
+        onclick: function () { closeModal(); applyProgramSettings(state.weeks, state.workouts, mode === 'blank'); }
+      })
+    ]
+  });
+}
+
+// Changes the size of the open program. Removing weeks or workouts that hold work asks first.
+// New weeks either continue the existing exercises and patterns, or (`blank`) start with every
+// exercise left out of them.
+function applyProgramSettings(newWeeks, newWorkouts, blank) {
+  if (newWeeks === program.weeks && newWorkouts === program.workoutsPerWeek) return;
+  var losses = [];
+  if (newWeeks < program.weeks && weeksHaveWork(program, newWeeks)) {
+    losses.push('The removed weeks hold edited cells or kg values.');
+  }
+  var lostExercises = 0;
+  if (newWorkouts < program.workoutsPerWeek) {
+    program.workouts.slice(newWorkouts).forEach(function (w) { lostExercises += w.exercises.length; });
+  }
+  if (lostExercises > 0) losses.push(plural(lostExercises, 'exercise') + ' in the removed workouts will be deleted.');
+
+  function go() {
+    var oldWeeks = program.weeks;
+    if (newWorkouts > program.workoutsPerWeek) {
+      while (program.workouts.length < newWorkouts) program.workouts.push(newWorkout());
+    } else {
+      program.workouts.length = newWorkouts;
+    }
+    program.workoutsPerWeek = newWorkouts;
+    program.weeks = newWeeks;
+    program.workouts.forEach(function (w) {
+      w.exercises.forEach(function (ex) {
+        if (newWeeks > oldWeeks) {
+          ex.weeks = generateWeeks(ex, newWeeks);
+          if (blank) for (var i = oldWeeks; i < newWeeks; i++) ex.weeks[i].included = false;
+        } else if (newWeeks < oldWeeks) {
+          ex.weeks.length = newWeeks;
+        }
+      });
+    });
+    changed();
+  }
+  if (losses.length > 0) {
+    showConfirm({ title: 'Remove from the program?', text: losses.join(' '), confirmLabel: 'Remove', onConfirm: go });
+  } else {
+    go();
+  }
 }
 
 /* ==========================================================================
@@ -1181,11 +1263,6 @@ function pickTextFile(maxBytes, onText, onTooBig) {
   input.click();
 }
 
-// Save file: downloads the open program as JSON.
-function saveProgramFile() {
-  downloadProgram(program);
-}
-
 // Downloads an object as a JSON file with the given name.
 function downloadJson(name, data) {
   var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1294,19 +1371,17 @@ function applyImport(data, mode) {
   showNotice('Imported ' + plural(data.entries.length, 'program') + '.');
 }
 
-// Open file: reads and checks a program file and adds it to the library as a new program, then
-// opens it. Nothing is replaced. An invalid file changes nothing.
-function openProgramFile() {
-  function cannotOpen() { showMessage('Open file', "This file can't be opened."); }
+// Import program (Library page): reads and checks a program file and adds it to the library as a
+// new program. Nothing is replaced and the Library stays open. An invalid file changes nothing.
+function importProgramFile() {
+  function cannotOpen() { showMessage('Import program', "This file can't be opened."); }
   pickTextFile(MAX_PROGRAM_FILE_BYTES, function (text) {
     var data = parseProgramFile(text);
     if (!data) { cannotOpen(); return; }
     var entry = addProgramEntry(data);
     saveLibrary();
-    setCurrent(entry);
-    libraryOpen = false;
     render();
-    showNotice('Added to the Library.');
+    showNotice('Imported "' + entry.name + '".');
   }, cannotOpen);
 }
 
@@ -1369,7 +1444,7 @@ var AI_PROMPT_LINES = [
   '  "program": { "name": "<name>" },',
   '  "workouts": [',
   '    {',
-  '      "label": "Block <block> - Wk<week> D<workout>",',
+  '      "label": "<program name> - Wk<week> D<workout>",',
   '      "description": "<description>",',
   '      "exercises": [',
   '        { "name": "<name>", "sets": 3, "reps": 5, "weight": 120, "rpe": 8, "rest": 180, "notes": "", "superset": "A" }',
@@ -1485,29 +1560,18 @@ function renderHeader() {
     changedQuietly();
   });
 
-  var blockInput = el('input', { type: 'text', id: 'block-input', inputmode: 'numeric', 'aria-label': 'Block number' });
-  blockInput.value = String(program.block);
-  blockInput.addEventListener('change', function () {
-    var n = parseInt(blockInput.value.replace(',', '.'), 10);
-    if (isFinite(n) && n >= 1 && n <= 9999) {
-      program.block = n;
-      changed();
-    } else {
-      blockInput.value = String(program.block); // invalid: put the old value back
-    }
-  });
-
   header.appendChild(nameInput);
-  header.appendChild(el('div', { className: 'field' }, [el('label', { text: 'Block' }), blockInput]));
-  header.appendChild(stepper('Weeks', program.weeks, 1, MAX_WEEKS, setWeekCount));
-  header.appendChild(stepper('Workouts / week', program.workoutsPerWeek, 1, MAX_WORKOUTS, setWorkoutCount));
+  header.appendChild(el('span', {
+    className: 'meta-text',
+    text: plural(program.weeks, 'week') + ' · ' + plural(program.workoutsPerWeek, 'workout') + ' per week'
+  }));
+  header.appendChild(el('button', {
+    className: 'icon-btn', text: '✎', title: 'Edit weeks and workouts per week',
+    'aria-label': 'Edit weeks and workouts per week', onclick: openProgramSettings
+  }));
   header.appendChild(el('div', { className: 'header-buttons' }, [
     el('button', { text: 'Library', onclick: openLibrary }),
-    el('button', { text: 'Open file', onclick: openProgramFile }),
-    el('button', { text: 'Save file', onclick: saveProgramFile }),
-    el('button', { text: 'Load Exercise List', onclick: loadExerciseListFile }),
-    el('button', { text: 'New Program', onclick: startNewProgram }),
-    el('button', { className: 'primary', text: 'Copy AI prompt', onclick: copyAiPrompt })
+    el('button', { text: 'Copy AI prompt', onclick: copyAiPrompt })
   ]));
 }
 
@@ -2621,11 +2685,6 @@ function openLibrary() {
   render();
 }
 
-function closeLibrary() {
-  libraryOpen = false;
-  render();
-}
-
 function openFromLibrary(entry) {
   setCurrent(entry);
   libraryOpen = false;
@@ -2691,13 +2750,14 @@ function renderProgramRow(entry) {
   var p = entry.program;
   var isCurrent = entry.id === currentId;
   var acts = [];
-  if (!isCurrent) acts.push(el('button', { text: 'Open', onclick: function () { openFromLibrary(entry); } }));
+  acts.push(el('button', { text: 'Open', onclick: function () { openFromLibrary(entry); } }));
   acts.push(el('button', { text: 'Duplicate', onclick: function () { duplicateProgram(entry); } }));
   acts.push(el('button', { text: 'Rename', onclick: function () { renameProgram(entry); } }));
   acts.push(el('button', { text: 'Export', onclick: function () { downloadProgram(p); } }));
   acts.push(el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteProgram(entry); } }));
   return el('div', { className: 'lib-row' + (isCurrent ? ' current' : '') }, [
-    el('div', { className: 't' }, [
+    // Clicking the name opens the program too.
+    el('div', { className: 't clickable', title: 'Open', onclick: function () { openFromLibrary(entry); } }, [
       el('b', { text: entry.name === '' ? '(No name)' : entry.name }),
       el('span', { text: plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout') })
     ]),
@@ -2719,7 +2779,7 @@ function renderUnlinkedSection() {
     el('span', { className: 'car', text: unlinkedOpen ? '▼' : '▶' }),
     el('span', { text: 'Not linked to an athlete' }),
     el('span', { className: 'count', text: plural(sorted.length, 'program') }),
-    el('button', { className: 'primary', text: '+ New program', onclick: function (e) { e.stopPropagation(); startNewProgram(); } })
+    el('button', { className: 'primary', text: 'New Program', onclick: function (e) { e.stopPropagation(); openNewProgramDialog(); } })
   ]));
   if (unlinkedOpen) sorted.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry)); });
   return wrap;
@@ -2755,17 +2815,22 @@ function renderLibraryFooter() {
 
 function renderLibrary() {
   var box = document.getElementById('library');
+  var oldBody = box.querySelector('.lib-body');
+  var scrollTop = oldBody ? oldBody.scrollTop : 0;
   box.textContent = '';
   box.appendChild(el('div', { className: 'lib-bar' }, [
-    el('button', { text: '← Back to editor', onclick: closeLibrary }),
     el('span', { className: 'title', text: 'Library' }),
     el('div', { className: 'spacer' }, [
+      el('button', { text: 'Import program', onclick: importProgramFile }),
+      el('button', { text: 'Load Exercise List', onclick: loadExerciseListFile }),
       el('button', { text: 'Import everything', onclick: importEverything }),
       el('button', { text: 'Export everything', onclick: exportEverything })
     ])
   ]));
-  box.appendChild(renderUnlinkedSection());
-  box.appendChild(renderLibraryFooter());
+  var body = el('div', { className: 'lib-body' }, [renderUnlinkedSection()]);
+  box.appendChild(body);
+  box.appendChild(renderLibraryFooter());   // always at the bottom of the page
+  body.scrollTop = scrollTop;
 }
 
 /* ==========================================================================
@@ -2781,6 +2846,20 @@ function loadExerciseList() {
     }
   } catch (err) { /* no list stored, or storage unavailable */ }
   return [];
+}
+
+// Adds a name typed in the Add exercise dialog to the global Exercise List, at the end, unless the
+// list already has it (compared without regard to capital letters). Returns the name to use: the
+// list's own spelling if it was already there.
+function addToExerciseList(name) {
+  var list = loadExerciseList();
+  var lower = name.toLowerCase();
+  for (var i = 0; i < list.length; i++) {
+    if (list[i].toLowerCase() === lower) return list[i];
+  }
+  list.push(name);
+  try { localStorage.setItem(EXERCISE_LIST_KEY, JSON.stringify(list)); } catch (err) { /* the exercise is still added to the program */ }
+  return name;
 }
 
 /* ==========================================================================
@@ -2969,17 +3048,14 @@ function openAddExerciseModal(wi, weekIndex) {
   if (list.length > 0) {
     nameSelect = selectBox([[NEW, 'New Exercise']].concat(list.map(function (n) { return [n, n]; })), NEW);
   }
-  var nameText = textInput('', { maxlength: '200', placeholder: 'Exercise name' });
-  var nameWarning = el('div', { className: 'form-warning', text: 'Not in your Exercise List', hidden: 'hidden' });
+  var nameText = textInput('', { maxlength: '200', placeholder: 'New exercise name' });
 
+  // Every exercise on the list can be picked. "New Exercise" shows a box to type a new name, which
+  // is added to the list when the exercise is created.
   function updateNameUi() {
-    var custom = !nameSelect || nameSelect.value === NEW;
-    nameText.hidden = !custom;
-    var typed = nameText.value.trim();
-    nameWarning.hidden = !(custom && list.length > 0 && typed !== '' && list.indexOf(typed) === -1);
+    nameText.hidden = !(!nameSelect || nameSelect.value === NEW);
   }
   if (nameSelect) nameSelect.addEventListener('change', updateNameUi);
-  nameText.addEventListener('input', updateNameUi);
 
   // Set groups: one row each, so a start value, sets and reps can be entered for every group now.
   // Each set group has its own load type and rest time.
@@ -3034,7 +3110,8 @@ function openAddExerciseModal(wi, weekIndex) {
   }
 
   function submit() {
-    var name = (!nameSelect || nameSelect.value === NEW) ? nameText.value.trim() : nameSelect.value;
+    var typedNew = !nameSelect || nameSelect.value === NEW;
+    var name = typedNew ? nameText.value.trim() : nameSelect.value;
     if (name === '') return showError('Enter an exercise name.');
     var groups = [];
     for (var i = 0; i < drafts.length; i++) {
@@ -3052,6 +3129,7 @@ function openAddExerciseModal(wi, weekIndex) {
     }
 
     closeModal();
+    if (typedNew) name = addToExerciseList(name);   // a new name joins the global list
     createExercise(workout, {
       name: name,
       groups: groups,
@@ -3064,7 +3142,6 @@ function openAddExerciseModal(wi, weekIndex) {
     formRow('Name', nameSelect || nameText)
   ]);
   if (nameSelect) body.appendChild(el('div', { className: 'form-row' }, [nameText]));
-  body.appendChild(nameWarning);
   body.appendChild(rowsBox);
   body.appendChild(el('div', { className: 'form-row' }, [addGroupBtn]));
   body.appendChild(formRow('Notes (optional)', notesInput));

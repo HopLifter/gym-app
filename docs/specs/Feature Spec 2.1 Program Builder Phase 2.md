@@ -258,7 +258,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 **4.3 Live kg.** A program with `profileUsed` recalculates `kg` for all % set groups after every edit. If the athlete's profile has changed since (compared with `profileUsed`), a bar says `<name>'s profile has changed. Recalculate kg?` with Recalculate (updates `profileUsed`) and Dismiss. Programs without a profile behave as in Phase 1 (kg only from an AI file).
 
 **4.4 Export for GymLog.** `Export for GymLog` writes `<program name>.gymlog.json` in the format of `docs/Program Import Format.md`. It is blocked, with a list, if any % set group in an included week has no kg.
-- One GymLog workout per program workout per included week. `label` = `Block <block> - Wk<week> D<n>` (the Phase 1 convention), `description` = the workout description (with ` · Deload week` etc. appended for a flagged week).
+- One GymLog workout per program workout per included week. `label` = `<program name> - Wk<week> D<n>` (the block number was removed from the builder), `description` = the workout description (with ` · Deload week` etc. appended for a flagged week).
 - Each included exercise set group becomes one GymLog exercise, in the order of the Phase 1 grid (a paired set group sits right after its partner).
 - `weight` = `kg` (or `load` for kg groups); omitted when blank. For RPE loads `rpe` = the load and `weight` is omitted. For kg and % loads `rpe` = the target RPE if set.
 - `reps` = the lower rep; `rest` in seconds; `notes` as in step 2.7.

@@ -66,7 +66,7 @@ After that, it reopens the saved draft.
 
 The header shows, from left to right:
 - Program name, an editable text field.
-- Block number, a whole number of 1 or more.
+- ~~Block number~~ (removed 7 November 2026: put it in the program name; old files that still have `block` open fine).
 - Weeks stepper, from 1 to 12.
 - Workouts per week stepper, from 1 to 7.
 - `Open file`, `Save file`, `Load Exercise List`, `New Program` and `Copy AI prompt` buttons. `Copy AI prompt` is the primary button.
@@ -357,7 +357,7 @@ File 1: [program name].gymlog.json, for import into GymLog:
   "program": { "name": "<name>" },
   "workouts": [
     {
-      "label": "Block <block> - Wk<week> D<workout>",
+      "label": "<program name> - Wk<week> D<workout>",
       "description": "<description>",
       "exercises": [
         { "name": "<name>", "sets": 3, "reps": 5, "weight": 120, "rpe": 8, "rest": 180, "notes": "", "superset": "A" }
