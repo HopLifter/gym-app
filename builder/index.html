@@ -15,9 +15,16 @@
     --danger: #E05C4E;
     --rpe: #8FC7FF;
     --selected-bg: #232A1A;
+    --hair: #1F2421;                      /* faint divider inside the grid */
+    --accent-soft: rgba(198, 255, 61, 0.45); /* light accent for the week header underline */
   }
   * { box-sizing: border-box; }
+  /* Thin, dark scroll bars everywhere (the default light ones look out of place on this dark page). */
+  * { scrollbar-width: thin; scrollbar-color: #3A413B transparent; }
+  html { height: 100%; }
   body {
+    height: 100%;
+    display: flex; flex-direction: column; /* header on top, the grid scrolls in the middle, the table at the bottom */
     margin: 0;
     background: var(--bg);
     color: var(--text);
@@ -66,116 +73,103 @@
   .stepper .value { min-width: 36px; text-align: center; font-weight: 600; }
   .header-buttons { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
 
-  /* ---- Grid ---- */
-  .main { padding: 20px; }
-  .grid-wrap {
-    overflow-x: auto;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    background: var(--surface);
+  /* ---- Grid (flat: thin lines and spacing, no boxes) ---- */
+  .main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; padding: 0 20px 20px; }
+  /* Week columns are 200 to 260 px wide: they fill the window up to 260 px each, shrink to 200 px,
+     and the grid scrolls sideways below that. --n (the number of weeks) is set on the table. */
+  table.grid {
+    border-collapse: separate; border-spacing: 0; table-layout: fixed;
+    width: clamp(calc(var(--n) * 200px), 100%, calc(var(--n) * 260px));
   }
-  table.grid { border-collapse: separate; border-spacing: 0; width: 100%; }
-  table.grid th, table.grid td {
-    border-right: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
-    vertical-align: top;
-    text-align: left;
-  }
-  table.grid tr:last-child td { border-bottom: none; }
-  table.grid th:last-child, table.grid td:last-child { border-right: none; }
+  /* The week header row stays visible while the grid scrolls (.main is the scroll container). */
   table.grid th {
-    padding: 10px 12px;
-    color: var(--text-dim);
-    font-weight: 600;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    position: sticky; top: 0; z-index: 5; background: var(--bg);
+    padding: 10px 14px; text-align: left;
+    color: var(--accent); font-weight: 600; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    border-bottom: 2px solid var(--accent-soft);
   }
-  table.grid .week-col { min-width: 220px; }
-  table.grid .workout-col {
-    position: sticky; left: 0; z-index: 2;
-    min-width: 200px; max-width: 200px;
-    background: var(--surface);
-    box-shadow: 1px 0 0 var(--line);
+  /* One full-width row per workout: its title and a one-sentence description. */
+  tr.band-row td { padding: 0; border-top: 1px solid var(--line); }
+  .band {
+    position: sticky; left: 0; max-width: var(--mainw, calc(100vw - 40px));
+    display: flex; align-items: baseline; gap: 10px; padding: 22px 14px 7px;
   }
-  table.grid td.workout-col { padding: 12px; }
-  .workout-title { font-weight: 700; margin-bottom: 6px; }
-  .workout-desc { width: 100%; }
-  td.cell { padding: 8px; }
-  .ex {
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 8px 10px;
-    margin-bottom: 6px;
-    background: var(--bg);
+  .band .t { font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .band input.workout-desc {
+    flex: 1; min-width: 0; background: transparent; color: var(--text-dim);
+    border: 1px solid transparent; border-radius: 6px; padding: 2px 6px;
   }
+  .band input.workout-desc:hover { border-color: var(--line); }
+  .band input.workout-desc:focus { border-color: var(--accent); color: var(--text); outline: none; }
+  .band input.workout-desc::placeholder { font-style: italic; opacity: 0.7; }
+  /* One table row per exercise (a "slot"), the same in every week, so exercises line up across weeks. */
+  table.grid td.cell { vertical-align: top; padding: 7px 14px; border-left: 1px solid var(--hair); }
+  table.grid td.cell.c0 { border-left: none; }
+  tr.slot td.cell { border-top: 1px solid var(--hair); }
+  tr.slot.first td.cell { border-top: none; }
+  tr.foot-row td.cell { padding: 4px 14px 14px; }
+  td.cell.sel { background: var(--selected-bg); }
+  td.cell.sel .ex.selected { background: none; box-shadow: none; }
   .ex-top { display: flex; gap: 6px; align-items: baseline; }
-  .ex-label { color: var(--accent); font-weight: 700; min-width: 22px; }
   .ex-name { font-weight: 600; word-break: break-word; }
-  .ex-scheme { color: var(--text-dim); margin-top: 2px; }
-  .ex-load { margin-top: 2px; font-weight: 600; }
+  .ex-scheme { color: var(--text-dim); }
+  .ex-load { font-weight: 600; }
+  /* The superset label (A1, A2) sits at the right end of the prescription line. */
+  .ex-label { color: var(--accent); font-weight: 700; margin-left: auto; padding-left: 8px; }
   /* All load types use the accent colour; the text itself names the type (kg, %, RPE). */
   .load-kg, .load-pct, .load-rpe { color: var(--accent); }
   .load-blank { color: var(--text-dim); font-style: italic; font-weight: 400; }
   .ex-more { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
   .ex-edited { color: var(--text-dim); font-size: 12px; margin-left: auto; white-space: nowrap; }
-  .add-ex { width: 100%; border-style: dashed; color: var(--text-dim); }
-
-  .ss-block { border-left: 3px solid var(--accent); padding-left: 6px; margin-bottom: 6px; }
-  .ss-block .ex { margin-bottom: 4px; }
-  .detail-table tr.pair-first td { border-top: 2px solid var(--accent); }
-  .detail-table tr.partner td { background: var(--bg); }
-  .ex.selected { border-color: var(--accent); background: var(--selected-bg); }
   .ex-group { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; margin-top: 2px; }
-  .ex-group .ex-scheme, .ex-group .ex-load { margin-top: 0; }
   .ex-group + .ex-group { border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 6px; }
+  .ss-block { border-left: 2px solid var(--accent); padding-left: 8px; margin-left: -10px; }
+  .ss-block .ex { padding: 3px 0; }
+  .ss-block .ex + .ex { border-top: 1px solid var(--hair); }
+  .ex.selected { background: var(--selected-bg); box-shadow: -14px 0 0 var(--selected-bg), 14px 0 0 var(--selected-bg); }
+  .ex.clickable:hover:not(.selected) { background: var(--surface); box-shadow: -14px 0 0 var(--surface), 14px 0 0 var(--surface); }
+  .cell-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
+  .link-btn { background: none; border: none; padding: 0; color: var(--text-dim); font-size: 13px; }
+  .link-btn:hover:not(:disabled) { color: var(--accent); }
+  .gone { color: var(--text-dim); font-style: italic; padding: 6px 0 2px; }
+  .gone .link-btn { color: var(--accent); font-style: normal; margin-left: 8px; }
 
-  /* ---- Exercise table ---- */
-  .detail {
-    position: sticky; bottom: 0; z-index: 10;
-    max-height: 380px; display: flex; flex-direction: column;
-    background: var(--surface); border-top: 2px solid var(--accent);
-  }
+  /* ---- Exercise settings panel (docked right of the grid; flat, no boxes) ---- */
+  #workspace { flex: 1 1 auto; min-height: 0; display: flex; }
+  #workspace[hidden] { display: none; }
+  .detail { width: 360px; flex: none; overflow: auto; border-left: 1px solid var(--line); padding: 14px 18px 18px; }
   .detail[hidden] { display: none; }
-  .detail-resizer {
-    flex: 0 0 auto; height: 12px; cursor: ns-resize; touch-action: none;
-    display: flex; align-items: center; justify-content: center;
+  .ph { display: flex; align-items: flex-start; gap: 10px; }
+  .ph .t { flex: 1; min-width: 0; }
+  .ph .t b { display: block; font-size: 16px; word-break: break-word; }
+  .ph .t span { color: var(--text-dim); font-size: 12px; }
+  .ph .x { background: none; border: none; color: var(--text-dim); font-size: 22px; line-height: 1; padding: 0 4px; }
+  .ph .x:hover { color: var(--text); }
+  .ps { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+  .ps-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+  .ps-head b { font-size: 13px; }
+  .hint { color: var(--text-dim); font-size: 12px; }
+  .pr { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; min-height: 30px; }
+  .pr > label { width: 84px; flex: none; color: var(--text-dim); font-size: 12px; }
+  .pr .unit { color: var(--text-dim); }
+  .link-btn.acc { color: var(--accent); text-align: left; }
+  .link-btn.danger-link { color: var(--danger); }
+  .link-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  table.prog { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 4px; }
+  table.prog th { text-align: left; color: var(--text-dim); font-size: 11px; font-weight: 600; padding: 2px 8px 2px 0; }
+  table.prog td { padding: 3px 8px 3px 0; vertical-align: baseline; }
+  table.prog td.k { color: var(--text-dim); }
+  table.prog td.v { color: var(--accent); font-weight: 600; cursor: pointer; }
+  table.prog td.v.blank { color: var(--text-dim); font-style: italic; font-weight: 400; }
+  table.prog td.v.edited { text-decoration: underline dashed; text-underline-offset: 3px; }
+  table.prog td.v:hover { background: var(--surface); }
+  .panel-acts { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; }
+  .detail textarea {
+    width: 100%; background: var(--bg); color: var(--text); font: inherit; resize: vertical; min-height: 48px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
   }
-  .detail-resizer::before { content: ''; width: 56px; height: 4px; border-radius: 2px; background: var(--line); }
-  .detail-resizer:hover::before, .detail-resizer:focus-visible::before { background: var(--accent); }
-  .detail-resizer:focus-visible { outline: none; }
-  .detail-head {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 8px 20px; border-bottom: 1px solid var(--line);
-  }
-  .detail-body { overflow: auto; flex: 1 1 auto; min-height: 0; }
-  table.detail-table { border-collapse: separate; border-spacing: 0; width: 100%; }
-  .detail-table th, .detail-table td {
-    padding: 8px 10px; text-align: left; vertical-align: top;
-    border-bottom: 1px solid var(--line); border-right: 1px solid var(--line);
-  }
-  .detail-table th {
-    position: sticky; top: 0; z-index: 3; background: var(--surface);
-    color: var(--text-dim); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
-  }
-  .detail-table .ex-col {
-    position: sticky; left: 0; z-index: 2; min-width: 190px; background: var(--surface); cursor: pointer;
-  }
-  .detail-table th.ex-col { z-index: 4; cursor: default; }
-  .detail-table .wk { min-width: 116px; }
-  .detail-table td.wk.clickable { cursor: pointer; }
-  .detail-table td.wk.clickable:hover { background: var(--bg); }
-  .detail-table tr.selected td { background: var(--selected-bg); }
-  .detail-table tr.sg-row:not(.first) td { border-top: 1px dashed var(--line); }
-  .detail-table .ss-cell { min-width: 150px; }
-  .detail-table .ss-with { font-weight: 600; }
-  .detail-table .sg-none { color: var(--text-dim); font-style: italic; }
-  .detail-table td.wk .ex-group { margin-top: 0; }
-  .detail-table tr.selected td.ex-col { box-shadow: inset 3px 0 0 var(--accent); }
-  .detail-table .sg { min-width: 130px; white-space: nowrap; }
-  .detail-table .wk-none { color: var(--text-dim); margin-bottom: 6px; }
-  .detail-table .actions-col { min-width: 150px; }
-  .detail-table .actions-col button { margin: 0 4px 4px 0; padding: 4px 8px; font-size: 12px; }
+  .detail textarea:focus { outline: none; border-color: var(--accent); }
   .danger-text { color: var(--danger); }
   .segmented { display: inline-flex; }
   .segmented button { border-radius: 0; margin-left: -1px; padding: 5px 12px; }
@@ -249,7 +243,9 @@
   #save-warning button { padding: 3px 10px; font-size: 12px; }
 
   /* ---- Library screen (Phase 2 spec 1.1). Flat: dividers and spacing, no boxes around items. ---- */
-  .header[hidden], .main[hidden], #library[hidden] { display: none; }
+  .header, #save-warning, .detail { flex: none; }
+  #library { flex: 1 1 auto; min-height: 0; overflow: auto; }
+  .header[hidden], #library[hidden] { display: none; }
   .lib-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
   .lib-bar .title { font-size: 16px; font-weight: 600; }
   .lib-bar .spacer { margin-left: auto; display: flex; gap: 8px; }
@@ -279,8 +275,10 @@
   <div class="header" id="header"></div>
   <div id="save-warning" hidden><span>This browser could not save your last change. It will be lost when the page closes.</span><button id="warn-export">Export everything</button></div>
   <div id="library" hidden></div>
-  <div class="main" id="main"><div class="grid-wrap" id="grid"></div></div>
-  <div class="detail" id="detail" hidden></div>
+  <div id="workspace">
+    <div class="main" id="main"><div class="grid-wrap" id="grid"></div></div>
+    <div class="detail" id="detail" hidden></div>
+  </div>
 
 <script>
 'use strict';
@@ -775,59 +773,6 @@ function purgeBrokenPairs(workout) {
   });
 }
 
-// How one workout looks in one week, in the order it will have in GymLog (spec 5.4): the set
-// groups of each exercise in turn, except that a set group in an active superset is followed
-// straight away by its partner (which is then skipped where it would normally come).
-// Returns segments for drawing:
-//   { type: 'run',  ex, entries: [{ k }] }       one exercise, one or more set groups in a row
-//   { type: 'pair', boxes: [run, run] }          two set groups in a superset, side by side
-function weekSegments(workout, weekIndex) {
-  var labels = supersetLabels(workout, weekIndex);
-  var emitted = {};
-  var list = [];
-  function push(ex, k) {
-    emitted[ex.id + ':' + k] = true;
-    list.push({ ex: ex, k: k, label: labels[ex.id + ':' + k] });
-  }
-  workout.exercises.forEach(function (ex) {
-    var entry = ex.weeks[weekIndex];
-    if (!entry.included) return;
-    entry.groups.forEach(function (g, k) {
-      if (emitted[ex.id + ':' + k]) return;
-      push(ex, k);
-      var id = ex.supersets[k];
-      if (id && labels[ex.id + ':' + k]) {
-        pairMembers(workout, id).forEach(function (m) {
-          if (m.ex !== ex) push(m.ex, m.k);
-        });
-      }
-    });
-  });
-
-  var segments = [];
-  for (var i = 0; i < list.length; i++) {
-    var e = list[i];
-    var next = list[i + 1];
-    var isPair = e.label && next && next.label && e.label.charAt(0) === next.label.charAt(0)
-      && e.label.charAt(1) === '1' && next.label.charAt(1) === '2';
-    if (isPair) {
-      segments.push({
-        type: 'pair',
-        boxes: [
-          { type: 'run', ex: e.ex, entries: [{ k: e.k, label: e.label }] },
-          { type: 'run', ex: next.ex, entries: [{ k: next.k, label: next.label }] }
-        ]
-      });
-      i++;
-      continue;
-    }
-    var last = segments[segments.length - 1];
-    if (last && last.type === 'run' && last.ex === e.ex) last.entries.push({ k: e.k, label: e.label });
-    else segments.push({ type: 'run', ex: e.ex, entries: [{ k: e.k, label: e.label }] });
-  }
-  return segments;
-}
-
 function formatNum(v) { return String(Math.round(v * 100) / 100); }
 
 // How a set group's load is shown (spec 5.4, 5.11). Returns { text, cls }.
@@ -970,7 +915,6 @@ function setCurrent(entry) {
 }
 
 function startUp() {
-  loadDetailHeight();
   document.getElementById('warn-export').addEventListener('click', exportEverything);
   library = libraryLoadPrograms();
   if (library.length === 0) {
@@ -1578,7 +1522,7 @@ function renderGroupLines(g, plan, label) {
     el('span', { className: 'ex-scheme', text: scheme }),
     el('span', { className: 'ex-load ' + load.cls, text: load.text })
   ]);
-  if (label) line.insertBefore(el('span', { className: 'ex-label', text: label }), line.firstChild);
+  if (label) line.appendChild(el('span', { className: 'ex-label', text: label })); // right end of the line
   return line;
 }
 
@@ -2307,262 +2251,135 @@ function openSupersetPicker(wi, ex, k) {
   });
 }
 
-// One week cell of the table, for set group `k` of `ex`. `runFirst` is true for the first table
-// line of this exercise's run of lines and `runLen` is the length of that run. A week that does not
-// include the exercise is one tall cell spanning the whole run; the first line of a run also
-// carries the "(edited)" tag.
-function renderWeekCell(wi, ex, weekIndex, k, runFirst, runLen) {
-  var entry = ex.weeks[weekIndex];
-  if (!entry.included) {
-    if (!runFirst) return null; // covered by the tall cell in the first line
-    var none = el('td', { className: 'wk', rowspan: String(runLen) });
-    none.appendChild(el('div', { className: 'wk-none', text: 'Not in this week' }));
-    none.appendChild(el('button', {
-      text: 'Add to this week',
-      onclick: function () { addToWeek(ex, weekIndex); }
-    }));
-    return none;
-  }
-  var cell = el('td', { className: 'wk clickable' });
-  var g = entry.groups[k];
-  // A1 / A2 appears in front of the line, only in weeks where both set groups of the pair are included.
-  var label = supersetLabels(program.workouts[wi], weekIndex)[ex.id + ':' + k];
-  if (g) cell.appendChild(renderGroupLines(g, plannedChange(ex.patterns[k], weekIndex, g, entry), label));
-  if (runFirst && entry.edited) cell.appendChild(el('div', { className: 'ex-edited', text: '(edited)' }));
-  cell.setAttribute('role', 'button');
-  cell.setAttribute('tabindex', '0');
-  cell.setAttribute('aria-label', 'Edit ' + ex.name + ' in Week ' + (weekIndex + 1));
-  function open() { openWeekEditor(wi, ex, weekIndex); }
-  cell.addEventListener('click', open);
-  cell.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
-  });
-  return cell;
+/* ==========================================================================
+   EXERCISE SETTINGS PANEL
+   Docked to the right of the grid. It shows the settings of the selected exercise: one section per
+   set group (load type, rest, progression, superset), a small Weeks strip, notes, and the actions
+   (add set group, move, delete). Clicking a value in the Weeks strip edits that week. The cross
+   closes the panel; clicking any exercise in the grid opens it again.
+   ========================================================================== */
+
+// A labelled row in the panel: label on the left, a control on the right.
+function panelRow(labelText, children) {
+  return el('div', { className: 'pr' }, [el('label', { text: labelText })].concat(children));
 }
 
-// The table lines for the selected exercise `S`, laid out like the GymLog workout will look:
-// each set group of S is one line, and a set group paired in a superset is followed (or preceded,
-// if its partner's exercise comes first) by its partner's line, so the pair sits together.
-// Returns [{ ex, k, pairStart, extra }].
-function tableSpecs(workout, S) {
-  var specs = [];
-  var groups1 = S.weeks[0].groups.length;
-  for (var k = 0; k < groups1; k++) {
-    var id = S.supersets[k];
-    var partner = null;
-    if (id) pairMembers(workout, id).forEach(function (m) { if (m.ex !== S) partner = m; });
-    if (!partner) {
-      specs.push({ ex: S, k: k });
-    } else if (workout.exercises.indexOf(S) < workout.exercises.indexOf(partner.ex)) {
-      specs.push({ ex: S, k: k, pairStart: true }, { ex: partner.ex, k: partner.k });
-    } else {
-      specs.push({ ex: partner.ex, k: partner.k, pairStart: true }, { ex: S, k: k });
-    }
-  }
-  // Set groups that only exist in an edited week (it has more groups than Week 1).
-  var most = groups1;
-  S.weeks.forEach(function (w) { if (w.included && w.groups.length > most) most = w.groups.length; });
-  for (var e = groups1; e < most; e++) specs.push({ ex: S, k: e, extra: true });
-  return specs;
-}
-
-// The table rows for the selected exercise and the partners of its superset pairs: one row per
-// set group, so each group's load type, pattern and week values line up on the same line.
-// Returns an array of <tr>.
-function renderTableRows(workout, wi, S) {
-  var specs = tableSpecs(workout, S);
-  var rows = [];
-  specs.forEach(function (spec, i) {
-    var ex = spec.ex;
-    var runFirst = i === 0 || specs[i - 1].ex !== ex;
-    var runLen = 0;
-    if (runFirst) {
-      for (var j = i; j < specs.length && specs[j].ex === ex; j++) runLen++;
-    }
-    var row = el('tr', {
-      className: 'sg-row' + (runFirst ? ' first' : '') + (ex === S ? ' selected' : ' partner') + (spec.pairStart ? ' pair-first' : '')
-    });
-    if (runFirst) {
-      var nameCell = el('td', { className: 'ex-col', rowspan: String(runLen) }, [
-        el('div', { className: 'ex-name', text: ex.name })
-      ]);
-      if (ex !== S) nameCell.appendChild(el('div', { className: 'ex-scheme', text: 'Superset partner' }));
-      nameCell.addEventListener('click', function () { selectExercise(wi, ex.id); });
-      row.appendChild(nameCell);
-    }
-    if (!spec.extra) {
-      row.appendChild(buildGroupCells(workout, wi, ex, spec.k, ex.weeks[0].groups.length > 1));
-    } else {
-      row.appendChild(el('td', { colspan: '4', className: 'sg-none', text: 'Only in an edited week' }));
-    }
-    for (var w = 0; w < program.weeks; w++) {
-      var cell = renderWeekCell(wi, ex, w, spec.k, runFirst, runLen);
-      if (cell) row.appendChild(cell);
-    }
-    if (runFirst) row.appendChild(buildActionsCell(workout, wi, ex, runLen));
-    rows.push(row);
-  });
-  return rows;
-}
-
-// The three cells for set group r: scheme and rest, load type control, pattern button.
-function buildGroupCells(workout, wi, ex, r, many) {
+function restRow(workout, ex, r) {
   var g = ex.weeks[0].groups[r];
-  var restInput = textInput(formatNum(g.rest / 60), { inputmode: 'decimal', 'aria-label': 'Rest in minutes, set group ' + (r + 1) });
-  restInput.className = 'rest-input';
-  restInput.addEventListener('change', function () {
-    var min = parseNumber(restInput.value);
+  var input = textInput(formatNum(g.rest / 60), { inputmode: 'decimal', 'aria-label': 'Rest in minutes, set group ' + (r + 1) });
+  input.className = 'rest-input';
+  input.addEventListener('change', function () {
+    var min = parseNumber(input.value);
     if (min === null || isNaN(min) || min > 60) {
-      restInput.value = formatNum(g.rest / 60); // invalid: put the old value back
+      input.value = formatNum(g.rest / 60); // invalid: put the old value back
       return;
     }
     setGroupRest(workout, ex, r, Math.round(min * 60));
   });
-  var frag = document.createDocumentFragment();
-  frag.appendChild(el('td', { className: 'sg' }, [
-    el('div', { className: 'ex-scheme', text: g.sets + ' × ' + g.reps + (many ? '  (group ' + (r + 1) + ')' : '') }),
-    el('div', { className: 'rest-line' }, [restInput, el('span', { text: ' min rest' })])
-  ]));
-  frag.appendChild(el('td', null, [loadTypeControl(ex, r)]));
-  frag.appendChild(el('td', null, [el('button', {
-    className: 'pattern-btn', title: 'Change how this set group repeats across weeks',
-    text: patternText(ex.patterns[r]),
-    onclick: function () { openPatternPicker(wi, ex, r); }
-  })]));
-  frag.appendChild(buildSupersetCell(workout, wi, ex, r));
-  return frag;
+  return panelRow('Rest', [input, el('span', { className: 'unit', text: 'min' })]);
 }
 
-// The superset cell of set group r: who it is paired with and a Remove button, or a
-// "Superset with..." button.
-function buildSupersetCell(workout, wi, ex, r) {
-  var cell = el('td', { className: 'ss-cell' });
+// Who set group r is paired with and a Remove link, or a "Superset with…" link.
+function supersetRow(workout, wi, ex, r) {
   var id = ex.supersets[r];
   var partner = null;
-  if (id) {
-    pairMembers(workout, id).forEach(function (m) { if (m.ex !== ex) partner = m; });
-  }
+  if (id) pairMembers(workout, id).forEach(function (m) { if (m.ex !== ex) partner = m; });
   if (partner) {
     var pg = partner.ex.weeks[0].groups[partner.k];
     var many = partner.ex.weeks[0].groups.length > 1;
-    cell.appendChild(el('div', { className: 'ss-with', text: 'With ' + partner.ex.name }));
-    cell.appendChild(el('div', {
-      className: 'ex-scheme',
-      text: (many ? 'Set group ' + (partner.k + 1) + ': ' : '') + pg.sets + ' × ' + pg.reps
-    }));
-    cell.appendChild(el('button', { text: 'Remove', onclick: function () { unpairGroup(workout, ex, r); } }));
-  } else {
-    var none = freeGroupsOf(workout, ex).length === 0;
-    var btn = el('button', {
-      text: 'Superset with…',
-      title: none ? 'No other exercise in this workout has a free set group' : 'Pair this set group with a set group of another exercise',
-      onclick: function () { openSupersetPicker(wi, ex, r); }
-    });
-    if (none) btn.disabled = true;
-    cell.appendChild(btn);
+    return panelRow('Superset', [
+      el('span', { text: 'With ' + partner.ex.name + (many ? ' (group ' + (partner.k + 1) + ')' : '') + ', ' + pg.sets + ' × ' + pg.reps }),
+      el('button', { className: 'link-btn', text: 'Remove', onclick: function () { unpairGroup(workout, ex, r); } })
+    ]);
   }
-  return cell;
-}
-
-function buildActionsCell(workout, wi, ex, rowCount) {
-  var actions = el('td', { className: 'actions-col', rowspan: String(rowCount) });
-  // Opens the Week 1 editor with a new set group added.
-  actions.appendChild(el('button', {
-    text: 'Add set group', title: 'Add another set group to this exercise',
-    onclick: function () { openWeekEditor(wi, ex, 0, true); }
-  }));
-  var up = el('button', { text: 'Move Up', onclick: function () { moveExercise(workout, ex, -1); } });
-  var down = el('button', { text: 'Move Down', onclick: function () { moveExercise(workout, ex, 1); } });
-  if (!canMove(workout, ex, -1)) { up.disabled = true; up.title = 'Already first'; }
-  if (!canMove(workout, ex, 1)) { down.disabled = true; down.title = 'Already last'; }
-  [
-    up, down,
-    el('button', { className: 'danger-text', text: 'Delete', onclick: function () { confirmDeleteExercise(workout, ex); } })
-  ].forEach(function (b) { actions.appendChild(b); });
-  return actions;
-}
-
-/* ---- Adjustable height of the table (the split between the grid and the table) ---- */
-
-var DETAIL_HEIGHT_KEY = 'builder_detail_height_v1'; // a screen preference, not part of the program
-var DETAIL_MIN_HEIGHT = 120;
-var detailHeight = null; // null = the default (fits the content, at most 380px); otherwise pixels
-
-function loadDetailHeight() {
-  try {
-    var n = Number(localStorage.getItem(DETAIL_HEIGHT_KEY));
-    if (isFinite(n) && n >= DETAIL_MIN_HEIGHT && n <= 5000) detailHeight = Math.round(n);
-  } catch (err) { /* no saved preference */ }
-}
-
-function saveDetailHeight() {
-  try {
-    if (detailHeight === null) localStorage.removeItem(DETAIL_HEIGHT_KEY);
-    else localStorage.setItem(DETAIL_HEIGHT_KEY, String(detailHeight));
-  } catch (err) { /* the preference just is not remembered */ }
-}
-
-function applyDetailHeight(box) {
-  if (detailHeight === null) {
-    box.style.height = '';
-    box.style.maxHeight = '';
-  } else {
-    box.style.height = detailHeight + 'px';
-    box.style.maxHeight = 'none';
-  }
-}
-
-function setDetailHeight(box, pixels) {
-  var max = Math.floor(window.innerHeight * 0.9);
-  detailHeight = Math.max(DETAIL_MIN_HEIGHT, Math.min(max, Math.round(pixels)));
-  applyDetailHeight(box);
-}
-
-// The bar on the top edge of the table. Drag it up or down, or use the arrow keys when it
-// is focused; double-click puts the height back to the default.
-function makeDetailResizer(box) {
-  var bar = el('div', {
-    className: 'detail-resizer', role: 'separator', 'aria-orientation': 'horizontal', tabindex: '0',
-    title: 'Drag to resize the table. Double-click to reset.', 'aria-label': 'Resize the table'
+  var none = freeGroupsOf(workout, ex).length === 0;
+  var btn = el('button', {
+    className: 'link-btn acc', text: 'Superset with… ▸',
+    title: none ? 'No other exercise in this workout has a free set group' : 'Pair this set group with a set group of another exercise',
+    onclick: function () { openSupersetPicker(wi, ex, r); }
   });
-  bar.addEventListener('pointerdown', function (e) {
-    e.preventDefault();
-    bar.setPointerCapture(e.pointerId);
-    function move(ev) {
-      // The table's bottom edge is fixed, so its new height is the distance from the pointer to it.
-      setDetailHeight(box, box.getBoundingClientRect().bottom - ev.clientY);
+  if (none) btn.disabled = true;
+  return panelRow('Superset', [btn]);
+}
+
+function renderSetGroupSection(workout, wi, ex, r) {
+  var g = ex.weeks[0].groups[r];
+  return el('div', { className: 'ps' }, [
+    el('div', { className: 'ps-head' }, [
+      el('b', { text: 'Set group ' + (r + 1) + ' · ' + g.sets + ' × ' + g.reps }),
+      el('button', {
+        className: 'link-btn', text: 'Edit', title: 'Edit sets, reps and load in Week 1',
+        onclick: function () { openWeekEditor(wi, ex, 0); }
+      })
+    ]),
+    panelRow('Load type', [loadTypeControl(ex, r)]),
+    restRow(workout, ex, r),
+    panelRow('Progression', [el('button', {
+      className: 'link-btn acc', title: 'Change how this set group repeats across weeks',
+      text: patternText(ex.patterns[r]) + ' ▸',
+      onclick: function () { openPatternPicker(wi, ex, r); }
+    })]),
+    supersetRow(workout, wi, ex, r)
+  ]);
+}
+
+// One row per week, one column per set group. Click a value to edit that week. A dashed underline
+// marks a week edited by hand.
+function renderWeeksStrip(wi, ex) {
+  var most = 0;
+  ex.weeks.forEach(function (w) { if (w.included && w.groups.length > most) most = w.groups.length; });
+  if (most === 0) most = ex.weeks[0].groups.length;
+  var head = el('tr', null, [el('th')]);
+  for (var k = 0; k < most; k++) head.appendChild(el('th', { text: most > 1 ? 'Group ' + (k + 1) : 'Load' }));
+  var rows = [el('thead', null, [head])];
+  var body = el('tbody');
+  ex.weeks.forEach(function (entry, w) {
+    var row = el('tr', null, [el('td', { className: 'k', text: 'W' + (w + 1) })]);
+    if (!entry.included) {
+      row.appendChild(el('td', { colspan: String(most), className: 'k' }, [
+        el('button', { className: 'link-btn acc', text: 'Add', title: 'Add this exercise to Week ' + (w + 1), onclick: function () { addToWeek(ex, w); } })
+      ]));
+    } else {
+      for (var g = 0; g < most; g++) {
+        var grp = entry.groups[g];
+        var td;
+        if (!grp) {
+          td = el('td', { className: 'k', text: '—' });
+        } else {
+          var first = ex.weeks[0].groups[g];
+          var load = describeLoad(grp, plannedChange(ex.patterns[g] || samePattern(grp.loadType), w, grp, entry));
+          var text = load.text;
+          if (first && (first.sets !== grp.sets || first.reps !== grp.reps)) text = grp.sets + ' × ' + grp.reps + ' · ' + text;
+          td = el('td', {
+            className: 'v' + (load.cls === 'load-blank' ? ' blank' : '') + (entry.edited ? ' edited' : ''),
+            role: 'button', tabindex: '0', text: text, 'aria-label': 'Edit ' + ex.name + ' in Week ' + (w + 1)
+          });
+          (function (weekIndex) {
+            td.addEventListener('click', function () { openWeekEditor(wi, ex, weekIndex); });
+            td.addEventListener('keydown', function (e) {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openWeekEditor(wi, ex, weekIndex); }
+            });
+          })(w);
+        }
+        row.appendChild(td);
+      }
     }
-    function stop() {
-      bar.removeEventListener('pointermove', move);
-      bar.removeEventListener('pointerup', stop);
-      bar.removeEventListener('pointercancel', stop);
-      saveDetailHeight();
-    }
-    bar.addEventListener('pointermove', move);
-    bar.addEventListener('pointerup', stop);
-    bar.addEventListener('pointercancel', stop);
+    body.appendChild(row);
   });
-  bar.addEventListener('keydown', function (e) {
-    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-    e.preventDefault();
-    var current = box.getBoundingClientRect().height;
-    setDetailHeight(box, current + (e.key === 'ArrowUp' ? 30 : -30));
-    saveDetailHeight();
-  });
-  bar.addEventListener('dblclick', function () {
-    detailHeight = null;
-    applyDetailHeight(box);
-    saveDetailHeight();
-  });
-  return bar;
+  rows.push(body);
+  return el('div', { className: 'ps' }, [
+    el('div', { className: 'ps-head' }, [
+      el('b', { text: 'Weeks' }),
+      el('span', { className: 'hint', text: 'Click a value to edit that week' })
+    ]),
+    el('table', { className: 'prog' }, rows),
+    el('div', { className: 'hint', text: 'Dashed underline = edited by hand.' })
+  ]);
 }
 
 function renderDetail() {
   var box = document.getElementById('detail');
-  var oldBody = box.querySelector('.detail-body');
-  var scrollTop = oldBody ? oldBody.scrollTop : 0;
-  var scrollLeft = oldBody ? oldBody.scrollLeft : 0;
-
+  var scrollTop = box.scrollTop;
   var found = findSelected();
   if (!found) {
     selected = null;
@@ -2570,64 +2387,134 @@ function renderDetail() {
     box.textContent = '';
     return;
   }
-  box.hidden = false;
-  box.textContent = '';
-  applyDetailHeight(box);
-  box.appendChild(makeDetailResizer(box));
   var wi = selected.wi;
   var workout = found.workout;
-  var title = 'Workout ' + (wi + 1) + (workout.description ? ' – ' + workout.description : '');
+  var ex = found.ex;
+  box.hidden = false;
+  box.textContent = '';
 
-  var headRow = el('tr', null, [
-    el('th', { className: 'ex-col', text: 'Exercise' }),
-    el('th', { text: 'Set group' }),
-    el('th', { text: 'Load type' }),
-    el('th', { text: 'Pattern' }),
-    el('th', { text: 'Superset' })
-  ]);
-  for (var w = 0; w < program.weeks; w++) headRow.appendChild(el('th', { className: 'wk', text: 'Week ' + (w + 1) }));
-  headRow.appendChild(el('th', { text: 'Actions' }));
-
-  var body = el('tbody');
-  // The table shows only the exercise highlighted in the grid.
-  renderTableRows(workout, wi, found.ex).forEach(function (row) { body.appendChild(row); });
-
-  box.appendChild(el('div', { className: 'detail-head' }, [
-    el('strong', { text: title }),
-    el('button', { text: 'Close', onclick: closeDetail })
+  box.appendChild(el('div', { className: 'ph' }, [
+    el('div', { className: 't' }, [
+      el('b', { text: ex.name }),
+      el('span', { text: 'Workout ' + (wi + 1) + (workout.description ? ' · ' + workout.description : '') })
+    ]),
+    el('button', { className: 'x', text: '×', title: 'Close', 'aria-label': 'Close the exercise settings', onclick: closeDetail })
   ]));
-  var scroller = el('div', { className: 'detail-body' }, [
-    el('table', { className: 'detail-table' }, [el('thead', null, [headRow]), body])
-  ]);
-  box.appendChild(scroller);
-  scroller.scrollTop = scrollTop;
-  scroller.scrollLeft = scrollLeft;
+
+  ex.weeks[0].groups.forEach(function (g, r) { box.appendChild(renderSetGroupSection(workout, wi, ex, r)); });
+  box.appendChild(renderWeeksStrip(wi, ex));
+
+  var notes = el('textarea', { maxlength: '500', 'aria-label': 'Notes for ' + ex.name, placeholder: 'Notes for this exercise' });
+  notes.value = ex.notes;
+  notes.addEventListener('input', function () {
+    ex.notes = notes.value;
+    changedQuietly();
+  });
+  box.appendChild(el('div', { className: 'ps' }, [el('div', { className: 'ps-head' }, [el('b', { text: 'Notes' })]), notes]));
+
+  var up = el('button', { className: 'link-btn', text: 'Move up', onclick: function () { moveExercise(workout, ex, -1); } });
+  var down = el('button', { className: 'link-btn', text: 'Move down', onclick: function () { moveExercise(workout, ex, 1); } });
+  if (!canMove(workout, ex, -1)) { up.disabled = true; up.title = 'Already first'; }
+  if (!canMove(workout, ex, 1)) { down.disabled = true; down.title = 'Already last'; }
+  box.appendChild(el('div', { className: 'panel-acts' }, [
+    el('button', {
+      className: 'link-btn acc', text: '+ Add set group', title: 'Add another set group to this exercise',
+      onclick: function () { openWeekEditor(wi, ex, 0, true); }
+    }),
+    up, down,
+    el('button', { className: 'link-btn danger-link', text: 'Delete exercise', onclick: function () { confirmDeleteExercise(workout, ex); } })
+  ]));
+  box.scrollTop = scrollTop;
 }
 
-function renderCell(workout, wi, week) {
-  var cell = el('td', { className: 'cell' });
-  weekSegments(workout, week).forEach(function (seg) {
-    if (seg.type === 'run') {
-      cell.appendChild(renderBox(seg.ex, wi, week, seg.entries));
-    } else {
-      // A superset: the two paired set groups sit together inside one frame.
-      cell.appendChild(el('div', { className: 'ss-block' }, seg.boxes.map(function (b) {
-        return renderBox(b.ex, wi, week, b.entries);
-      })));
+// A workout is "removed" from a week when it has exercises but none are included in that week.
+function workoutRemovedInWeek(workout, weekIndex) {
+  return workout.exercises.length > 0 && workout.exercises.every(function (ex) { return !ex.weeks[weekIndex].included; });
+}
+
+// The rows of one workout in the grid. They are the same in every week, so exercises line up across
+// the weeks: a week with an extra set group (or without an exercise) leaves a gap in the other weeks
+// instead of pushing everything below it out of line. A slot is one exercise's run of set groups, or
+// two set groups paired in a superset (the partner follows straight after, as in GymLog).
+// Returns [{ type: 'run', ex, ks: [set group numbers] } | { type: 'pair', members: [{ ex, k }, { ex, k }] }].
+function workoutSlots(workout) {
+  var slots = [];
+  var placed = {};
+  workout.exercises.forEach(function (ex) {
+    var most = 0;
+    ex.weeks.forEach(function (w) { if (w.groups.length > most) most = w.groups.length; });
+    var run = null;
+    for (var k = 0; k < most; k++) {
+      if (placed[ex.id + ':' + k]) continue;
+      var id = ex.supersets[k];
+      var members = id ? pairMembers(workout, id) : [];
+      if (members.length === 2) {
+        placed[members[0].ex.id + ':' + members[0].k] = true;
+        placed[members[1].ex.id + ':' + members[1].k] = true;
+        slots.push({ type: 'pair', members: members });
+        run = null;
+      } else {
+        if (!run) { run = { type: 'run', ex: ex, ks: [] }; slots.push(run); }
+        run.ks.push(k);
+      }
     }
   });
-  cell.appendChild(el('button', {
-    className: 'add-ex', text: 'Add exercise',
+  return slots;
+}
+
+// One cell of the grid: what one slot looks like in one week. It is left blank where the exercise
+// is not in that week (or has fewer set groups); clicking a blank cell still selects the exercise,
+// so its settings panel can add it back.
+function renderSlotCell(workout, wi, week, slot, isFirstWeek) {
+  var td = el('td', { className: 'cell' + (isFirstWeek ? ' c0' : '') });
+  var labels = supersetLabels(workout, week);
+  function boxFor(ex, ks) {
+    var entry = ex.weeks[week];
+    if (!entry.included) return null;
+    var entries = ks.filter(function (k) { return !!entry.groups[k]; }).map(function (k) {
+      return { k: k, label: labels[ex.id + ':' + k] };
+    });
+    return entries.length > 0 ? renderBox(ex, wi, week, entries) : null;
+  }
+  if (slot.type === 'run') {
+    var box = boxFor(slot.ex, slot.ks);
+    if (box) td.appendChild(box);
+    else td.addEventListener('click', function () { selectExercise(wi, slot.ex.id); });
+    if (selected !== null && selected.exId === slot.ex.id) td.className += ' sel';
+    return td;
+  }
+  var a = boxFor(slot.members[0].ex, [slot.members[0].k]);
+  var b = boxFor(slot.members[1].ex, [slot.members[1].k]);
+  var active = labels[slot.members[0].ex.id + ':' + slot.members[0].k] !== undefined;
+  if (active) {
+    td.appendChild(el('div', { className: 'ss-block' }, [a, b]));   // both are there: one frame
+  } else {
+    if (a) td.appendChild(a);
+    if (b) td.appendChild(b);
+  }
+  return td;
+}
+
+// The foot of a workout in one week: add an exercise, or remove the whole workout from the week.
+function renderFootCell(workout, wi, week) {
+  var foot = [el('button', {
+    className: 'link-btn', text: '+ Add exercise',
     onclick: function () { openAddExerciseModal(wi, week); }
-  }));
-  return cell;
+  })];
+  if (workout.exercises.length > 0) {
+    foot.push(el('button', {
+      className: 'link-btn', text: 'Remove from week',
+      onclick: function () { confirmRemoveWorkoutFromWeek(workout, wi, week); }
+    }));
+  }
+  return el('td', { className: 'cell' + (week === 0 ? ' c0' : '') }, [el('div', { className: 'cell-foot' }, foot)]);
 }
 
 function renderGrid() {
   var grid = document.getElementById('grid');
   grid.textContent = '';
 
-  var headRow = el('tr', null, [el('th', { className: 'workout-col', text: 'Workout' })]);
+  var headRow = el('tr');
   for (var w = 0; w < program.weeks; w++) {
     headRow.appendChild(el('th', { className: 'week-col', text: 'Week ' + (w + 1) }));
   }
@@ -2635,7 +2522,7 @@ function renderGrid() {
   var body = el('tbody');
   program.workouts.forEach(function (workout, wi) {
     var descInput = el('input', {
-      type: 'text', className: 'workout-desc', placeholder: 'Description',
+      type: 'text', className: 'workout-desc', placeholder: 'Add a description',
       'aria-label': 'Description for Workout ' + (wi + 1), maxlength: '500'
     });
     descInput.value = workout.description;
@@ -2644,44 +2531,80 @@ function renderGrid() {
       changedQuietly();
     });
 
-    var row = el('tr', null, [
-      el('td', { className: 'workout-col' }, [
-        el('div', { className: 'workout-title', text: 'Workout ' + (wi + 1) }),
-        descInput
+    // One full-width band per workout: title and description, with the exercises under it.
+    body.appendChild(el('tr', { className: 'band-row' }, [
+      el('td', { colspan: String(program.weeks) }, [
+        el('div', { className: 'band' }, [
+          el('span', { className: 't', text: 'Workout ' + (wi + 1) }),
+          descInput
+        ])
       ])
-    ]);
+    ]));
 
-    for (var week = 0; week < program.weeks; week++) {
-      row.appendChild(renderCell(workout, wi, week));
+    var slots = workoutSlots(workout);
+    var removed = [];
+    for (var week = 0; week < program.weeks; week++) removed.push(workoutRemovedInWeek(workout, week));
+
+    slots.forEach(function (slot, i) {
+      var row = el('tr', { className: 'slot' + (i === 0 ? ' first' : '') });
+      for (var wk = 0; wk < program.weeks; wk++) {
+        if (removed[wk]) {
+          // A workout removed from this week is one tall cell down the whole workout.
+          if (i === 0) {
+            var gone = el('td', { className: 'cell' + (wk === 0 ? ' c0' : ''), rowspan: String(slots.length + 1) }, [
+              el('div', { className: 'gone' }, [
+                el('span', { text: 'No workout this week' }),
+                el('button', { className: 'link-btn', text: 'Restore', onclick: (function (x) { return function () { restoreWorkoutInWeek(workout, x); }; })(wk) })
+              ])
+            ]);
+            row.appendChild(gone);
+          }
+          continue;
+        }
+        row.appendChild(renderSlotCell(workout, wi, wk, slot, wk === 0));
+      }
+      body.appendChild(row);
+    });
+
+    var footRow = el('tr', { className: 'foot-row' });
+    for (var fw = 0; fw < program.weeks; fw++) {
+      if (!removed[fw]) footRow.appendChild(renderFootCell(workout, wi, fw));
     }
-    body.appendChild(row);
+    body.appendChild(footRow);
   });
 
-  grid.appendChild(el('table', { className: 'grid' }, [el('thead', null, [headRow]), body]));
+  grid.appendChild(el('table', { className: 'grid', style: '--n:' + program.weeks }, [el('thead', null, [headRow]), body]));
 }
 
 function render() {
   var header = document.getElementById('header');
-  var main = document.getElementById('main');
-  var detail = document.getElementById('detail');
+  var workspace = document.getElementById('workspace');
   var lib = document.getElementById('library');
   document.getElementById('save-warning').hidden = draftSaved;
   if (libraryOpen) {
     header.hidden = true;
-    main.hidden = true;
-    detail.hidden = true;
+    workspace.hidden = true;
     lib.hidden = false;
     renderLibrary();
     return;
   }
   lib.hidden = true;
   header.hidden = false;
-  main.hidden = false;
+  workspace.hidden = false;
   renderHeader();
   if (!findSelected()) selected = null;
   renderGrid();
-  renderDetail();
+  renderDetail();   // the panel's width changes the grid's, so measure after it is drawn
+  updateMainWidth();
 }
+
+// Tells the workout bands how wide the visible grid area is, so a band stays readable when the
+// program is wider than the window and scrolls sideways.
+function updateMainWidth() {
+  var main = document.getElementById('main');
+  document.getElementById('grid').style.setProperty('--mainw', Math.max(300, main.clientWidth - 40) + 'px');
+}
+window.addEventListener('resize', updateMainWidth);
 
 /* ==========================================================================
    LIBRARY SCREEN (Phase 2 spec 1.1)
@@ -2929,6 +2852,38 @@ function removeFromWeek(workout, ex, weekIndex) {
     return;
   }
   ex.weeks[weekIndex].included = false;
+  changed();
+}
+
+// Removes a whole workout from one week. Exercises that appear in no other week would be left
+// with nowhere to live, so those are deleted (the dialog names them first).
+function confirmRemoveWorkoutFromWeek(workout, wi, weekIndex) {
+  var here = workout.exercises.filter(function (ex) { return ex.weeks[weekIndex].included; });
+  var onlyHere = here.filter(function (ex) { return includedWeekCount(ex) <= 1; });
+  var text = 'Its exercises stay in the other weeks.';
+  if (onlyHere.length > 0) {
+    text = 'These exercises appear only in this week and will be deleted: ' +
+      onlyHere.map(function (ex) { return ex.name; }).join(', ') + '. The others stay in the other weeks.';
+  }
+  showConfirm({
+    title: 'Remove Workout ' + (wi + 1) + ' from Week ' + (weekIndex + 1) + '?',
+    text: text,
+    confirmLabel: 'Remove',
+    onConfirm: function () {
+      here.forEach(function (ex) {
+        if (onlyHere.indexOf(ex) >= 0) workout.exercises = workout.exercises.filter(function (o) { return o !== ex; });
+        else ex.weeks[weekIndex].included = false;
+      });
+      purgeBrokenPairs(workout);
+      changed();
+    }
+  });
+}
+
+// Puts every exercise of the workout back into that week. A week that was edited by hand keeps its
+// edits; the others already hold the pattern's values.
+function restoreWorkoutInWeek(workout, weekIndex) {
+  workout.exercises.forEach(function (ex) { ex.weeks[weekIndex].included = true; });
   changed();
 }
 

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Builder Workout Bands – Round 2</title>
+<style>
+:root{--bg:#0B0D0C;--surface:#161917;--line:#2A2F2B;--hair:#1f2421;--text:#EDEEEA;--dim:#8C948C;--accent:#C6FF3D;--sel:#1b2214;--amber:#E8B04A}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:14px/1.4 -apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;padding:24px}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:16px;margin:36px 0 4px;color:var(--accent)}
+p.note{color:var(--dim);margin:4px 0 10px;max-width:900px}
+.pc{max-width:900px;color:var(--dim);font-size:13px;margin:4px 0 10px}.pc b{color:var(--text)}
+.page{background:var(--bg);border:1px solid var(--line);border-radius:10px;max-width:1180px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 11px;font-size:13px;white-space:nowrap}
+.hd{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line)}
+.hd .nm{font-size:16px;font-weight:600;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 10px;width:260px}
+.hd .meta{color:var(--dim)}.hd .sp{flex:1}
+.scroll{max-height:470px;overflow:auto}
+table{border-collapse:separate;border-spacing:0;width:100%;table-layout:fixed}
+/* the week header row stays visible while scrolling */
+th{position:sticky;top:0;z-index:3;background:var(--bg);color:var(--dim);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+th .tag{margin-left:6px;text-transform:none;letter-spacing:0}
+.tag{font-size:11px;padding:1px 8px;border-radius:9px;border:1px solid #5a4720;color:var(--amber);font-weight:400}
+td.cell{vertical-align:top;padding:8px 14px 12px;border-left:1px solid var(--hair)}
+td.cell:first-child{border-left:0}
+.ex{padding:6px 0;border-top:1px solid var(--hair)}
+.ex:first-child{border-top:0;padding-top:0}
+.ex.sel{background:var(--sel);box-shadow:-14px 0 0 var(--sel),14px 0 0 var(--sel)}
+.nmx{font-weight:600;display:flex;gap:8px}
+.ed{margin-left:auto;font-size:12px;color:var(--dim);font-weight:400}
+.line{display:flex;gap:8px;align-items:baseline}
+.sch{color:var(--dim)}.ld{color:var(--accent);font-weight:600}
+.blank{color:var(--dim);font-style:italic;font-weight:400}
+.ss{color:var(--accent);font-weight:700;margin-left:auto;padding-left:8px}
+.ssb{border-left:2px solid var(--accent);padding-left:8px;margin-left:-10px}
+.none{color:var(--dim);font-style:italic;padding:6px 0}
+.add{color:var(--dim);padding-top:8px;font-size:13px}
+td.band{padding:0}
+/* B1: plain bold title, hairline above, nothing coloured */
+.b1{display:flex;gap:10px;align-items:baseline;padding:20px 14px 7px;border-top:1px solid var(--line)}
+.b1 .t{font-weight:700;font-size:14px;white-space:nowrap}
+/* B2: same typography as the week header, so the band reads as part of the table header system */
+.b2{display:flex;gap:10px;align-items:baseline;padding:18px 14px 6px;border-top:1px solid var(--line)}
+.b2 .t{font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--dim);white-space:nowrap}
+.b2 .d{color:var(--text)}
+.d{color:var(--dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d.empty{font-style:italic;opacity:.7}
+.pen{color:var(--dim);font-size:12px}
+/* removed workout in one week */
+.gone{color:var(--dim);font-style:italic;padding:6px 0 2px}
+.gone .lnk{color:var(--accent);font-style:normal;margin-left:6px;font-size:13px}
+.ghost .ex{opacity:.45}
+.ghost .ex .nmx span:first-child{text-decoration:line-through}
+.ghost .gone{opacity:1;padding-bottom:8px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:1180px}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>Workout bands – round 2</h1>
+<p class="note">Changes since last time: (1) the workout band is toned down so it no longer sticks out next to the Week 1, 2, 3 header; (2) the <b>week header row is sticky</b>: scroll inside each box below to try it; (3) <b>Week 3 of Workout 2 is removed entirely</b> (a deload week with only two sessions), shown in two ways in Part 2. Week 3 is also the amber "Deload" week, as before.</p>
+
+<h2>Part 1 – Band style (scroll inside the boxes)</h2>
+<div class="two">
+  <div><div class="pc"><b>B1 – plain bold title.</b> The title is the same size as exercise names but bold; only a hairline divider and extra space set it apart. Quietest option that is still easy to scan.</div><div class="page" id="B1"></div></div>
+  <div><div class="pc"><b>B2 – header-style title.</b> The title uses the same small uppercase style as Week 1, 2, 3, and the description is normal text. The band reads as part of the header system, but workout names are less prominent.</div><div class="page" id="B2"></div></div>
+</div>
+
+<h2>Part 2 – A workout removed from one week</h2>
+<div class="pc">Workout 2 has no session in Week 3. Behind the scenes none of its exercises are in that week, so the GymLog file has no workout for it. Both versions keep a way back.</div>
+<div class="two">
+  <div><div class="pc"><b>Version i – message only.</b> The cell says "No workout this week" with a Restore link. Cleanest, but you can't see what was there.</div><div class="page" id="R1"></div></div>
+  <div><div class="pc"><b>Version ii – faded preview.</b> The exercises stay visible but faded and struck through, with a Restore link above them. Shows what you removed, but it keeps the space.</div><div class="page" id="R2"></div></div>
+</div>
+
+<script>
+var WEEKS = ['Week 1','Week 2','Week 3','Week 4'];
+function ex(n, ss, w, ed, sel){ return {n:n, ss:ss, w:w, ed:ed||[0,0,0,0], sel:sel}; }
+var WO = [
+ ['Workout 1','Squat and heavy bench, with a superset of incline press and rows.',[
+  ex('Back Squat','',[[['4 × 5 @ RPE 8','140 kg']],[['4 × 5 @ RPE 8','142.5 kg']],[['3 × 5 @ RPE 6','120 kg']],[['4 × 5 @ RPE 8','147.5 kg']]],[0,0,1,0]),
+  ex('Bench Press','',[[['3 × 5','97.5 kg']],[['3 × 5','100 kg']],[['2 × 5','90 kg']],[['3 × 5','105 kg']]],[0,0,1,0],1),
+  ex('Incline DB Press','A1',[[['3 × 10','25 kg']],[['3 × 10','26 kg']],[['2 × 10','22 kg']],[['3 × 10','28 kg']]],[0,0,1,0]),
+  ex('Seal Row','A2',[[['3 × 10','40 kg']],[['3 × 10','42.5 kg']],[['2 × 10','35 kg']],[['3 × 10','45 kg']]],[0,0,1,0]),
+  ex('Face Pull','',[[['2 × 15',null]],[['2 × 15',null]],null,[['2 × 15',null]]])]],
+ ['Workout 2','Deadlift with volume bench.',[
+  ex('Deadlift','',[[['3 × 3 @ RPE 8.5','170 kg']],[['3 × 3 @ RPE 8.5','172.5 kg']],'GONE',[['3 × 3 @ RPE 8.5','177.5 kg']]]),
+  ex('Bench Press','',[[['3 × 8','75% · 97.5 kg'],['1 × 12','65% · 85 kg']],[['3 × 8','77.5% · 100 kg'],['1 × 12','67.5% · 87.5 kg']],'GONE',[['3 × 8','82.5% · 107.5 kg'],['1 × 12','72.5% · 92.5 kg']]]),
+  ex('Lat Pulldown','',[[['3 × 12','55 kg']],[['3 × 12','57.5 kg']],'GONE',[['3 × 12','60 kg']]])]],
+ ['Workout 3','Overhead press and legs.',[
+  ex('Overhead Press','',[[['4 × 6','45 kg']],[['4 × 6','47.5 kg']],[['3 × 6','40 kg']],[['4 × 6','50 kg']]],[0,0,1,0]),
+  ex('Romanian Deadlift','',[[['3 × 8','100 kg']],[['3 × 8','102.5 kg']],[['2 × 8','90 kg']],[['3 × 8','105 kg']]],[0,0,1,0]),
+  ex('Leg Curl','',[[['3 × 12',null]],[['3 × 12',null]],[['2 × 12',null]],[['3 × 12',null]]])]],
+ ['Workout 4',null,[]]
+];
+function line(l, ss){ var d=document.createElement('div'); d.className='line';
+  d.innerHTML='<span class="sch">'+l[0]+'</span>'+(l[1]===null?'<span class="ld blank">Set load</span>':'<span class="ld">'+l[1]+'</span>')+(ss?'<span class="ss">'+ss+'</span>':''); return d; }
+function exBox(e, i, mode){
+  var p=e.w[i], box=document.createElement('div');
+  box.className='ex'+(e.sel?' sel':'')+(e.ss?' ssb':'');
+  var name=document.createElement('div'); name.className='nmx';
+  name.innerHTML='<span>'+e.n+'</span>'+(e.ed[i]?'<span class="ed">(edited)</span>':''); box.appendChild(name);
+  if(p==='GONE'){ // only used for the faded preview: show last week's values as a ghost
+    e.w[1].forEach(function(l){ box.appendChild(line(l,e.ss)); }); return box; }
+  if(!p){ var n=document.createElement('div'); n.className='none'; n.textContent='Not in this week'; box.appendChild(n); return box; }
+  p.forEach(function(l){ box.appendChild(line(l,e.ss)); });
+  return box;
+}
+// bandClass: 'b1' or 'b2'; goneMode: 'msg' or 'ghost'; onlyWorkout: index to show alone (or -1)
+function build(id, bandClass, goneMode, onlyWorkout){
+  var root=document.getElementById(id);
+  var scroll=document.createElement('div'); if(onlyWorkout<0) scroll.className='scroll';
+  if(onlyWorkout<0) root.innerHTML='<div class="hd"><span class="nm">Block 2 – Strength</span><span class="meta">4 weeks · 4 workouts</span><span class="btn">Edit</span></div>';
+  var t=document.createElement('table'); var h='<tr>';
+  WEEKS.forEach(function(w,i){ h+='<th>'+w+(i===2?'<span class="tag">Deload</span>':'')+'</th>'; }); t.innerHTML=h+'</tr>';
+  WO.forEach(function(wo,wi){
+    if(onlyWorkout>=0 && wi!==onlyWorkout) return;
+    var band=document.createElement('tr');
+    band.innerHTML='<td class="band" colspan="4"><div class="'+bandClass+'"><span class="t">'+wo[0]+'</span><span class="d'+(wo[1]?'':' empty')+'">'+(wo[1]||'Add a description')+'</span><span class="pen">✎</span></div></td>';
+    t.appendChild(band);
+    var row=document.createElement('tr');
+    for(var i=0;i<4;i++){
+      var td=document.createElement('td'); td.className='cell';
+      var gone = wo[2].length && wo[2][0].w[i]==='GONE';
+      if(gone){
+        if(goneMode==='msg'){ td.innerHTML='<div class="gone">No workout this week<span class="lnk">Restore</span></div>'; }
+        else { td.className='cell ghost'; var g=document.createElement('div'); g.className='gone'; g.innerHTML='Workout removed from this week<span class="lnk">Restore</span>'; td.appendChild(g); wo[2].forEach(function(e){ td.appendChild(exBox(e,i)); }); }
+      } else {
+        wo[2].forEach(function(e){ td.appendChild(exBox(e,i)); });
+        var add=document.createElement('div'); add.className='add'; add.textContent='+ Add exercise'; td.appendChild(add);
+      }
+      row.appendChild(td);
+    }
+    t.appendChild(row);
+  });
+  scroll.appendChild(t); root.appendChild(scroll);
+}
+build('B1','b1','msg',-1); build('B2','b2','msg',-1);
+build('R1','b1','msg',1); build('R2','b1','ghost',1);
+</script>
+</body>
+</html>

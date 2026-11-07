@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Builder Flat Grid – Layout Options</title>
+<style>
+:root{--bg:#0B0D0C;--surface:#161917;--line:#2A2F2B;--hair:#1f2421;--text:#EDEEEA;--dim:#8C948C;--accent:#C6FF3D;--sel:#1b2214;--rpe:#8FC7FF}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:14px/1.4 -apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;padding:24px}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:16px;margin:36px 0 4px;color:var(--accent)}
+p.note{color:var(--dim);margin:4px 0 10px;max-width:900px}
+.pc{max-width:900px;color:var(--dim);font-size:13px;margin:4px 0 10px}.pc b{color:var(--text)}
+.page{background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:auto;max-width:1180px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 11px;font-size:13px;white-space:nowrap}
+/* header */
+.hd{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line)}
+.hd .nm{font-size:16px;font-weight:600;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 10px;width:260px}
+.hd .meta{color:var(--dim)}
+.hd .sp{flex:1}
+/* shared table frame */
+table{border-collapse:collapse;width:100%}
+th{color:var(--dim);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+td{vertical-align:top;padding:0}
+.dim{color:var(--dim)}
+.ld{color:var(--accent);font-weight:600}
+.ss{color:var(--accent);font-weight:700;margin-left:auto;padding-left:8px}
+.line{display:flex;gap:8px;align-items:baseline}
+.sch{color:var(--dim)}
+.wkh td{padding:14px 14px 6px;font-weight:700}
+.wkh td span{color:var(--dim);font-weight:400;margin-left:8px}
+/* OPTION 1: flat cells, same structure as today */
+.o1 td.cell{padding:10px 14px;width:23%;border-left:1px solid var(--hair)}
+.o1 td.wl{width:12%;padding:14px;font-weight:700}
+.o1 tr.w{border-top:1px solid var(--line)}
+.o1 .ex{padding:6px 0;border-top:1px solid var(--hair)}
+.o1 .ex:first-child{border-top:0;padding-top:0}
+.o1 .ex.sel{background:var(--sel);box-shadow:-14px 0 0 var(--sel),14px 0 0 var(--sel);}
+.o1 .nmx{font-weight:600}
+.o1 .ssb{border-left:2px solid var(--accent);padding-left:8px;margin-left:-10px}
+/* OPTION 2: exercise rows, names once */
+.o2 td.nmc{width:19%;padding:7px 14px;font-weight:600;border-top:1px solid var(--hair)}
+.o2 td.c{padding:7px 14px;border-top:1px solid var(--hair);border-left:1px solid var(--hair);width:20.25%}
+.o2 tr.sel td{background:var(--sel)}
+.o2 tr.sel td.nmc{box-shadow:inset 3px 0 0 var(--accent)}
+.o2 .grp{display:flex;gap:8px;align-items:baseline;white-space:nowrap}
+.o2 .grp+.grp{margin-top:2px}
+.o2 .add td{padding:6px 14px 4px;color:var(--dim)}
+.sub{font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+<h1>Builder editor – flatter, less bloated</h1>
+<p class="note">Both options remove the box around every exercise and put the superset label (A1 / A2) on the right of the prescription, so all prescriptions line up on the left. The header is shown as proposed: program settings (weeks, workouts per week) live behind <b>Edit</b>, no Block field, and only the buttons that belong in the editor. Option 1 keeps today's structure (names repeated in every week). Option 2 changes the structure: exercise names appear once in a left column, so the week columns only hold prescriptions. Sample: a 4-week program, Workout 1 shown in full.</p>
+
+<h2>Option 1 – Same grid, boxes removed</h2>
+<div class="pc"><b>Good:</b> no change in how the grid reads or works; each week column is self-contained. <b>Less good:</b> the exercise name is still repeated in every week, which takes space, and it is harder to compare one exercise across weeks.</div>
+<div class="page">
+  <div class="hd"><span class="nm">Block 2 – Strength Cycle</span><span class="meta">4 weeks · 3 workouts per week</span><span class="btn">Edit</span><span class="sp"></span><span class="btn">Library</span><span class="btn">Copy AI prompt</span></div>
+  <table class="o1">
+    <tr><th>Workout</th><th>Week 1</th><th>Week 2</th><th>Week 3</th><th>Week 4</th></tr>
+    <tr class="w">
+      <td class="wl">Workout 1<div class="sub" style="font-weight:400">Squat + Heavy Bench</div></td>
+      <td class="cell"><div class="ex"><div class="nmx">Back Squat</div><div class="line"><span class="sch">4 × 5 @ RPE 8</span><span class="ld">140 kg</span></div></div><div class="ex sel"><div class="nmx">Bench Press</div><div class="line"><span class="sch">3 × 5</span><span class="ld">97.5 kg</span></div></div><div class="ex ssb"><div class="line"><span class="nmx">Incline DB Press</span></div><div class="line"><span class="sch">3 × 10</span><span class="ld">25 kg</span><span class="ss">A1</span></div></div><div class="ex ssb"><div class="line"><span class="nmx">Seal Row</span></div><div class="line"><span class="sch">3 × 10</span><span class="ld">40 kg</span><span class="ss">A2</span></div></div><div class="ex"><div class="nmx">Face Pull</div><div class="line"><span class="sch">2 × 15</span><span class="ld" style="color:var(--dim);font-style:italic;font-weight:400">Set load</span></div></div></td>
+      <td class="cell"><div class="ex"><div class="nmx">Back Squat</div><div class="line"><span class="sch">4 × 5 @ RPE 8</span><span class="ld">142.5 kg</span></div></div><div class="ex sel"><div class="nmx">Bench Press</div><div class="line"><span class="sch">3 × 5</span><span class="ld">100 kg</span></div></div><div class="ex ssb"><div class="line"><span class="nmx">Incline DB Press</span></div><div class="line"><span class="sch">3 × 10</span><span class="ld">26 kg</span><span class="ss">A1</span></div></div><div class="ex ssb"><div class="line"><span class="nmx">Seal Row</span></div><div class="line"><span class="sch">3 × 10</span><span class="ld">42.5 kg</span><span class="ss">A2</span></div></div><div class="ex"><div class="nmx">Face Pull</div><div class="line"><span class="sch">2 × 15</span><span class="ld" style="color:var(--dim);font-style:italic;font-weight:400">Set load</span></div></div></td>
+      <td class="cell"><div class="ex"><div class="nmx">Back Squat</div><div class="line"><span class="sch">4 × 5 @ RPE 8</span><span class="ld">145 kg</span></div></div><div class="ex sel"><div class="nmx">Bench Press</div><div class="line"><span class="sch">3 × 5</span><span class="ld">102.5 kg</span></div></div><div class="ex ssb"><div class="line"><span class="nmx">Incline DB Press</span></div><div class="line"><span class="sch">3 × 10</span><span class="ld">28 kg</span><span class="ss">A1</span></div></div><div class="ex ssb"><div class="line"><span class="nmx">Seal Row</span></div><div class="line"><span class="sch">3 × 10</span><span class="ld">45 kg</span><span class="ss">A2</span></div></div><div class="ex"><div class="nmx">Face Pull</div><div class="line"><span class="sch">2 × 15</span><span class="ld" style="color:var(--dim);font-style:italic;font-weight:400">Set load</span></div></div></td>
+      <td class="cell"><div class="ex"><div class="nmx">Back Squat</div><div class="line"><span class="sch">4 × 5 @ RPE 8</span><span class="ld">147.5 kg</span></div></div><div class="ex sel"><div class="nmx">Bench Press</div><div class="line"><span class="sch">3 × 5</span><span class="ld">105 kg</span></div></div><div class="ex ssb"><div class="line"><span class="nmx">Incline DB Press</span></div><div class="line"><span class="sch">3 × 10</span><span class="ld">28 kg</span><span class="ss">A1</span></div></div><div class="ex ssb"><div class="line"><span class="nmx">Seal Row</span></div><div class="line"><span class="sch">3 × 10</span><span class="ld">45 kg</span><span class="ss">A2</span></div></div><div class="ex"><div class="nmx">Face Pull</div><div class="line"><span class="sch">2 × 15</span><span class="ld" style="color:var(--dim);font-style:italic;font-weight:400">Set load</span></div></div></td>
+    </tr>
+  </table>
+</div>
+
+<h2>Option 2 – Exercise rows: names once, prescriptions across the weeks</h2>
+<div class="pc"><b>Good:</b> by far the most compact, since each name appears once. Reads like a spreadsheet: one exercise's progression runs left to right, so a +2.5 kg per week pattern is visible at a glance. <b>Less good:</b> a bigger change to the grid code and to how it looks: workouts become section headings instead of a left column. Superset partners are not drawn in one frame; they are matched by the A1 / A2 labels and sit on adjacent rows.</div>
+<div class="page">
+  <div class="hd"><span class="nm">Block 2 – Strength Cycle</span><span class="meta">4 weeks · 3 workouts per week</span><span class="btn">Edit</span><span class="sp"></span><span class="btn">Library</span><span class="btn">Copy AI prompt</span></div>
+  <table class="o2">
+    <tr><th>Exercise</th><th>Week 1</th><th>Week 2</th><th>Week 3</th><th>Week 4</th></tr>
+    <tr class="wkh"><td colspan="5">Workout 1<span>Squat + Heavy Bench</span></td></tr>
+    <tr><td class="nmc">Back Squat</td><td class="c"><div class="grp"><span class="sch">4 × 5 @ RPE 8</span><span class="ld">140 kg</span></div></td><td class="c"><div class="grp"><span class="sch">4 × 5 @ RPE 8</span><span class="ld">142.5 kg</span></div></td><td class="c"><div class="grp"><span class="sch">4 × 5 @ RPE 8</span><span class="ld">145 kg</span></div></td><td class="c"><div class="grp"><span class="sch">4 × 5 @ RPE 8</span><span class="ld">147.5 kg</span></div></td></tr>
+    <tr class="sel"><td class="nmc">Bench Press</td><td class="c"><div class="grp"><span class="sch">3 × 5</span><span class="ld">97.5 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 5</span><span class="ld">100 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 5</span><span class="ld">102.5 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 5</span><span class="ld">105 kg</span></div></td></tr>
+    <tr><td class="nmc">Incline DB Press</td><td class="c"><div class="grp"><span class="sch">3 × 10</span><span class="ld">25 kg</span><span class="ss">A1</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 10</span><span class="ld">26 kg</span><span class="ss">A1</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 10</span><span class="ld">28 kg</span><span class="ss">A1</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 10</span><span class="ld">28 kg</span><span class="ss">A1</span></div></td></tr>
+    <tr><td class="nmc">Seal Row</td><td class="c"><div class="grp"><span class="sch">3 × 10</span><span class="ld">40 kg</span><span class="ss">A2</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 10</span><span class="ld">42.5 kg</span><span class="ss">A2</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 10</span><span class="ld">45 kg</span><span class="ss">A2</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 10</span><span class="ld">45 kg</span><span class="ss">A2</span></div></td></tr>
+    <tr><td class="nmc">Face Pull</td><td class="c"><div class="grp"><span class="sch">2 × 15</span><span class="ld dim" style="font-weight:400;font-style:italic">Set load</span></div></td><td class="c"><div class="grp"><span class="sch">2 × 15</span><span class="ld dim" style="font-weight:400;font-style:italic">Set load</span></div></td><td class="c"><div class="grp"><span class="sch">2 × 15</span><span class="ld dim" style="font-weight:400;font-style:italic">Set load</span></div></td><td class="c"><div class="grp"><span class="sch">2 × 15</span><span class="ld dim" style="font-weight:400;font-style:italic">Set load</span></div></td></tr>
+    <tr class="add"><td colspan="5">+ Add exercise</td></tr>
+    <tr class="wkh"><td colspan="5">Workout 2<span>Deadlift + Volume Bench</span></td></tr>
+    <tr><td class="nmc">Deadlift</td><td class="c"><div class="grp"><span class="sch">3 × 3 @ RPE 8.5</span><span class="ld">170 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 3 @ RPE 8.5</span><span class="ld">172.5 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 3 @ RPE 8.5</span><span class="ld">175 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 3 @ RPE 8.5</span><span class="ld">177.5 kg</span></div></td></tr>
+    <tr><td class="nmc">Bench Press</td><td class="c"><div class="grp"><span class="sch">3 × 8</span><span class="ld">75% · 97.5 kg</span></div><div class="grp"><span class="sch">1 × 12</span><span class="ld">65% · 85 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 8</span><span class="ld">77.5% · 100 kg</span></div><div class="grp"><span class="sch">1 × 12</span><span class="ld">67.5% · 87.5 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 8</span><span class="ld">80% · 105 kg</span></div><div class="grp"><span class="sch">1 × 12</span><span class="ld">70% · 90 kg</span></div></td><td class="c"><div class="grp"><span class="sch">3 × 8</span><span class="ld">82.5% · 107.5 kg</span></div><div class="grp"><span class="sch">1 × 12</span><span class="ld">72.5% · 92.5 kg</span></div></td></tr>
+    <tr class="add"><td colspan="5">+ Add exercise</td></tr>
+  </table>
+</div>
+<p class="note" style="margin-top:14px">In both: the selected exercise is shown by a soft tint (and a thin green bar in Option 2), not a green outline. Selecting an exercise still opens the table at the bottom. Notes: the sample uses blank loads ("Set load") and a two-set-group exercise (Bench in Workout 2) to show how both look.</p>
+</body>
+</html>

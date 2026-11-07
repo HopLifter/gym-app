@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Builder Workout Bands – Layout Options</title>
+<style>
+:root{--bg:#0B0D0C;--surface:#161917;--line:#2A2F2B;--hair:#1f2421;--text:#EDEEEA;--dim:#8C948C;--accent:#C6FF3D;--sel:#1b2214;--amber:#E8B04A}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:14px/1.4 -apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;padding:24px}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:16px;margin:36px 0 4px;color:var(--accent)}
+p.note{color:var(--dim);margin:4px 0 10px;max-width:900px}
+.pc{max-width:900px;color:var(--dim);font-size:13px;margin:4px 0 10px}.pc b{color:var(--text)}
+.page{background:var(--bg);border:1px solid var(--line);border-radius:10px;overflow:auto;max-width:1180px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 11px;font-size:13px;white-space:nowrap}
+.hd{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line)}
+.hd .nm{font-size:16px;font-weight:600;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 10px;width:260px}
+.hd .meta{color:var(--dim)}.hd .sp{flex:1}
+table{border-collapse:collapse;width:100%;table-layout:fixed}
+th{color:var(--dim);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:10px 14px;border-bottom:1px solid var(--line)}
+th .tag{margin-left:6px;text-transform:none;letter-spacing:0}
+.tag{font-size:11px;padding:1px 8px;border-radius:9px;border:1px solid #5a4720;color:var(--amber);font-weight:400}
+td.cell{vertical-align:top;padding:8px 14px 12px;border-left:1px solid var(--hair)}
+td.cell:first-child{border-left:0}
+.ex{padding:6px 0;border-top:1px solid var(--hair)}
+.ex:first-child{border-top:0;padding-top:0}
+.ex.sel{background:var(--sel);box-shadow:-14px 0 0 var(--sel),14px 0 0 var(--sel)}
+.nmx{font-weight:600;display:flex;gap:8px}
+.ed{margin-left:auto;font-size:12px;color:var(--dim);font-weight:400}
+.line{display:flex;gap:8px;align-items:baseline}
+.sch{color:var(--dim)}.ld{color:var(--accent);font-weight:600}
+.blank{color:var(--dim);font-style:italic;font-weight:400}
+.ss{color:var(--accent);font-weight:700;margin-left:auto;padding-left:8px}
+.ssb{border-left:2px solid var(--accent);padding-left:8px;margin-left:-10px}
+.none{color:var(--dim);font-style:italic;padding:6px 0}
+.add{color:var(--dim);padding-top:8px;font-size:13px}
+/* the workout band: one row, full width */
+td.band{padding:0}
+.bandA{display:flex;gap:10px;align-items:baseline;padding:9px 14px;background:var(--surface);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.bandB{display:flex;gap:10px;align-items:baseline;padding:22px 14px 8px;border-top:1px solid var(--line)}
+.bandB .t{border-bottom:2px solid var(--accent);padding-bottom:2px}
+.t{font-weight:700;font-size:15px;white-space:nowrap}
+.d{color:var(--dim);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d.empty{font-style:italic;opacity:.7}
+.pen{color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<h1>Workout title bands – saving the Workout column</h1>
+<p class="note">Option 1 from the last mockup stays (names repeated per week, so a one-off week such as a deload can differ freely). The left "Workout" column is gone. Instead each workout gets <b>one full-width row</b> with its title and a one-sentence description, and the exercises sit under it in the week columns, which are now 25% wide each instead of 23%. The description is edited by clicking it (✎). A workout with no description shows a faint "Add a description" prompt. <b>Week 3 in the sample is a one-off interim deload</b> to show how it looks: lower loads, a missing exercise ("Not in this week") and the amber Deload tag from the week-flag idea.</p>
+
+<h2>Band A – tinted full-width row</h2>
+<div class="pc"><b>Good:</b> the clearest separation between workouts, readable at a glance. <b>Less good:</b> a filled row is one more "box-like" element, though it replaces the whole left column.</div>
+<div class="page" id="A"></div>
+
+<h2>Band B – no fill, a divider line and an underlined title</h2>
+<div class="pc"><b>Good:</b> flattest look, nothing filled in. <b>Less good:</b> the separation relies on spacing and a line, so it is a little subtler when scrolling a long program.</div>
+<div class="page" id="B"></div>
+
+<script>
+var WEEKS = ['Week 1','Week 2','Week 3','Week 4'];
+// each exercise: name, ss label (or ''), and per-week prescriptions (array of lines) or null (not in this week)
+var W1 = [
+  {n:'Back Squat', ss:'', w:[[['4 × 5 @ RPE 8','140 kg']],[['4 × 5 @ RPE 8','142.5 kg']],[['3 × 5 @ RPE 6','120 kg']],[['4 × 5 @ RPE 8','147.5 kg']]], ed:[0,0,1,0]},
+  {n:'Bench Press', ss:'', sel:1, w:[[['3 × 5','97.5 kg']],[['3 × 5','100 kg']],[['2 × 5','90 kg']],[['3 × 5','105 kg']]], ed:[0,0,1,0]},
+  {n:'Incline DB Press', ss:'A1', w:[[['3 × 10','25 kg']],[['3 × 10','26 kg']],[['2 × 10','22 kg']],[['3 × 10','28 kg']]], ed:[0,0,1,0]},
+  {n:'Seal Row', ss:'A2', w:[[['3 × 10','40 kg']],[['3 × 10','42.5 kg']],[['2 × 10','35 kg']],[['3 × 10','45 kg']]], ed:[0,0,1,0]},
+  {n:'Face Pull', ss:'', w:[[['2 × 15',null]],[['2 × 15',null]],null,[['2 × 15',null]]], ed:[0,0,0,0]}
+];
+var W2 = [
+  {n:'Deadlift', ss:'', w:[[['3 × 3 @ RPE 8.5','170 kg']],[['3 × 3 @ RPE 8.5','172.5 kg']],[['2 × 3 @ RPE 6','140 kg']],[['3 × 3 @ RPE 8.5','177.5 kg']]], ed:[0,0,1,0]},
+  {n:'Bench Press', ss:'', w:[[['3 × 8','75% · 97.5 kg'],['1 × 12','65% · 85 kg']],[['3 × 8','77.5% · 100 kg'],['1 × 12','67.5% · 87.5 kg']],[['2 × 8','65% · 85 kg']],[['3 × 8','82.5% · 107.5 kg'],['1 × 12','72.5% · 92.5 kg']]], ed:[0,0,1,0]}
+];
+function line(l, ss){ var d = document.createElement('div'); d.className='line';
+  d.innerHTML = '<span class="sch">'+l[0]+'</span>' + (l[1]===null ? '<span class="ld blank">Set load</span>' : '<span class="ld">'+l[1]+'</span>') + (ss ? '<span class="ss">'+ss+'</span>' : ''); return d; }
+function cell(ex, wk){
+  var td = document.createElement('td'); td.className='cell'; td.dataset.wk=wk; return td; }
+function exBox(ex, i){
+  var p = ex.w[i], box = document.createElement('div');
+  box.className = 'ex' + (ex.sel?' sel':'') + (ex.ss ? ' ssb':'');
+  var name = document.createElement('div'); name.className='nmx';
+  name.innerHTML = ex.n + (ex.ed[i] ? '<span class="ed">(edited)</span>' : '');
+  box.appendChild(name);
+  if (!p){ var n = document.createElement('div'); n.className='none'; n.textContent='Not in this week'; box.appendChild(n); return box; }
+  p.forEach(function(l){ box.appendChild(line(l, ex.ss)); });
+  return box;
+}
+function build(rootId, bandClass){
+  var root = document.getElementById(rootId);
+  root.innerHTML = '<div class="hd"><span class="nm">Block 2 – Strength Cycle</span><span class="meta">4 weeks · 3 workouts per week</span><span class="btn">Edit</span><span class="sp"></span><span class="btn">Library</span><span class="btn">Copy AI prompt</span></div>';
+  var t = document.createElement('table');
+  var h = '<tr>'; WEEKS.forEach(function(w,i){ h += '<th>'+w+(i===2?'<span class="tag">Deload</span>':'')+'</th>'; }); t.innerHTML = h+'</tr>';
+  [['Workout 1','Squat and heavy bench, with a superset of incline press and rows.',W1],['Workout 2','Deadlift with volume bench.',W2],['Workout 3',null,[]]].forEach(function(wo){
+    var band = document.createElement('tr');
+    band.innerHTML = '<td class="band" colspan="4"><div class="'+bandClass+'"><span class="'+(bandClass==='bandB'?'t':'t')+'">'+wo[0]+'</span><span class="d'+(wo[1]?'':' empty')+'">'+(wo[1]||'Add a description')+'</span><span class="pen">✎</span></div></td>';
+    t.appendChild(band);
+    var row = document.createElement('tr');
+    for (var i=0;i<4;i++){
+      var td = document.createElement('td'); td.className='cell';
+      wo[2].forEach(function(ex){ td.appendChild(exBox(ex,i)); });
+      var add = document.createElement('div'); add.className='add'; add.textContent='+ Add exercise'; td.appendChild(add);
+      row.appendChild(td);
+    }
+    t.appendChild(row);
+  });
+  root.appendChild(t);
+}
+build('A','bandA'); build('B','bandB');
+</script>
+</body>
+</html>
