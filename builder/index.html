@@ -199,6 +199,18 @@
   .detail select:focus { outline: none; border-color: var(--accent); }
   /* ---- Athletes in the Library, and the profile screen (two columns) ---- */
   .lib-sect.static { cursor: default; }
+  .lib-sect button + button { margin-left: 8px; }
+  .lib-sect .expand-all { padding: 4px 10px; }
+  .ath-head { cursor: pointer; padding-left: 20px; gap: 10px; }
+  .ath-head .car { width: 14px; color: var(--text-dim); flex: none; }
+  .lib-row.nested, .lib-row.sub-row { padding-left: 64px; }
+  #profile-changed { flex: none; display: flex; align-items: center; gap: 12px; padding: 8px 20px; color: #E8B04A; background: #1D1810; border-bottom: 1px solid #5A4720; }
+  #profile-changed[hidden] { display: none; }
+  #profile-changed button { padding: 3px 10px; font-size: 12px; }
+  .gen-extra { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+  .gen-extra > div:first-child { flex: 1; min-width: 0; }
+  .modal .gen-extra input.num-input { width: 80px; text-align: right; }
+  .ok-text { color: var(--accent); font-size: 12px; margin: 6px 0; }
   .tag-template { font-size: 11px; padding: 1px 8px; border-radius: 9px; border: 1px solid #3B4A1C; color: var(--accent); }
   .tag-warn { font-size: 11px; padding: 1px 8px; border-radius: 9px; border: 1px solid #5A4720; color: #E8B04A; white-space: nowrap; }
   .warn-text { color: #E8B04A; font-size: 12px; }
@@ -353,6 +365,7 @@
 <body>
   <div class="header" id="header"></div>
   <div id="save-warning" hidden><span>This browser could not save your last change. It will be lost when the page closes.</span><button id="warn-export">Export everything</button></div>
+  <div id="profile-changed" hidden></div>
   <div id="library" hidden></div>
   <div id="profile" hidden></div>
   <div id="workspace">
@@ -473,8 +486,31 @@ function createDefaultProgram(options) {
     weeks: weekCount,
     workoutsPerWeek: count,
     weekFlags: flags,
+    // Set when the program is generated from a template for an athlete (Phase 2 spec step 4):
+    // `source` says where it came from, `profileUsed` holds the maxes its kg values were calculated with.
+    source: null,
+    profileUsed: null,
     workouts: workouts
   };
+}
+
+// Checks the optional `source` and `profileUsed` of a program.
+function isValidSource(s) {
+  return s === null || (typeof s === 'object' && !!s
+    && (s.templateId === null || typeof s.templateId === 'string')
+    && typeof s.templateName === 'string' && s.templateName.length <= 200
+    && (s.profileId === null || typeof s.profileId === 'string')
+    && typeof s.profileName === 'string' && s.profileName.length <= 200
+    && typeof s.generatedOn === 'string');
+}
+
+function isValidSnapshot(u) {
+  return u === null || (typeof u === 'object' && !!u && isNum(u.rounding) && u.rounding > 0 && u.rounding <= 10
+    && Array.isArray(u.lifts) && u.lifts.length <= 200
+    && u.lifts.every(function (l) {
+      return !!l && typeof l.name === 'string' && l.name.length >= 1 && l.name.length <= 200
+        && isNum(l.value) && l.value >= 0 && l.value <= 2000 && typeof l.extra === 'boolean';
+    }));
 }
 
 // Week flags (Phase 2 spec 2.6): a label for a whole week. Deload only labels the week for now.
@@ -559,6 +595,7 @@ function isValidProgram(p) {
   // One flag per week: null, "deload", "test" or "comp". (migrateOldPatterns adds it to older files.)
   if (!Array.isArray(p.weekFlags) || p.weekFlags.length !== p.weeks) return false;
   if (!p.weekFlags.every(function (f) { return f === null || WEEK_FLAGS.indexOf(f) >= 0; })) return false;
+  if (!isValidSource(p.source) || !isValidSnapshot(p.profileUsed)) return false;
   for (var i = 0; i < p.workouts.length; i++) {
     var w = p.workouts[i];
     if (!w || typeof w !== 'object') return false;
@@ -582,6 +619,9 @@ function isValidProgram(p) {
 // for validation to reject.
 function migrateOldPatterns(p) {
   if (!p || !Array.isArray(p.workouts)) return;
+  // Added in Phase 2 step 4: older files were not generated for an athlete.
+  if (p.source === undefined) p.source = null;
+  if (p.profileUsed === undefined) p.profileUsed = null;
   // Week flags were added in Phase 2 step 2: an older file has none, which means no week is flagged.
   if (!Array.isArray(p.weekFlags) && isWholeBetween(p.weeks, 1, MAX_WEEKS)) {
     p.weekFlags = [];
@@ -764,6 +804,88 @@ function kgForPercent(percent, liftName, profile) {
   if (base === null) return null;
   var step = profile.rounding;
   return cleanNum(Math.round(percent / 100 * base / step) * step);
+}
+
+/* --------------------------------------------------------------------------
+   Generating a program for an athlete (Phase 2 spec step 4). A generated program keeps a SNAPSHOT of
+   the maxes it was calculated with (`profileUsed`), so it can be recalculated after every edit and
+   the builder can tell when the athlete's profile has changed since. A % load becomes kg by matching
+   the EXERCISE NAME to a lift of the athlete ("Back Squat" uses the Back Squat max). An exercise with
+   no matching lift can be given a max of its own when the program is generated (an "extra").
+   -------------------------------------------------------------------------- */
+
+// The maxes used for a program: `{ rounding, lifts: [{ name, value, extra }] }`. `extras` is a list of
+// { name, value } for exercises that are not a lift of the profile.
+function snapshotFromProfile(profile, extras) {
+  var lifts = [];
+  profile.lifts.forEach(function (l) {
+    var v = liftBaseValue(l);
+    if (v !== null && l.name.trim() !== '') lifts.push({ name: l.name, value: v, extra: false });
+  });
+  (extras || []).forEach(function (x) { lifts.push({ name: x.name, value: x.value, extra: true }); });
+  return { rounding: profile.rounding, lifts: lifts };
+}
+
+// kg for a % load of the exercise called `exerciseName`, from a snapshot; null if there is no max for it.
+function kgFromSnapshot(percent, exerciseName, snap) {
+  if (percent === null || percent === undefined || !snap) return null;
+  var wanted = String(exerciseName).trim().toLowerCase();
+  for (var i = 0; i < snap.lifts.length; i++) {
+    if (snap.lifts[i].name.trim().toLowerCase() === wanted) {
+      return cleanNum(Math.round(percent / 100 * snap.lifts[i].value / snap.rounding) * snap.rounding);
+    }
+  }
+  return null;
+}
+
+// Fills `kg` on every % set group of a generated program from its snapshot. Other groups are left alone.
+function recalcKg(prog) {
+  if (!prog.profileUsed) return;
+  prog.workouts.forEach(function (w) {
+    w.exercises.forEach(function (ex) {
+      ex.weeks.forEach(function (week) {
+        week.groups.forEach(function (g) {
+          if (g.loadType === 'pct') g.kg = g.load === null ? null : kgFromSnapshot(g.load, ex.name, prog.profileUsed);
+        });
+      });
+    });
+  });
+}
+
+// What generating `template` for `profile` would do, for the dialog:
+// { total, resolved, unmatched: [exercise names with no lift of that name], noValue: [lifts with no max],
+//   unavailable: [exercises the athlete cannot do] }. `extras` is { exerciseName: kg }.
+function analyseGenerate(template, profile, extras) {
+  var extraList = Object.keys(extras).filter(function (k) { return extras[k] !== null; }).map(function (k) { return { name: k, value: extras[k] }; });
+  var snap = snapshotFromProfile(profile, extraList);
+  var out = { total: 0, resolved: 0, unmatched: [], noValue: [], unavailable: [] };
+  function note(list, name) { if (list.indexOf(name) < 0) list.push(name); }
+  template.workouts.forEach(function (w) {
+    w.exercises.forEach(function (ex) {
+      if (isUnavailable(profile, ex.name)) note(out.unavailable, ex.name);
+      ex.weeks.forEach(function (week) {
+        if (!week.included) return;
+        week.groups.forEach(function (g) {
+          if (g.loadType !== 'pct' || g.load === null) return;
+          out.total++;
+          if (kgFromSnapshot(g.load, ex.name, snap) !== null) { out.resolved++; return; }
+          if (findLift(profile, ex.name)) note(out.noValue, ex.name); else note(out.unmatched, ex.name);
+        });
+      });
+    });
+  });
+  return out;
+}
+
+// A text that changes when the numbers a snapshot holds change (used to spot an edited profile).
+function snapshotKey(snap) {
+  return JSON.stringify([snap.rounding, snap.lifts.map(function (l) { return [l.name.trim().toLowerCase(), l.value, !!l.extra]; })]);
+}
+
+// The snapshot the athlete's profile would give now (the program's own extras are kept).
+function freshSnapshot(prog, profile) {
+  var extras = prog.profileUsed.lifts.filter(function (l) { return l.extra; }).map(function (l) { return { name: l.name, value: l.value }; });
+  return snapshotFromProfile(profile, extras);
 }
 
 // ---- Export everything / Import everything (Phase 2 spec 1.4 and 1.5) ----
@@ -1170,6 +1292,7 @@ function touchCurrent() {
 // Call this after EVERY change that needs a redraw. The library saves itself: there is no
 // separate "save" step and no unsaved-changes warning (Phase 2 spec 1.2).
 function changed() {
+  recalcKg(program);   // a program made for an athlete keeps its kg values in step with its % loads
   touchCurrent();
   saveLibrary();
   render();
@@ -1635,22 +1758,34 @@ function applyImport(data, mode) {
     profiles = data.profiles.slice();
   } else {
     var usedNames = {};
+    var profileIdMap = {};   // old athlete id -> new id, so imported programs stay linked to their athlete
+    var entryIdMap = {};     // old library id -> new id, so imported programs still know their template
     profiles.forEach(function (p) { usedNames[p.name] = true; });
     data.profiles.forEach(function (p) {
       var copy = JSON.parse(JSON.stringify(p));
       copy.id = newProfileId();   // a new id, so nothing you have is replaced
+      profileIdMap[p.id] = copy.id;
       if (usedNames[copy.name]) copy.name = (copy.name + ' (imported)').slice(0, 200);
       usedNames[copy.name] = true;
       profiles.push(copy);
     });
     var used = {};
+    var added = [];
     library.forEach(function (e) { used[e.name] = true; });
     data.entries.forEach(function (e) {
       var p = e.program;
       if (used[p.name]) p.name = (p.name + ' (imported)').slice(0, 200);
       used[p.name] = true;
-      var added = addProgramEntry(p, e.kind); // gets a new id
-      added.modified = e.modified;
+      var entry = addProgramEntry(p, e.kind); // gets a new id
+      entry.modified = e.modified;
+      entryIdMap[e.id] = entry.id;
+      added.push(entry);
+    });
+    added.forEach(function (entry) {
+      var src = entry.program.source;
+      if (!src) return;
+      src.profileId = src.profileId && profileIdMap[src.profileId] ? profileIdMap[src.profileId] : null;
+      src.templateId = src.templateId && entryIdMap[src.templateId] ? entryIdMap[src.templateId] : null;
     });
   }
   // The Exercise List: Replace uses the file's list (if it has one); Add only fills in a missing one.
@@ -1861,6 +1996,8 @@ function renderHeader() {
   header.appendChild(nameInput);
   var openEntry = findEntry(currentId);
   if (openEntry && openEntry.kind === 'template') header.appendChild(el('span', { className: 'tag-template', text: 'Template' }));
+  var forAthlete = program.source ? findProfile(program.source.profileId) : null;
+  if (forAthlete) header.appendChild(el('span', { className: 'tag-template', text: 'for ' + (forAthlete.name || 'athlete') }));
   header.appendChild(el('span', {
     className: 'meta-text',
     text: plural(program.weeks, 'week') + ' · ' + plural(program.workoutsPerWeek, 'workout') + ' per week'
@@ -3096,6 +3233,7 @@ function render() {
   var lib = document.getElementById('library');
   var profileBox = document.getElementById('profile');
   document.getElementById('save-warning').hidden = draftSaved;
+  document.getElementById('profile-changed').hidden = true;   // only the editor shows it (below)
   if (profileOpenId !== null && findProfile(profileOpenId)) {
     header.hidden = true;
     workspace.hidden = true;
@@ -3117,6 +3255,7 @@ function render() {
   header.hidden = false;
   workspace.hidden = false;
   renderHeader();
+  updateProfileBar();
   if (!findSelected()) selected = null;
   renderGrid();
   renderDetail();   // the panel's width changes the grid's, so measure after it is drawn
@@ -3170,6 +3309,8 @@ function duplicateProgram(entry) {
 function saveAsTemplate(entry) {
   var copy = JSON.parse(JSON.stringify(entry.program));
   copy.name = (entry.program.name + ' (template)').slice(0, 200);
+  copy.source = null;        // a template is for any athlete
+  copy.profileUsed = null;
   copy.workouts.forEach(function (w) {
     w.exercises.forEach(function (ex) {
       ex.weeks.forEach(function (week) { week.groups.forEach(function (g) { g.kg = null; }); });
@@ -3223,20 +3364,24 @@ function deleteProgram(entry) {
   });
 }
 
-function renderProgramRow(entry) {
+function renderProgramRow(entry, nested) {
   var p = entry.program;
   var isCurrent = entry.id === currentId;
   var acts = [];
+  // A template is used for an athlete: that is the main thing to do with it.
+  if (entry.kind === 'template') acts.push(el('button', { className: 'primary', text: 'Use for athlete', onclick: function () { openGenerateDialog({ template: entry }); } }));
   acts.push(el('button', { text: 'Open', onclick: function () { openFromLibrary(entry); } }));
   acts.push(el('button', { text: 'Duplicate', onclick: function () { duplicateProgram(entry); } }));
   if (entry.kind !== 'template') acts.push(el('button', { text: 'Save as template', onclick: function () { saveAsTemplate(entry); } }));
   acts.push(el('button', { text: 'Rename', onclick: function () { renameProgram(entry); } }));
   acts.push(el('button', { text: 'Export', onclick: function () { downloadProgram(p); } }));
   acts.push(el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteProgram(entry); } }));
-  return el('div', { className: 'lib-row' + (isCurrent ? ' current' : '') }, [
+  var detail = plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout');
+  if (p.source && p.source.templateName) detail += ' · from ' + p.source.templateName;
+  return el('div', { className: 'lib-row' + (isCurrent ? ' current' : '') + (nested ? ' nested' : '') }, [
     el('div', { className: 't' }, [
       el('b', { text: entry.name === '' ? '(No name)' : entry.name }),
-      el('span', { text: plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout') })
+      el('span', { text: detail })
     ]),
     isCurrent ? el('span', { className: 'tag-now', text: 'Open now' }) : el('span'),
     el('span', { className: 'when', text: formatDate(entry.modified) }),
@@ -3264,7 +3409,7 @@ function renderTemplatesSection() {
 // TEMPORARY section (see the note above): every program that is not a template, newest edited first.
 function renderUnlinkedSection() {
   var wrap = el('div');
-  var sorted = library.filter(function (e) { return e.kind !== 'template'; })
+  var sorted = library.filter(function (e) { return e.kind !== 'template' && !isLinkedProgram(e); })
     .sort(function (a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; });
   wrap.appendChild(el('div', {
     className: 'lib-sect', role: 'button', tabindex: '0', 'aria-expanded': unlinkedOpen ? 'true' : 'false',
@@ -3382,7 +3527,7 @@ function duplicateAthlete(p) {
 // Programs made for this athlete. (Step 4 records the athlete in `program.source.profileId`; until
 // then no program is linked, so this is empty.)
 function programsOfAthlete(p) {
-  return library.filter(function (e) { return e.program.source && e.program.source.profileId === p.id; });
+  return library.filter(function (e) { return e.kind !== 'template' && e.program.source && e.program.source.profileId === p.id; });
 }
 
 // Asks first. Programs made for the athlete are kept: they move to "Not linked to an athlete".
@@ -3421,40 +3566,219 @@ function liftsSummary(p) {
   return (parts.length ? parts.join(' · ') : 'No maxes entered') + ' · ' + formatNum(p.rounding) + ' kg steps';
 }
 
-function renderAthleteRow(p) {
+// A program made for an athlete: it has a source that names an athlete who still exists.
+function isLinkedProgram(entry) {
+  return entry.kind !== 'template' && !!entry.program.source && !!entry.program.source.profileId && !!findProfile(entry.program.source.profileId);
+}
+
+function byNewest(a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; }
+
+var athleteOpenState = {};   // athlete id -> true (expanded) or false (collapsed); not saved
+
+// By default only the athlete whose program was edited last is expanded.
+function defaultOpenAthleteId() {
+  var linked = library.filter(isLinkedProgram).sort(byNewest);
+  return linked.length > 0 ? linked[0].program.source.profileId : null;
+}
+
+function isAthleteOpen(p) {
+  return athleteOpenState[p.id] !== undefined ? athleteOpenState[p.id] : p.id === defaultOpenAthleteId();
+}
+
+// One athlete in the Library: a header row that expands to the programs made for them.
+function renderAthleteBlock(p) {
+  var progs = programsOfAthlete(p).sort(byNewest);
+  var open = isAthleteOpen(p);
   var tags = [];
-  if (p.unavailable.length > 0) {
-    tags.push(el('span', { className: 'tag-warn', text: plural(p.unavailable.length, 'exercise') + ' unavailable' }));
-  }
-  return el('div', { className: 'lib-row ath-row' }, [
+  if (p.unavailable.length > 0) tags.push(el('span', { className: 'tag-warn', text: plural(p.unavailable.length, 'exercise') + ' unavailable' }));
+  tags.push(el('span', { className: 'tag', text: plural(progs.length, 'program') }));
+  function stop(fn) { return function (e) { e.stopPropagation(); fn(); }; }
+  var head = el('div', {
+    className: 'lib-row ath-head', role: 'button', tabindex: '0', 'aria-expanded': open ? 'true' : 'false',
+    onclick: function () { athleteOpenState[p.id] = !open; render(); }
+  }, [
+    el('span', { className: 'car', text: open ? '▼' : '▶' }),
     el('div', { className: 't' }, [
       el('b', { text: p.name === '' ? '(No name)' : p.name }),
       el('span', { text: liftsSummary(p) })
     ])
   ].concat(tags, [
-    el('span', { className: 'when', text: formatDate(p.modified) }),
     el('div', { className: 'acts' }, [
-      el('button', { text: 'Edit profile', onclick: function () { openProfile(p.id); } }),
-      el('button', { text: 'Duplicate', onclick: function () { duplicateAthlete(p); } }),
-      el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteAthlete(p); } })
+      el('button', { text: 'Edit profile', onclick: stop(function () { openProfile(p.id); }) }),
+      el('button', { text: 'Duplicate', onclick: stop(function () { duplicateAthlete(p); }) }),
+      el('button', { className: 'danger-text', text: 'Delete', onclick: stop(function () { deleteAthlete(p); }) }),
+      el('button', { className: 'primary', text: 'New Program', onclick: stop(function () { openGenerateDialog({ profile: p }); }) })
     ])
   ]));
+  var wrap = el('div', { className: 'ath-block' }, [head]);
+  if (open) {
+    if (progs.length === 0) wrap.appendChild(el('div', { className: 'lib-row sub-row' }, [el('div', { className: 't dim', text: 'No programs yet. Use New Program to make one from a template.' })]));
+    progs.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry, true)); });
+  }
+  return wrap;
 }
 
-// The Athletes section of the Library (above the programs).
+// The Athletes section of the Library (below the templates).
 function renderAthletesSection() {
   var wrap = el('div');
   var sorted = profiles.slice().sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0; });
-  wrap.appendChild(el('div', { className: 'lib-sect static' }, [
+  var anyClosed = sorted.some(function (p) { return !isAthleteOpen(p); });
+  var head = [
     el('span', { text: 'Athletes' }),
-    el('span', { className: 'count', text: String(sorted.length) }),
-    el('button', { className: 'primary', text: 'New Athlete', onclick: addAthlete })
-  ]));
+    el('span', { className: 'count', text: String(sorted.length) })
+  ];
+  if (sorted.length > 0) {
+    head.push(el('button', {
+      className: 'expand-all', text: anyClosed ? 'Expand all' : 'Collapse all',
+      onclick: function () { sorted.forEach(function (p) { athleteOpenState[p.id] = anyClosed; }); render(); }
+    }));
+  }
+  head.push(el('button', { className: 'primary' + (sorted.length > 0 ? '' : ' first-btn'), text: 'New Athlete', onclick: addAthlete }));
+  wrap.appendChild(el('div', { className: 'lib-sect static' }, head));
   if (sorted.length === 0) {
     wrap.appendChild(el('div', { className: 'lib-row' }, [el('div', { className: 't dim', text: 'No athletes yet. Add one to keep their maxes and the exercises their gym does not have.' })]));
   }
-  sorted.forEach(function (p) { wrap.appendChild(renderAthleteRow(p)); });
+  sorted.forEach(function (p) { wrap.appendChild(renderAthleteBlock(p)); });
   return wrap;
+}
+
+/* ---- Generate: make a program for an athlete from a template (Phase 2 spec 4.2) ---- */
+
+// Makes the program and opens it. `extras` is { exerciseName: kg } for exercises with no matching lift.
+function generateProgram(tplEntry, profile, name, extras) {
+  var copy = JSON.parse(JSON.stringify(tplEntry.program));
+  copy.name = name.slice(0, 200);
+  var extraList = Object.keys(extras).filter(function (k) { return extras[k] !== null; }).map(function (k) { return { name: k, value: extras[k] }; });
+  copy.source = { templateId: tplEntry.id, templateName: tplEntry.program.name, profileId: profile.id, profileName: profile.name, generatedOn: new Date().toISOString() };
+  copy.profileUsed = snapshotFromProfile(profile, extraList);
+  recalcKg(copy);
+  var entry = addProgramEntry(copy, 'program');
+  athleteOpenState[profile.id] = true;
+  saveLibrary();
+  setCurrent(entry);
+  libraryOpen = false;
+  render();
+}
+
+// `opts`: { template: library entry } (from a template row) or { profile } (from an athlete block), or both.
+function openGenerateDialog(opts) {
+  var templates = library.filter(function (e) { return e.kind === 'template'; }).sort(byNewest);
+  if (templates.length === 0 || profiles.length === 0) {
+    showMessage('New program for an athlete',
+      templates.length === 0 && profiles.length === 0 ? 'You need a template and an athlete first.' :
+      templates.length === 0 ? 'You need a template first. Create one, or use Save as template on a program.' : 'You need an athlete first. Use New Athlete.');
+    return;
+  }
+  var state = { tpl: opts.template || templates[0], prof: opts.profile || profiles[0], name: '', nameEdited: false, extras: {} };
+  var extrasText = {};   // what is typed in the extra-max boxes
+
+  var tplSelect = selectBox(templates.map(function (e) { return [e.id, e.name]; }), state.tpl.id);
+  var profSelect = selectBox(profiles.map(function (p) { return [p.id, p.name || '(No name)']; }), state.prof.id);
+  var nameInput = textInput('', { maxlength: '200', 'aria-label': 'Name for the new program' });
+  var info = el('div');
+  var error = el('div', { className: 'form-error' });
+
+  function defaultName() { return state.tpl.program.name + ' - ' + (state.prof.name || 'athlete'); }
+
+  function readExtras() {
+    state.extras = {};
+    var bad = false;
+    Object.keys(extrasText).forEach(function (k) {
+      var n = readMax(extrasText[k], 2000);
+      if (n === undefined) bad = true; else if (n !== null) state.extras[k] = n;
+    });
+    return !bad;
+  }
+
+  function draw() {
+    if (!state.nameEdited) nameInput.value = defaultName();
+    var ok = readExtras();
+    var a = analyseGenerate(state.tpl.program, state.prof, state.extras);
+    info.textContent = '';
+    if (a.total === 0) {
+      info.appendChild(el('div', { className: 'hint', text: 'This template has no percentage loads, so no kg values will be calculated.' }));
+    } else {
+      info.appendChild(el('div', { className: a.resolved === a.total ? 'ok-text' : 'hint', text: a.resolved + ' of ' + a.total + ' percentage loads will get a kg value.' }));
+    }
+    // Exercises with no lift of that name: ask for a max of their own.
+    a.unmatched.forEach(function (name) {
+      var input = textInput(extrasText[name] || '', { inputmode: 'decimal', placeholder: 'kg', 'aria-label': 'Max for ' + name });
+      input.className = 'num-input';
+      input.addEventListener('input', function () { extrasText[name] = input.value; });
+      input.addEventListener('change', draw);
+      info.appendChild(el('div', { className: 'gen-extra' }, [
+        el('div', null, [
+          el('b', { text: name }),
+          el('div', { className: 'hint', text: state.prof.name + ' has no lift called "' + name + '". Enter a max for it, or leave blank and fill in kg later.' })
+        ]),
+        input, el('span', { className: 'unit', text: 'kg' })
+      ]));
+    });
+    var problems = [];
+    a.noValue.forEach(function (n) { problems.push(n + ': no max entered in ' + state.prof.name + "'s profile"); });
+    a.unavailable.forEach(function (n) { problems.push(n + ': not available for ' + state.prof.name); });
+    if (problems.length > 0) {
+      info.appendChild(el('div', { className: 'warn-text', text: 'These are still created, but need a look:' }));
+      problems.forEach(function (t) { info.appendChild(el('div', { className: 'warn-text', text: '• ' + t })); });
+    }
+    error.textContent = ok ? '' : 'A max must be a number from 0 to 2000 kg.';
+  }
+
+  tplSelect.addEventListener('change', function () {
+    state.tpl = library.filter(function (e) { return e.id === tplSelect.value; })[0];
+    draw();
+  });
+  profSelect.addEventListener('change', function () { state.prof = findProfile(profSelect.value); extrasText = {}; draw(); });
+  nameInput.addEventListener('input', function () { state.nameEdited = true; });
+
+  function create() {
+    if (!readExtras()) { draw(); return; }
+    var name = nameInput.value.trim();
+    if (name === '') { error.textContent = 'Enter a name.'; return; }
+    closeModal();
+    generateProgram(state.tpl, state.prof, name, state.extras);
+  }
+
+  openModal({
+    title: 'New program for an athlete',
+    wide: true,
+    body: el('div', null, [
+      formRow('Template', tplSelect),
+      formRow('Athlete', profSelect),
+      formRow('Name of the new program', nameInput),
+      info,
+      error
+    ]),
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', { className: 'primary', text: 'Create program', onclick: create })
+    ]
+  });
+  draw();
+}
+
+/* ---- "The athlete's profile has changed" bar (Phase 2 spec 4.3) ---- */
+
+var profileBarDismissed = {};   // program id -> the snapshot key that was dismissed (not saved)
+
+// Shows or hides the bar under the editor header.
+function updateProfileBar() {
+  var bar = document.getElementById('profile-changed');
+  bar.hidden = true;
+  bar.textContent = '';
+  if (!program || !program.profileUsed || !program.source || libraryOpen) return;
+  var owner = findProfile(program.source.profileId);
+  if (!owner) return;
+  var fresh = freshSnapshot(program, owner);
+  var key = snapshotKey(fresh);
+  if (key === snapshotKey(program.profileUsed) || profileBarDismissed[currentId] === key) return;
+  bar.appendChild(el('span', { text: owner.name + "'s profile has changed since this program was made. Recalculate the kg values?" }));
+  bar.appendChild(el('button', {
+    className: 'primary', text: 'Recalculate',
+    onclick: function () { program.profileUsed = fresh; changed(); }
+  }));
+  bar.appendChild(el('button', { text: 'Dismiss', onclick: function () { profileBarDismissed[currentId] = key; updateProfileBar(); } }));
+  bar.hidden = false;
 }
 
 /* ---- The profile screen ---- */

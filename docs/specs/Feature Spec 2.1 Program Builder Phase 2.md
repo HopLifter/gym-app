@@ -21,7 +21,7 @@ Let a coach build a block once, reuse it for many athletes, and use the tools co
 
 1. Library: programs, templates and profiles in the browser, plus export and import of everything.
 2. Coaching fields: RIR (target and load type), set type, rep range, tempo, pause length, week flags.
-3. Reference lifts and athlete profiles (with an optional training max and a list of exercises the athlete cannot do).
+3. Athlete profiles (with an optional training max and a list of exercises the athlete cannot do). The "reference lift" idea was dropped on 8 November 2026.
 4. Templates, Generate, and writing the GymLog import file.
 5. Progression tools, six sub-steps in the agreed order.
 6. Duplication (week, workout, program) and manual version snapshots.
@@ -36,9 +36,9 @@ These come from the coach feedback session and this planning session. Do not reo
 | Topic | Decision |
 |---|---|
 | Template vs profile | One feature. A template has no kg. A profile holds 1RMs. Template + profile = program. |
-| Template format | A template is a program in the Phase 1 format with every `kg` null, plus a `refLift` on each exercise. No second format. |
+| Template format | A template is a program in the Phase 1 format with every `kg` null, kept in the same list as programs with `kind: "template"`. No second format. |
 | RPE and blank loads | Stay blank after Generate. The coach or athlete fills them in. |
-| Percentage base | Each exercise has a **reference lift**. Percent loads use that lift's 1RM, or its training max if the profile says so. |
+| Percentage base | A % load becomes kg by matching the **exercise name** to a lift of the athlete (Back Squat uses the Back Squat max): the 1RM, or the training max if the profile says so. An exercise with no matching lift can be given a max of its own in the Generate dialog, or left blank. (A per-exercise "reference lift" field was tried and dropped on 8 November 2026.) |
 | Accessories | Three tiers: variations use a main lift's 1RM; other lifts the coach wants by % are added to the profile as extra lifts; true accessories have no reference and use kg, RPE or blank. See section 7. |
 | Storage | Everything lives in the browser library. "Export everything" and "Import everything" protect against the browser losing data. |
 | Programs | All programs go in the library, not only templates and profiles. |
@@ -58,7 +58,7 @@ These come from the coach feedback session and this planning session. Do not reo
 - **Library:** the saved collection of programs, templates, profiles and versions.
 - **Template:** a reusable program with no kg values. Shown with its own list and its own metrics.
 - **Athlete profile ("profile"):** a name, a list of **lifts** (name, 1RM, optional training max, which of the two percentages use) and the **rounding step** (default 2.5 kg).
-- **Reference lift:** the name of a profile lift an exercise's percentages are based on, and the lift its sets and tonnage are counted under in the charts. Optional.
+- **Name matching:** an exercise's % loads use the athlete lift with the same name (capitals and end spaces ignored). Exercises with no matching lift are listed when a program is generated.
 - **Generate:** turn a template and a profile into a new program. The result is an ordinary program.
 - **Live kg:** a program linked to a profile always shows kg for its percentage set groups, recalculated after every edit.
 - **Version:** a saved copy of one program at one moment, which can be restored.
@@ -76,7 +76,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 | `source` | `null` or object | Step 4. `{ templateId, templateName, profileId, profileName, generatedOn }`. |
 | `profileUsed` | `null` or object | Step 4. Copy of the lifts used: `{ lifts: [{name, base, value}], rounding }`. |
 
-**Exercise:** `refLift` (text or `null`).
+**Program (step 4):** `source` (where a generated program came from: template and athlete) and `profileUsed` (a snapshot of the maxes it was calculated with: `{ rounding, lifts: [{ name, value, extra }] }`), both `null` for programs that were not generated.
 
 **Set group** (in each week's `groups[]`):
 
@@ -194,13 +194,13 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 - T2.6: A Phase 1 file opens with no new data and saves back valid.
 - T2.7: Copy AI prompt includes the new fields, and the prompt text in the spec matches.
 
-### Step 3 – Reference lifts and athlete profiles
+### Step 3 – Athlete profiles
 
 **Goal:** the building blocks for Generate.
 
-**Build progress.** Step 3 is built in two stops. Stop 3a (built 8 November 2026, awaiting user test): athlete profiles (3.2, 3.3, 3.4, 3.6): storage, the Athletes section of the Library, the profile screen (layout B, two columns, chosen from `docs/mockups/Program Builder Athlete Profile - Options.html`), the unavailable-exercises list, and profiles in Export and Import everything. Stop 3b: the reference lift on exercises (3.1). Using the unavailable list inside programs (3.6 b to d) waits for step 4, which links a program to an athlete.
+**Build progress.** Step 3 (athlete profiles: 3.2, 3.3, 3.4, 3.6) was built and committed on 8 November 2026: storage, the Athletes section of the Library, the profile screen (layout B, two columns, chosen from `docs/mockups/Program Builder Athlete Profile - Options.html`), the unavailable-exercises list, and profiles in Export and Import everything. **3.1 (reference lift) was built and then dropped by the user on 8 November 2026.** Using the unavailable list inside programs happens in step 4.
 
-**3.1 Reference lift on an exercise.** A `Reference lift` field in the Add exercise modal and in the table's exercise cell. It is a dropdown with the profile lift names (or the standard three if no profile is open), `None`, and `Other…` (free text). It applies to every set group of the exercise and is optional for kg and RPE loads (used for the charts). A % set group on an exercise with no reference lift shows a small warning `No reference lift`. Existing exercises default to none.
+**3.1 Reference lift on an exercise.** Dropped (8 November 2026). Instead, % loads are matched to an athlete lift by exercise name (see 4.2).
 
 **3.2 Athlete profile.**
 ```json
@@ -241,7 +241,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 - T3.2: `kgForPercent(80, squat 200, step 2.5)` returns 160; with a 2.5 step and 77.5% of 200 returns 155.
 - T3.3: A lift with `base: "tm"` uses the training max; choosing TM with no training max shows `Add a training max` and the lift is treated as missing.
 - T3.4: A missing lift or blank value returns `null`, not 0.
-- T3.5: An exercise's reference lift can be set from the dropdown, `Other…` and None.
+- ~~T3.5: reference lift~~ (dropped).
 - T3.6: Rounding outside 0.5 to 10 is refused.
 - T3.7: A profile (including `unavailable`) exports and imports with Export everything (step 1) unchanged.
 - T3.8: Ticking Leg Press in the profile's list stores it in `unavailable`; unticking removes it.
@@ -250,12 +250,12 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 - T3.11: A Leg Press already in a linked program shows the warning mark in the grid and the table; an exercise with different capitalisation (`leg press`) is also matched.
 - T3.12: With no Exercise List loaded, the section shows the hint and typed names still work.
 
-### Step 4 – Templates, Generate, GymLog file
+### Step 4 – Templates, Generate, GymLog file (built in two stops: 4a Generate, then 4b GymLog file)
 
 **4.1 Templates.** `Save as template` (editor menu) copies the open program into the Templates tab with all `kg` set to null. A template opens in the same editor as a program, with a `Template` tag in the header. Differences: no kg shown and no GymLog export (a template has no kg to export). `New` on the Templates tab creates an empty one. A template's `source` is always null.
 
-**4.2 Generate.** In the Library, click `Use for athlete…` on a template and pick the athlete, or click `New program…` on an athlete block and pick the template (or use the editor menu). Either way a template and a profile are chosen. The dialog shows the name for the new program (default `<template> – <athlete>`), a count of how many % set groups will get a kg value, and a list of problems (for example `Pause Squat uses Back Squat: no 1RM`, or `Leg Press: not available for Sam`). Generate is allowed with problems; those groups stay blank and the new program shows a warning bar. Result: a new program, saved to the library at once (it appears under the athlete) and opened in the editor. It can be deleted if it is not wanted.
-- Each % set group gets `kg = kgForPercent(load, refLift, profile)`.
+**4.2 Generate.** In the Library, click `Use for athlete…` on a template and pick the athlete, or click `New program…` on an athlete block and pick the template (or use the editor menu). Either way a template and a profile are chosen. The dialog shows the name for the new program (default `<template> – <athlete>`), a count of how many % set groups will get a kg value, and a list of problems (for example `Back Squat: no max entered in Sam's profile`, or `Leg Press: not available for Sam`). Generate is allowed with problems; those groups stay blank and the new program shows a warning bar. Result: a new program, saved to the library at once (it appears under the athlete) and opened in the editor. It can be deleted if it is not wanted.
+- Each % set group gets `kg` from the snapshot: the percent of the athlete lift whose name matches the exercise name, rounded to the profile step (`kgFromSnapshot`). An exercise with no matching lift is listed in the dialog with a box for a max of its own (an "extra", kept in the snapshot); left blank, its kg stays blank.
 - kg and RPE set groups and all blank loads are copied unchanged.
 - `source` and `profileUsed` are filled in (section 5).
 
@@ -277,7 +277,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 **Acceptance tests**
 - T4.1: Save as template removes every kg and keeps everything else.
 - T4.2: Generate from a 4-week template for a profile with Squat 200 gives the expected kg for a 75/80/85/90% squat (150, 160, 170, 180).
-- T4.3: An exercise whose reference lift is missing from the profile stays blank and appears in the problem list.
+- T4.3: An exercise with no lift of that name is listed in the dialog; a max typed for it gives kg for that exercise; left blank it stays blank.
 - T4.4: Kg and RPE set groups and blank loads are unchanged after Generate.
 - T4.5: Editing a % load in a generated program updates kg at once.
 - T4.6: Changing the profile's squat 1RM shows the bar; Recalculate updates every kg; Dismiss leaves them.
@@ -353,7 +353,7 @@ All six tools live in the pattern picker (Phase 1 spec 5.9) except 5.2 (a table)
 
 **7.1 Where.** A `Metrics` panel in the editor (a tab beside the grid, or a second view of the bottom area; mockups decide before building, see section 10), and a small version in the template list and the Generate dialog.
 
-**7.2 Measures, per lift per week.** "Lift" is the exercise's reference lift; exercises without one count under `Other`.
+**7.2 Measures, per lift per week.** "Lift" is the athlete lift whose name matches the exercise name; exercises with no matching lift count under `Other`.
 - **Sets:** sum of sets in the lift's included set groups.
 - **Tonnage (kg):** sum of sets × reps × kg per set group. Reps use the lower rep for a range. Needs a kg value: from `kg`, the kg load, or (for % groups) a profile chosen in the panel's `Preview with athlete` dropdown. RPE, RIR and blank loads add nothing and are counted as `N set groups without a kg value` under the chart.
 - **Average intensity:** reps-weighted average of kg ÷ the lift's base value (1RM or training max), as a percentage. It needs the profile (the program's own, or one chosen in the preview dropdown). % loads can be averaged without a profile as a plain percentage. Set groups that cannot be counted are excluded, and the count is shown.
@@ -367,7 +367,7 @@ All six tools live in the pattern picker (Phase 1 spec 5.9) except 5.2 (a table)
 **Acceptance tests**
 - T7.1: A one-exercise program (3 × 5 at 100 kg, Squat) gives sets 15 and tonnage 1,500 for that week.
 - T7.2: Average intensity for 3 × 5 at 150 kg for a 200 kg squat is 75%.
-- T7.3: Exercises with no reference lift appear under `Other`.
+- T7.3: Exercises with no matching lift appear under `Other`.
 - T7.4: A % group without a profile counts nothing toward tonnage and is reported as excluded.
 - T7.5: Editing a load updates the charts at once.
 - T7.6: A range 8–12 uses 8 reps for tonnage.
@@ -380,9 +380,9 @@ Only Squat, Bench and Deadlift have a 1RM in most athletes' records, so most acc
 
 | Case | Example | How it works |
 |---|---|---|
-| Variation of a main lift | Pause squat, close-grip bench, deficit deadlift | Reference lift = the main lift. % of that main lift's 1RM (often 60–85%). |
-| Extra lift with a known max | Overhead press, front squat | Add it to the profile with its own 1RM. Reference lift = that lift. |
-| True accessory | Rows, curls, lateral raises | No reference lift. Use kg, RPE (or RIR) or leave blank. |
+| Variation of a main lift | Pause squat, close-grip bench, deficit deadlift | No matching lift by name. Enter a max of its own when the program is generated, or add a lift with that name to the profile. |
+| Extra lift with a known max | Overhead press, front squat | Add it to the profile with its own 1RM; exercises with that name use it. |
+| True accessory | Rows, curls, lateral raises | No max. Use kg, RPE (or RIR) or leave blank. |
 
 If the coach wants a % for an accessory with no 1RM, the builder leaves it blank and warns; nothing is guessed.
 
@@ -404,7 +404,7 @@ Each step ends with a stop for the user to test. Sub-steps of step 5 are separat
 
 1. Library (mockup first).
 2. Coaching fields.
-3. Reference lifts and athlete profiles.
+3. Athlete profiles.
 4. Templates, Generate, GymLog file. *First point where a percentage block can go from template to phone without the AI.*
 5.1 Ramp → 5.2 Week table → 5.3 Deload → 5.4 Back-offs → 5.5 Wave → 5.6 Rep range.
 6. Duplication and versions.
