@@ -330,6 +330,7 @@ MY DATA
 Before starting, ask me for my 1RM for every lift that uses a % load. I may also attach a GymLog backup file with my workout history. Use it for RPE-based and blank loads.
 
 HOW TO READ THE PROGRAM JSON
+- "weekFlags" has one entry for each program week, in order: null, "deload", "test" or "comp" (a competition week).
 - "workouts" lists the workouts of one week. Each exercise has "weeks": one entry for each program week, in order (the first is Week 1). A week entry has "included" (false means the exercise is not done that week), "edited" and "groups".
 - A group is a set group: "sets" × "reps" at "load". "loadType" says what the load means: "kg" (kilograms), "pct" (percent of my 1RM), "rpe" (target RPE) or "rir" (target reps in reserve). "rpe" and "rir" are also optional effort targets for kg loads (a group never has both). "repsMax" is the top of a rep range, and then "reps" is the bottom. "setType" (warmup, top, backoff, amrap or drop), "tempo" and "pause" (seconds) are optional labels. "rest" is in seconds. "kg" is the real weight you fill in; it is null for now.
 - Each exercise's "patterns" and "supersets" lists have one entry for each set group of its first week, in the same order. A blank load ("load": null) with a pattern changes every week by that pattern: "add" adds "amount" per week (in the unit of the load), and "percent" multiplies the previous weight by 1 + "amount" ÷ 100 and rounds to a multiple of "step" kg ("mode" says nearest, up or down). RPE never goes above 10, and RIR never goes below 0.
@@ -369,6 +370,7 @@ Rules for File 1:
 - Create one workout for every week and workout, in order: all of Week 1, then all of Week 2.
 - Leave out an exercise in any week where its "included" value is false.
 - Leave out a workout that has no included exercises in that week.
+- If "weekFlags" marks a week as "deload", "test" or "comp", add " · Deload week", " · Test week" or " · Competition week" to the "description" of every workout in that week.
 - If an exercise has several set groups, create a separate exercise entry for each, in order.
 - "weight" is always in kg. "rest" is always in seconds.
 - Use a period for decimals.

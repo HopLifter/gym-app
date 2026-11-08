@@ -94,6 +94,15 @@
     position: sticky; left: 0; max-width: var(--mainw, calc(100vw - 40px));
     display: flex; align-items: baseline; gap: 10px; padding: 22px 14px 7px;
   }
+  .flag-select {
+    margin-left: 10px; padding: 1px 4px; font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none;
+    background: transparent; color: var(--text-dim); border: 1px solid transparent; border-radius: 9px;
+    color-scheme: dark; cursor: pointer; font-family: inherit;
+  }
+  .flag-select:hover, .flag-select:focus { border-color: var(--line); outline: none; }
+  .flag-select.flag-deload { color: #E8B04A; border-color: #5A4720; }
+  .flag-select.flag-test { color: var(--rpe); border-color: #2C4A66; }
+  .flag-select.flag-comp { color: var(--accent); border-color: #3B4A1C; }
   .band .t { font-weight: 700; font-size: 14px; white-space: nowrap; }
   .band input.workout-desc {
     flex: 1; min-width: 0; background: transparent; color: var(--text-dim);
@@ -411,17 +420,25 @@ function createDefaultProgram(options) {
   options = options || {};
   nextIdNumber = 1;
   var count = options.workoutsPerWeek || 3;
+  var weekCount = options.weeks || 4;
   var workouts = [];
   for (var i = 0; i < count; i++) workouts.push(newWorkout());
+  var flags = [];
+  for (var w = 0; w < weekCount; w++) flags.push(null);
   return {
     format: FORMAT_NAME,
     version: FORMAT_VERSION,
     name: options.name || 'New Program',
-    weeks: options.weeks || 4,
+    weeks: weekCount,
     workoutsPerWeek: count,
+    weekFlags: flags,
     workouts: workouts
   };
 }
+
+// Week flags (Phase 2 spec 2.6): a label for a whole week. Deload only labels the week for now.
+var WEEK_FLAGS = ['deload', 'test', 'comp'];
+var WEEK_FLAG_LABELS = { deload: 'Deload', test: 'Test', comp: 'Competition' };
 
 /* --------------------------------------------------------------------------
    Validation. Anything that comes from outside (localStorage now, opened
@@ -498,6 +515,9 @@ function isValidProgram(p) {
   if (!isWholeBetween(p.weeks, 1, MAX_WEEKS)) return false;
   if (!isWholeBetween(p.workoutsPerWeek, 1, MAX_WORKOUTS)) return false;
   if (!Array.isArray(p.workouts) || p.workouts.length !== p.workoutsPerWeek) return false;
+  // One flag per week: null, "deload", "test" or "comp". (migrateOldPatterns adds it to older files.)
+  if (!Array.isArray(p.weekFlags) || p.weekFlags.length !== p.weeks) return false;
+  if (!p.weekFlags.every(function (f) { return f === null || WEEK_FLAGS.indexOf(f) >= 0; })) return false;
   for (var i = 0; i < p.workouts.length; i++) {
     var w = p.workouts[i];
     if (!w || typeof w !== 'object') return false;
@@ -521,6 +541,11 @@ function isValidProgram(p) {
 // for validation to reject.
 function migrateOldPatterns(p) {
   if (!p || !Array.isArray(p.workouts)) return;
+  // Week flags were added in Phase 2 step 2: an older file has none, which means no week is flagged.
+  if (!Array.isArray(p.weekFlags) && isWholeBetween(p.weeks, 1, MAX_WEEKS)) {
+    p.weekFlags = [];
+    for (var f = 0; f < p.weeks; f++) p.weekFlags.push(null);
+  }
   p.workouts.forEach(function (w) {
     if (!w || !Array.isArray(w.exercises)) return;
     w.exercises.forEach(function (e) {
@@ -1144,6 +1169,9 @@ function applyProgramSettings(newWeeks, newWorkouts, blank) {
     }
     program.workoutsPerWeek = newWorkouts;
     program.weeks = newWeeks;
+    // One flag per week: new weeks start unflagged, removed weeks take their flags with them.
+    while (program.weekFlags.length < newWeeks) program.weekFlags.push(null);
+    program.weekFlags.length = newWeeks;
     program.workouts.forEach(function (w) {
       w.exercises.forEach(function (ex) {
         if (newWeeks > oldWeeks) {
@@ -1501,6 +1529,7 @@ var AI_PROMPT_LINES = [
   'Before starting, ask me for my 1RM for every lift that uses a % load. I may also attach a GymLog backup file with my workout history. Use it for RPE-based and blank loads.',
   '',
   'HOW TO READ THE PROGRAM JSON',
+  '- "weekFlags" has one entry for each program week, in order: null, "deload", "test" or "comp" (a competition week).',
   '- "workouts" lists the workouts of one week. Each exercise has "weeks": one entry for each program week, in order (the first is Week 1). A week entry has "included" (false means the exercise is not done that week), "edited" and "groups".',
   '- A group is a set group: "sets" × "reps" at "load". "loadType" says what the load means: "kg" (kilograms), "pct" (percent of my 1RM), "rpe" (target RPE) or "rir" (target reps in reserve). "rpe" and "rir" are also optional effort targets for kg loads (a group never has both). "repsMax" is the top of a rep range, and then "reps" is the bottom. "setType" (warmup, top, backoff, amrap or drop), "tempo" and "pause" (seconds) are optional labels. "rest" is in seconds. "kg" is the real weight you fill in; it is null for now.',
   '- Each exercise\'s "patterns" and "supersets" lists have one entry for each set group of its first week, in the same order. A blank load ("load": null) with a pattern changes every week by that pattern: "add" adds "amount" per week (in the unit of the load), and "percent" multiplies the previous weight by 1 + "amount" ÷ 100 and rounds to a multiple of "step" kg ("mode" says nearest, up or down). RPE never goes above 10, and RIR never goes below 0.',
@@ -1540,6 +1569,7 @@ var AI_PROMPT_LINES = [
   '- Create one workout for every week and workout, in order: all of Week 1, then all of Week 2.',
   '- Leave out an exercise in any week where its "included" value is false.',
   '- Leave out a workout that has no included exercises in that week.',
+  '- If "weekFlags" marks a week as "deload", "test" or "comp", add " · Deload week", " · Test week" or " · Competition week" to the "description" of every workout in that week.',
   '- If an exercise has several set groups, create a separate exercise entry for each, in order.',
   '- "weight" is always in kg. "rest" is always in seconds.',
   '- Use a period for decimals.',
@@ -2709,6 +2739,20 @@ function workoutSlots(workout) {
   return slots;
 }
 
+// The small flag control in a week heading: none, Deload, Test or Competition. A flagged week shows
+// the flag as a coloured tag.
+function weekFlagSelect(week) {
+  var current = program.weekFlags[week];
+  var select = selectBox([['', 'Flag']].concat(WEEK_FLAGS.map(function (f) { return [f, WEEK_FLAG_LABELS[f]]; })), current || '');
+  select.className = 'flag-select' + (current ? ' flag-' + current : '');
+  select.setAttribute('aria-label', 'Flag for Week ' + (week + 1));
+  select.addEventListener('change', function () {
+    program.weekFlags[week] = select.value === '' ? null : select.value;
+    changed();
+  });
+  return select;
+}
+
 // One cell of the grid: what one slot looks like in one week. It is left blank where the exercise
 // is not in that week (or has fewer set groups); clicking a blank cell still selects the exercise,
 // so its settings panel can add it back.
@@ -2763,7 +2807,10 @@ function renderGrid() {
 
   var headRow = el('tr');
   for (var w = 0; w < program.weeks; w++) {
-    headRow.appendChild(el('th', { className: 'week-col', text: 'Week ' + (w + 1) }));
+    headRow.appendChild(el('th', { className: 'week-col' }, [
+      el('span', { text: 'Week ' + (w + 1) }),
+      weekFlagSelect(w)
+    ]));
   }
 
   var body = el('tbody');

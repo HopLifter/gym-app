@@ -220,3 +220,9 @@ Spec: `../docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`, step 2 (2.1 t
 - The grid's `+ Add exercise` link now reads `Add exercise`.
 - The Target (RPE | RIR) control is shown for **kg** loads only (`hasEffortTarget`). A % load no longer offers it (switching a group to % already clears its target). An older % load that already has a target keeps showing the control so the target can be changed or cleared. The AI prompt and the specs say "kg loads" now.
 - Decided for step 4: a Phase 1 program with kg loads that is saved as a template stays under "Not linked to an athlete" in the Library with a small "pre-filled" note (see the Phase 2 spec, section 11, no. 7).
+
+### Step 2, stop 3: week flags (8 November 2026, awaiting user test)
+- **Data:** `program.weekFlags`, one entry per week: `null`, `"deload"`, `"test"` or `"comp"` (`WEEK_FLAGS`). New programs have all `null`. `migrateOldPatterns` adds the list to older files (all `null`); `isValidProgram` refuses a wrong length or an unknown value. Changing the number of weeks in Edit adds `null` entries or drops the flags of removed weeks (`applyProgramSettings`).
+- **Control:** a small dropdown beside each week heading (`weekFlagSelect`): `Flag` (none), `Deload`, `Test`, `Competition`. A flagged week shows it as a coloured tag (amber, blue, green). The flag only labels the week for now: the deload scaling of sets and loads comes in step 5.3.
+- **AI prompt** (and Phase 1 spec section 7): explains `weekFlags` and adds ` · Deload week` / ` · Test week` / ` · Competition week` to the description of every workout in a flagged week. Step 4's direct GymLog export will do the same.
+- Tested by script and screenshot: an older file without flags opens, a bad value or length is refused, flags set and kept aligned when weeks are added or removed.
