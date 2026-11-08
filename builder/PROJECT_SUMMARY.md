@@ -9,6 +9,32 @@ Spec: `../docs/specs/Feature Spec 2.1 Program Builder Phase 1.md`. The GymLog ro
 
 **How to read this file:** the sections after "Key functions" are a log in the order the work happened. Steps 2 to 6 contain choices that later rounds changed (for example fixed `+2.5 kg` options, per-exercise `pattern`, `rest` and `supersetId`). The latest round wins; the Data model section below is current.
 
+## Current status (8 November 2026): read this first
+Phase 1 (core builder) and Phase 2 steps 1 to 4 are built, tested by the user and committed. The user starts real use now and will send feedback and change requests in later sessions. Spec for Phase 2: `../docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`. The sections further down are a dated log; the LATEST section on a topic wins, and the code wins over both.
+
+| Phase 2 step | Status |
+|---|---|
+| 1 Library, Export/Import everything | Done |
+| UI cleanup (flat grid, workout bands, aligned weeks, settings panel) | Done |
+| 2 Coaching fields, RIR load type, week flags | Done |
+| 3 Athlete profiles (3.1 reference lift was built and dropped by the user) | Done |
+| 4 Templates, Generate for an athlete, Export for GymLog | Done |
+| 5 Progression tools (ramp, per-week table, deload scaling, back-offs, wave, rep range) | Not built |
+| 6 Duplication and versions | Not built |
+| 7 Metrics charts | Not built |
+
+**Screens.** Library (opens first): Templates, Athletes (collapsible, each holds the programs made for them), Not linked to an athlete; buttons Import program, Load Exercise List, Import everything, Export everything; Last exported and the storage meter are pinned at the bottom. Editor: header (name, weeks and workouts per week with a pencil Edit icon, Library, Export for GymLog, Copy AI prompt), the program grid (a band per workout, week columns 200 to 260 px, a flag icon per week), the exercise settings panel on the right (close with the cross; click an exercise to reopen), week editor, pattern picker, superset picker. Athlete profile: two columns (lifts and maxes on the left, exercises the athlete cannot do on the right), Save and Delete at the top right.
+
+**Storage (browser localStorage, keys start with `builder_`).** `builder_programs_v1` (library entries `{ id, name, kind: program|template, note, modified, program }`), `builder_profiles_v1` (athlete profiles), `builder_open_v1`, `builder_exercise_list_v1`, `builder_lastexport_v1`. `builder_draft_v1` is only read once (old single draft). `builder_detail_height_v1` is obsolete. The backup is Export everything (one JSON file with programs, templates, athletes and the Exercise List).
+
+**The main flow.** Template (no kg) + athlete profile -> `Use for athlete` -> a program with `source` and a `profileUsed` snapshot; % loads become kg by matching the EXERCISE NAME to the athlete's lift (an exercise with no matching lift can get its own max in the Generate dialog); kg recalculates on every edit; an amber bar offers Recalculate when the profile changes -> `Export for GymLog` writes the file GymLog imports (`docs/Program Import Format.md`). Templates offer % of 1RM, RPE and RIR only (no kg). A program with kg loads saved as a template becomes an ordinary "pre-filled" copy under Not linked.
+
+**Decisions to remember.** RIR is its own field and its own load type (never converted to RPE); the RPE/RIR target is for kg loads only; the Block number was removed (put it in the program name); no "unsaved changes" warnings (everything autosaves; Export everything is the backup); the user dislikes boxes (flat UI with divider lines), side-by-side mockups, and "Open file"-style clutter in the editor header.
+
+**Not built or not finished (ideas and gaps).** Steps 5 to 7 above. The user said the right-hand settings panel "could use some serious work" (no details yet). Richer Library rows with a preset icon per program and a lifter-initial badge (ROADMAP.md, Epic 2.1). Dragging a template onto an athlete. Using the athlete's unavailable-exercises list inside programs beyond the Generate and export warnings (hiding them in the Add exercise picker, marking them in the grid). Checks not done in a real browser or on a phone: importing a downloaded `.gymlog.json` into GymLog (spec test T4.8), the RIR pattern picker dialog, many weeks scrolling sideways with the panel open. A set-group alignment problem on a `Bench` exercise was reported and dropped until it reappears.
+
+**Testing.** No automated tests. Open `builder/index.html` directly in a browser (or https://hoplifter.github.io/gym-app/builder/ once published). Earlier rounds were checked with throwaway scripts in the preview pane using a stand-in for localStorage (the pane blocks storage) plus screenshots.
+
 ## Hard rules
 - Never read or write a `gymapp_` localStorage key. Builder keys start with `builder_`.
 - No native `alert()`, `confirm()` or `prompt()`; use custom modals.
@@ -253,3 +279,14 @@ Spec: step 4 (4.2, 4.3). The per-exercise "reference lift" (step 3b) was built a
 - **Import everything, Add as copies:** imported programs keep their link to the imported copy of their athlete and template (`profileIdMap`, `entryIdMap` in `applyImport`).
 - Not in this stop (4b): `Export for GymLog` with preview, hiding the kg option in templates, the "pre-filled" note.
 - Tested by script and screenshot: 75/80/85/90% of 200 gives 150/160/170/180; an extra max of 150 gives 105 kg at 70%; kg updates when a % load is edited; the bar appears, dismisses, comes back on a new change and recalculates (80% of 220 = 176 rounds to 175); athlete blocks expand and collapse; New Program from an athlete preselects them; Save as template clears the link; Add as copies keeps links; deleting an athlete unlinks their programs.
+
+## Phase 2 step 4, stop 4b: Export for GymLog (8 November 2026, awaiting user test)
+Spec 4.1, 4.4. This completes step 4: template, athlete, Generate, then a file for the phone app.
+- **Export for GymLog** (`exportForGymLog`, button in the editor header; not shown for a template): writes `<program name>.gymlog.json` in the format of `docs/Program Import Format.md`. Pure builders: `buildGymLogFile(program)`, `gymlogExerciseEntry`, `coachingNotes`, `gymlogWeight`, `missingKgList`, `unavailableInProgram`.
+  - One GymLog workout per program workout per week; a workout with no included exercises that week is left out. `label` = `<program name> - Wk<week> D<n>`; `description` = the workout description, plus ` · Deload week` / `Test week` / `Competition week` for a flagged week.
+  - Each included set group is one exercise entry, in the same order as the grid (a paired set group sits right after its partner, with `superset` letters A, B… restarting in each workout). `weight`: kg load = the load, else the calculated or AI-filled `kg`; omitted when blank. `rpe`: the load if the load type is RPE, else the RPE target; RIR never goes in `rpe`. `reps` = the lower rep; `rest` in seconds. `notes` = `Top set · RIR 2 · 8–12 reps · Tempo 3-1-1-0 · 2 s pause`, then the coach's own notes.
+  - **Blocked** with a list (first 10, then "and N more") when a % set group in an included week has a load but no kg: make the program for an athlete from a template, or add kg with Copy AI prompt. Empty program: "There is nothing to export yet".
+  - **Preview** dialog: workout and entry counts and the first workout in readable form (superset letters, notes). `Download file`, or `Export anyway` with an amber line when the athlete the program was made for cannot do some of its exercises (they are only warned about, never blocked). After downloading: a notice says to import it in GymLog (Settings, Program Management).
+- **No kg in templates** (`loadTypeChoices`, `currentIsTemplate`): the panel's load type control, the week editor's new set group and the Add exercise dialog (which starts on %) offer % of 1RM, RPE and RIR only. A set group that already uses kg keeps it.
+- **Pre-filled** (`hasKgLoads`, `saveAsTemplate`): `Save as template` on a program with filled-in kg loads adds an ordinary copy named `<name> (pre-filled)` under "Not linked to an athlete", with `entry.note = 'pre-filled'` (shown in the row detail; kept by Duplicate and Export/Import everything). A program without kg loads still becomes a real template.
+- Tested by script and screenshot: 85% of 200 = 170 kg, the RIR target goes into the notes (not `rpe`), the superset pair shares letter A and sits together, the deload week description, the blocked list, the empty message, the Export anyway warning, template header without the export button, kg hidden in templates, the pre-filled copy, and a real template from a % only program. Not tested: importing the downloaded file into GymLog on a phone (T4.8).

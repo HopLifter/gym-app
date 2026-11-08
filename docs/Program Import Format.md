@@ -1,6 +1,6 @@
 # GymLog – Program Import Format
 
-How to format a program so GymLog can import it. You can give this document to Claude along with your spreadsheet and ask for the JSON.
+How to format a program so GymLog can import it. You can give this document to Claude along with your spreadsheet and ask for the JSON. The Program Builder's "Export for GymLog" button writes this format for you.
 
 **Applies to:** the app as of v62, including the `description` field (v60) and the `superset` field (v62).
 

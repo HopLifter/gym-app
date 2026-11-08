@@ -1,7 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
-**Last updated:** 6 November 2026 (Program Builder Phase 2 spec drafted; coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
+**Last updated:** 8 November 2026 (Program Builder Phase 2 steps 1 to 4 built; real use starts); 6 November 2026 (Program Builder Phase 2 spec drafted; coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -172,7 +172,7 @@ The builder does not export directly to GymLog.
 **Phases:**
 
 1. Core builder: create, edit, save and reopen programs, and copy the AI prompt. Status: implemented (5 November 2026) as a separate desktop page in the `builder/` folder of this repo, https://hoplifter.github.io/gym-app/builder/ (it began as its own repo, plain HTML/CSS/JS, no change to GymLog itself). Its own `PROJECT_SUMMARY.md` and spec describe it. The end-to-end run (AI prompt, GymLog import, reopening the AI's program file) is still being tried with a real block.
-2. Reuse: templates, duplication and versions. Status: spec written and reviewed (6 November 2026), `docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`. Step 1 (library, export/import everything) built and tested; step 2 (coaching fields) is next. It covers seven steps: browser library with export/import of everything, coaching fields, reference lifts and athlete profiles, templates with Generate and direct GymLog file export, six progression tools, duplication and manual versions, and metrics charts.
+2. Reuse: templates, duplication and versions. Status: **steps 1 to 4 built** (8 November 2026), spec `docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`. Done: browser library with export and import of everything; the flat editor (workout bands, aligned weeks, settings panel, week flags); coaching fields (rep range, RPE or RIR target, RIR load type, set type, tempo, pause); athlete profiles (maxes, rounding, exercises the athlete cannot do); templates; Generate a program for an athlete from a template (kg calculated by matching the exercise name to the athlete's lift); Export for GymLog (the phone import file). Not built yet: step 5 progression tools (ramp, per-week table, deload scaling, back-offs, wave, rep range), step 6 duplication and versions, step 7 metrics charts. Dropped by the user: the per-exercise "reference lift". The user starts real use now; feedback comes in later sessions.
 3. Analysis: weekly and per-exercise workload.
 4. History: import backups and compare planned with actual (best after 1.8 to 1.10).
 5. Suggestions: AI suggestions based on workout history, approved by the user.
@@ -235,7 +235,7 @@ An initial suggested sequence, subject to further exploration:
 3. Program Queue (done).
 4. Workout Description and Comment (done).
 5. Superset Import (done).
-6. Program Builder Epic, Phases 1 to 3 (Phase 1 done).
+6. Program Builder Epic, Phases 1 to 3 (Phase 1 done; Phase 2 steps 1 to 4 done, steps 5 to 7 left).
 7. Set-by-Set Logging.
 8. Planned vs. Actual Tracking.
 9. Missed Reps Logging.

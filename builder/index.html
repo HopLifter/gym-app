@@ -211,6 +211,12 @@
   .gen-extra > div:first-child { flex: 1; min-width: 0; }
   .modal .gen-extra input.num-input { width: 80px; text-align: right; }
   .ok-text { color: var(--accent); font-size: 12px; margin: 6px 0; }
+  /* Export for GymLog preview (flat: divider lines, no boxes) */
+  .gl-preview { max-height: 340px; overflow: auto; border-top: 1px solid var(--line); margin-bottom: 12px; }
+  .gl-title { padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .gl-line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; border-bottom: 1px solid var(--hair); }
+  .gl-notes { flex-basis: 100%; font-size: 12px; color: var(--text-dim); }
+  .dim { color: var(--text-dim); }
   .tag-template { font-size: 11px; padding: 1px 8px; border-radius: 9px; border: 1px solid #3B4A1C; color: var(--accent); }
   .tag-warn { font-size: 11px; padding: 1px 8px; border-radius: 9px; border: 1px solid #5A4720; color: #E8B04A; white-space: nowrap; }
   .warn-text { color: #E8B04A; font-size: 12px; }
@@ -678,7 +684,10 @@ function cleanLibraryEntry(entry) {
   migrateOldPatterns(entry.program);
   if (!isValidProgram(entry.program)) return null;
   entry.program.workouts.forEach(purgeBrokenPairs);
-  return { id: entry.id, name: entry.program.name, kind: entry.kind === 'template' ? 'template' : 'program', modified: entry.modified, program: entry.program };
+  return {
+    id: entry.id, name: entry.program.name, kind: entry.kind === 'template' ? 'template' : 'program',
+    note: typeof entry.note === 'string' ? entry.note.slice(0, 100) : '', modified: entry.modified, program: entry.program
+  };
 }
 
 // Returns the saved programs. An entry that fails the checks is skipped, never half-used.
@@ -907,7 +916,7 @@ function buildLibraryFile(exportedOn) {
     format: LIBRARY_FORMAT,
     version: LIBRARY_FORMAT_VERSION,
     exportedOn: exportedOn,
-    programs: library.map(function (e) { return { id: e.id, name: e.name, kind: e.kind, modified: e.modified, program: e.program }; }),
+    programs: library.map(function (e) { return { id: e.id, name: e.name, kind: e.kind, note: e.note, modified: e.modified, program: e.program }; }),
     templates: [],
     profiles: JSON.parse(JSON.stringify(profiles)),
     versions: [],
@@ -1308,7 +1317,7 @@ function changedQuietly() {
 // `kind` is 'program' (default) or 'template'. A template is a program meant to be reused for many
 // athletes (Phase 2 spec step 4); both live in the same list and open in the same editor.
 function addProgramEntry(p, kind) {
-  var entry = { id: newLibraryId(), name: p.name, kind: kind === 'template' ? 'template' : 'program', modified: new Date().toISOString(), program: p };
+  var entry = { id: newLibraryId(), name: p.name, kind: kind === 'template' ? 'template' : 'program', note: '', modified: new Date().toISOString(), program: p };
   library.push(entry);
   return entry;
 }
@@ -1584,15 +1593,16 @@ var MAX_EXERCISE_NAMES = 5000;
 
 // The file name for Save file: the program name without characters that are unsafe in file
 // names, followed by ".program.json" (spec 5.13).
-function programFileName(name) {
+function safeFileBase(name) {
   var safe = String(name)
     .replace(/[\\/:*?"<>|\u0000-\u001F]/g, '')
     .replace(/\s+/g, ' ')
     .replace(/^[\s.]+|[\s.]+$/g, '');
   if (safe.length > 100) safe = safe.slice(0, 100).replace(/[\s.]+$/g, '');
-  if (safe === '') safe = 'Program';
-  return safe + '.program.json';
+  return safe === '' ? 'Program' : safe;
 }
+function programFileName(name) { return safeFileBase(name) + '.program.json'; }
+function gymlogFileName(name) { return safeFileBase(name) + '.gymlog.json'; }
 
 // Reads the text of a program file and returns a checked program, or null if it can not be opened.
 function parseProgramFile(text) {
@@ -1778,6 +1788,7 @@ function applyImport(data, mode) {
       used[p.name] = true;
       var entry = addProgramEntry(p, e.kind); // gets a new id
       entry.modified = e.modified;
+      entry.note = e.note;
       entryIdMap[e.id] = entry.id;
       added.push(entry);
     });
@@ -1829,6 +1840,174 @@ function loadExerciseListFile() {
     }
     showNotice(names.length + (names.length === 1 ? ' exercise loaded.' : ' exercises loaded.'));
   }, noList);
+}
+
+/* ==========================================================================
+   EXPORT FOR GYMLOG (Phase 2 spec 4.4)
+   Writes the file the GymLog phone app imports (see docs/Program Import Format.md): one GymLog
+   workout per workout per week. The coaching fields go into the exercise notes.
+   ========================================================================== */
+
+// The exercise notes for a set group: the coaching fields in a fixed order, then the coach's own notes.
+// For example: "Top set · RIR 2 · 8–12 reps · Tempo 3-1-1-0 · 2 s pause".
+function coachingNotes(g, exerciseNotes) {
+  var parts = [];
+  if (g.setType) parts.push(SET_TYPE_LABELS[g.setType]);
+  if (g.loadType === 'rir' && g.load !== null) parts.push('RIR ' + formatNum(g.load));
+  else if (g.rir !== null) parts.push('RIR ' + formatNum(g.rir));
+  if (g.repsMax !== null) parts.push(g.reps + '–' + g.repsMax + ' reps');
+  if (g.tempo) parts.push('Tempo ' + g.tempo);
+  if (g.pause !== null) parts.push(g.pause + ' s pause');
+  if (exerciseNotes) parts.push(exerciseNotes);
+  return parts.join(' · ');
+}
+
+// The weight in kg GymLog should show for a set group, or null (left out).
+function gymlogWeight(g) {
+  if (g.loadType === 'kg') return g.load !== null ? g.load : g.kg;
+  return g.kg;   // a % load (calculated for an athlete) or an RPE / RIR load (filled in by the AI), may be null
+}
+
+// % set groups in included weeks that have a load but no kg yet: [{ name, week, load }].
+function missingKgList(prog) {
+  var list = [];
+  prog.workouts.forEach(function (w) {
+    w.exercises.forEach(function (ex) {
+      ex.weeks.forEach(function (week, wk) {
+        if (!week.included) return;
+        week.groups.forEach(function (g) {
+          if (g.loadType === 'pct' && g.load !== null && g.kg === null) list.push({ name: ex.name, week: wk + 1, load: g.load });
+        });
+      });
+    });
+  });
+  return list;
+}
+
+function gymlogExerciseEntry(ex, g, letter) {
+  var o = { name: ex.name, sets: g.sets, reps: g.reps };
+  var weight = gymlogWeight(g);
+  if (weight !== null) o.weight = weight;
+  var rpe = g.loadType === 'rpe' ? g.load : g.rpe;   // RIR never goes in the rpe field
+  if (rpe !== null) o.rpe = rpe;
+  o.rest = g.rest;
+  var notes = coachingNotes(g, ex.notes);
+  if (notes !== '') o.notes = notes;
+  if (letter) o.superset = letter;
+  return o;
+}
+
+// The whole GymLog import file for a program: { program, workouts }.
+function buildGymLogFile(prog) {
+  var flagText = { deload: 'Deload week', test: 'Test week', comp: 'Competition week' };
+  var workouts = [];
+  for (var week = 0; week < prog.weeks; week++) {
+    prog.workouts.forEach(function (workout, wi) {
+      if (workout.exercises.length === 0 || workoutRemovedInWeek(workout, week)) return;
+      var labels = supersetLabels(workout, week);
+      var exercises = [];
+      function addGroup(ex, k) {
+        var entry = ex.weeks[week];
+        if (!entry.included || !entry.groups[k]) return;
+        var label = labels[ex.id + ':' + k];
+        exercises.push(gymlogExerciseEntry(ex, entry.groups[k], label ? label.charAt(0) : null));
+      }
+      // The same row order as the grid: a paired set group is followed straight away by its partner.
+      workoutSlots(workout).forEach(function (slot) {
+        if (slot.type === 'run') slot.ks.forEach(function (k) { addGroup(slot.ex, k); });
+        else slot.members.forEach(function (m) { addGroup(m.ex, m.k); });
+      });
+      if (exercises.length === 0) return;
+      var flag = prog.weekFlags[week];
+      var description = [workout.description.trim(), flag ? flagText[flag] : ''].filter(Boolean).join(' · ');
+      var out = { label: prog.name + ' - Wk' + (week + 1) + ' D' + (wi + 1) };
+      if (description !== '') out.description = description;
+      out.exercises = exercises;
+      workouts.push(out);
+    });
+  }
+  return { program: { name: prog.name }, workouts: workouts };
+}
+
+// Names of exercises in the program that the athlete it was made for cannot do.
+function unavailableInProgram(prog) {
+  var owner = prog.source ? findProfile(prog.source.profileId) : null;
+  var names = [];
+  if (!owner) return names;
+  prog.workouts.forEach(function (w) {
+    w.exercises.forEach(function (ex) {
+      if (isUnavailable(owner, ex.name) && names.indexOf(ex.name) < 0) names.push(ex.name);
+    });
+  });
+  return names;
+}
+
+// One readable line for the preview: "Back Squat · 4 × 5 · 150 kg · RPE 8 · rest 4 min".
+function previewLine(o) {
+  var bits = [o.sets + ' × ' + o.reps];
+  bits.push(o.weight !== undefined ? formatNum(o.weight) + ' kg' : 'no weight');
+  if (o.rpe !== undefined) bits.push('RPE ' + formatNum(o.rpe));
+  bits.push('rest ' + formatNum(o.rest / 60) + ' min');
+  return bits.join(' · ');
+}
+
+function exportForGymLog() {
+  var entry = findEntry(currentId);
+  if (entry && entry.kind === 'template') return;   // a template has no kg to export
+  var missing = missingKgList(program);
+  if (missing.length > 0) {
+    var shown = missing.slice(0, 10).map(function (m) { return m.name + ' (Week ' + m.week + '): ' + formatNum(m.load) + '% has no kg value'; });
+    if (missing.length > 10) shown.push('and ' + (missing.length - 10) + ' more');
+    openModal({
+      title: "Can't export yet",
+      body: el('div', null, [
+        el('p', { text: 'Every percentage load needs a kg value before the file can go to GymLog.' })
+      ].concat(shown.map(function (t) { return el('div', { className: 'warn-text', text: '• ' + t }); }), [
+        el('p', { className: 'hint', text: 'Make the program for an athlete from a template (Use for athlete), which calculates the kg values, or add them with Copy AI prompt.' })
+      ])),
+      actions: [el('button', { className: 'primary', text: 'Close', onclick: closeModal })]
+    });
+    return;
+  }
+  var file = buildGymLogFile(program);
+  if (file.workouts.length === 0) { showMessage('Export for GymLog', 'There is nothing to export yet. Add some exercises first.'); return; }
+  var cannot = unavailableInProgram(program);
+  var owner = program.source ? findProfile(program.source.profileId) : null;
+  var exerciseCount = file.workouts.reduce(function (n, w) { return n + w.exercises.length; }, 0);
+  var first = file.workouts[0];
+
+  var body = el('div', null, [
+    el('p', { text: plural(file.workouts.length, 'workout') + ' and ' + exerciseCount + (exerciseCount === 1 ? ' exercise entry' : ' exercise entries') + ' (a set group with a different load is its own entry). The first workout:' }),
+    el('div', { className: 'gl-preview' }, [
+      el('div', { className: 'gl-title' }, [el('b', { text: first.label }), el('span', { className: 'dim', text: first.description ? '  ' + first.description : '' })])
+    ].concat(first.exercises.map(function (o) {
+      return el('div', { className: 'gl-line' }, [
+        el('div', null, [el('b', { text: o.name }), el('span', { className: 'dim', text: '  ' + previewLine(o) })]),
+        o.superset ? el('span', { className: 'ex-label', text: 'Superset ' + o.superset }) : el('span'),
+        o.notes ? el('div', { className: 'gl-notes', text: o.notes }) : null
+      ].filter(Boolean));
+    })))
+  ]);
+  if (cannot.length > 0) {
+    body.appendChild(el('div', { className: 'warn-text', text: (owner ? owner.name : 'The athlete') + " can't do: " + cannot.join(', ') + '.' }));
+  }
+  openModal({
+    title: 'Export for GymLog',
+    wide: true,
+    body: body,
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', {
+        className: 'primary', text: cannot.length > 0 ? 'Export anyway' : 'Download file',
+        onclick: function () {
+          closeModal();
+          var name = gymlogFileName(program.name);
+          downloadJson(name, file);
+          showNotice('Saved as ' + name + '. In GymLog: Settings, Program Management, import it.');
+        }
+      })
+    ]
+  });
 }
 
 /* ==========================================================================
@@ -2006,10 +2185,11 @@ function renderHeader() {
     className: 'icon-btn', text: '✎', title: 'Edit weeks and workouts per week',
     'aria-label': 'Edit weeks and workouts per week', onclick: openProgramSettings
   }));
-  header.appendChild(el('div', { className: 'header-buttons' }, [
-    el('button', { text: 'Library', onclick: openLibrary }),
-    el('button', { text: 'Copy AI prompt', onclick: copyAiPrompt })
-  ]));
+  var headerButtons = [el('button', { text: 'Library', onclick: openLibrary })];
+  // A template has no kg values, so there is nothing to send to GymLog.
+  if (!(openEntry && openEntry.kind === 'template')) headerButtons.push(el('button', { text: 'Export for GymLog', onclick: exportForGymLog }));
+  headerButtons.push(el('button', { text: 'Copy AI prompt', onclick: copyAiPrompt }));
+  header.appendChild(el('div', { className: 'header-buttons' }, headerButtons));
 }
 
 // One block per set group, so every group is visible in the grid (see PROJECT_SUMMARY: this
@@ -2167,7 +2347,7 @@ function setGroupLoadType(ex, k, type, after) {
 function loadTypeControl(ex, k, after) {
   var current = ex.weeks[0].groups[k].loadType;
   var seg = el('div', { className: 'segmented', role: 'group', 'aria-label': 'Load type' });
-  LOAD_TYPE_OPTIONS.forEach(function (o) {
+  loadTypeChoices(current).forEach(function (o) {
     seg.appendChild(el('button', {
       text: o[1] === '% of 1RM' ? '%' : o[1],
       className: current === o[0] ? 'on' : '',
@@ -3298,10 +3478,20 @@ function plural(n, word) {
 function duplicateProgram(entry) {
   var copy = JSON.parse(JSON.stringify(entry.program));
   copy.name = (entry.program.name + ' copy').slice(0, 200);
-  addProgramEntry(copy, entry.kind);
+  var added = addProgramEntry(copy, entry.kind);
+  added.note = entry.note;
   saveLibrary();
   showNotice('Duplicated.');
   render();
+}
+
+// Does a program have kg loads that are already filled in (not blank)?
+function hasKgLoads(prog) {
+  return prog.workouts.some(function (w) {
+    return w.exercises.some(function (ex) {
+      return ex.weeks.some(function (week) { return week.groups.some(function (g) { return g.loadType === 'kg' && g.load !== null; }); });
+    });
+  });
 }
 
 // Saves a copy of a program as a template: same structure and prescriptions, with the calculated kg
@@ -3316,6 +3506,17 @@ function saveAsTemplate(entry) {
       ex.weeks.forEach(function (week) { week.groups.forEach(function (g) { g.kg = null; }); });
     });
   });
+  if (hasKgLoads(copy)) {
+    // kg loads belong to one lifter, so this cannot be a template. The copy stays an ordinary program under
+    // "Not linked to an athlete", marked as pre-filled.
+    copy.name = (entry.program.name + ' (pre-filled)').slice(0, 200);
+    var kept = addProgramEntry(copy, 'program');
+    kept.note = 'pre-filled';
+    saveLibrary();
+    showNotice('This program has kg loads, so it cannot be a template. A copy was added below, marked pre-filled.');
+    render();
+    return;
+  }
   addProgramEntry(copy, 'template');
   saveLibrary();
   showNotice('Saved as a template.');
@@ -3378,6 +3579,7 @@ function renderProgramRow(entry, nested) {
   acts.push(el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteProgram(entry); } }));
   var detail = plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout');
   if (p.source && p.source.templateName) detail += ' · from ' + p.source.templateName;
+  if (entry.note) detail += ' · ' + entry.note;
   return el('div', { className: 'lib-row' + (isCurrent ? ' current' : '') + (nested ? ' nested' : '') }, [
     el('div', { className: 't' }, [
       el('b', { text: entry.name === '' ? '(No name)' : entry.name }),
@@ -4210,6 +4412,17 @@ function selectBox(options, value) {
 
 var LOAD_TYPE_OPTIONS = [['kg', 'kg'], ['pct', '% of 1RM'], ['rpe', 'RPE'], ['rir', 'RIR']];
 
+function currentIsTemplate() {
+  var entry = findEntry(currentId);
+  return !!entry && entry.kind === 'template';
+}
+
+// The load types to offer. A template is for any athlete, so it offers no kg (kg belongs to a program
+// made for one lifter), except for a set group that already uses it.
+function loadTypeChoices(currentType) {
+  return LOAD_TYPE_OPTIONS.filter(function (o) { return o[0] !== 'kg' || currentType === 'kg' || !currentIsTemplate(); });
+}
+
 /* ---- Add exercise (spec 5.6) ---- */
 
 function openAddExerciseModal(wi, weekIndex) {
@@ -4232,7 +4445,7 @@ function openAddExerciseModal(wi, weekIndex) {
 
   // Set groups: one row each, so a start value, sets and reps can be entered for every group now.
   // Each set group has its own load type and rest time.
-  var drafts = [{ sets: '3', reps: '10', loadType: 'kg', load: '', rest: '1,5' }];
+  var drafts = [{ sets: '3', reps: '10', loadType: currentIsTemplate() ? 'pct' : 'kg', load: '', rest: '1,5' }];   // a template has no kg
   var rowsBox = el('div');
 
   function draftField(d, key, labelText, attrs) {
@@ -4244,7 +4457,7 @@ function openAddExerciseModal(wi, weekIndex) {
   function drawRows() {
     rowsBox.textContent = '';
     drafts.forEach(function (d, i) {
-      var typeSelect = selectBox(LOAD_TYPE_OPTIONS, d.loadType);
+      var typeSelect = selectBox(loadTypeChoices(d.loadType), d.loadType);
       typeSelect.setAttribute('aria-label', 'Load type, set group ' + (i + 1));
       typeSelect.addEventListener('change', function () { d.loadType = typeSelect.value; drawRows(); });
       var cols = [
@@ -4427,7 +4640,7 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
     drafts.forEach(function (d, i) {
       // The load type of an existing set group is changed with the table's control (it asks
       // before clearing loads); only a group added here can pick its type.
-      var typeSelect = selectBox(LOAD_TYPE_OPTIONS, d.loadType);
+      var typeSelect = selectBox(loadTypeChoices(d.loadType), d.loadType);
       typeSelect.setAttribute('aria-label', 'Load type, set group ' + (i + 1));
       if (d.orig) typeSelect.disabled = true;
       typeSelect.addEventListener('change', function () { d.loadType = typeSelect.value; d.load = ''; d.target = ''; drawRows(); });

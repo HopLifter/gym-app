@@ -1,5 +1,13 @@
 # GymLog — Project Summary
 
+## Docs-only build 20261108: Program Builder Phase 2 steps 1 to 4 built (Roadmap 2.1)
+`index.html` and `sw.js` (GymLog) are unchanged, so the cache version stays
+`gym-app-cache-v63`. The Program Builder (`builder/`) gained a browser library,
+templates, athlete profiles, Generate-for-an-athlete and Export for GymLog (the
+phone import file). See `builder/PROJECT_SUMMARY.md` ("Current status") for the
+full state, and `ROADMAP.md` (Epic 2.1, Phase 2). GymLog's import format is
+unchanged: the builder's Export for GymLog writes it.
+
 ## What this is
 A free, offline-first workout tracker for personal phone use. Built as a
 single-page web app (not a native app) so there's no App Store, no fees,
