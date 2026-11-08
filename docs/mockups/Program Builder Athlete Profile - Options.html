@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Builder Athlete Profile – Options</title>
+<style>
+:root{--bg:#0B0D0C;--surface:#161917;--line:#2A2F2B;--hair:#1f2421;--text:#EDEEEA;--dim:#8C948C;--accent:#C6FF3D;--sel:#232A1A;--danger:#E05C4E;--amber:#E8B04A}
+*{box-sizing:border-box}
+body{margin:0;background:#050605;color:var(--text);font:14px/1.4 -apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;padding:24px}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:16px;margin:44px 0 4px;color:var(--accent)}
+p.note{color:var(--dim);margin:4px 0 10px;max-width:980px}
+.pc{max-width:980px;color:var(--dim);font-size:13px;margin:4px 0 12px}.pc b{color:var(--text)}
+.screen{background:var(--bg);border:1px solid var(--line);border-radius:10px;width:1280px;max-width:100%;overflow:hidden}
+.bar{display:flex;align-items:center;gap:10px;padding:12px 20px;border-bottom:1px solid var(--line)}
+.bar .crumb{color:var(--dim)}.bar .crumb b{color:var(--text)}.bar .sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 11px;font-size:13px;color:var(--text);white-space:nowrap}
+.btn.p{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.body{padding:18px 20px 22px}
+.sec{border-top:1px solid var(--line);padding-top:14px;margin-top:18px}.sec:first-child{border:0;margin-top:0;padding-top:0}
+.sh{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}.sh b{font-size:13px}.sh span{color:var(--dim);font-size:12px}.sh .sp{flex:1}
+.f{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 9px;min-width:70px;display:inline-block;text-align:right}
+.f.t{text-align:left}
+.lbl{color:var(--dim);font-size:12px}
+table{border-collapse:collapse;width:100%}
+th{color:var(--dim);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:4px 10px 6px 0}
+td{padding:5px 10px 5px 0;vertical-align:middle;border-top:1px solid var(--hair)}
+.seg{display:inline-flex}.seg span{padding:4px 11px;border:1px solid var(--line);margin-left:-1px;color:var(--dim);font-size:13px}.seg span:first-child{border-radius:8px 0 0 8px;margin-left:0}.seg span:last-child{border-radius:0 8px 8px 0}.seg span.on{background:var(--accent);color:var(--bg);border-color:var(--accent);font-weight:600}
+.x{color:var(--dim)}
+.ex-list{display:grid;grid-template-columns:repeat(4,1fr);gap:2px 24px}
+.ex-list label{display:flex;gap:8px;align-items:center;padding:3px 0;color:var(--text)}
+.ex-list label.no{color:var(--danger)}
+.chk{width:15px;height:15px;border:1px solid var(--line);border-radius:4px;display:inline-block;flex:none}
+.chk.on{background:var(--danger);border-color:var(--danger)}
+.two{display:flex;gap:40px}.two>div{min-width:0}
+.warn{color:var(--amber);font-size:12px}
+.accent{color:var(--accent)}
+.ath{border-top:1px solid var(--line)}
+.ah{display:flex;align-items:center;gap:10px;padding:9px 20px}.ah b{min-width:110px}.ah .lifts{flex:1;color:var(--dim);font-size:12px}
+.tag{font-size:11px;padding:1px 7px;border-radius:9px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}.tag.w{color:var(--amber);border-color:#5a4720}
+.pr{display:flex;align-items:center;gap:10px;margin-bottom:8px;min-height:30px}.pr label{width:104px;color:var(--dim);font-size:12px;flex:none}
+.panel{width:360px;border-left:1px solid var(--line);padding:14px 18px 18px}
+.modal{width:620px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px}
+.modal h4{margin:0 0 12px;font-size:18px}
+.form-row{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}.form-row label{color:var(--dim);font-size:12px}
+.sel{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 10px}.sel::after{content:" ▾";color:var(--dim)}
+</style>
+</head>
+<body>
+<h1>Step 3 – athlete profile screen and reference lift</h1>
+<p class="note">Sample athlete: <b>Sam Lee</b>. A profile holds: the lifts and their 1RM (and an optional training max), the plate rounding, notes, and the exercises Sam cannot do (the gym's resources). The screen is reached from the Library: clicking <b>Edit profile</b> in an athlete's block (the layout you approved). Everything saves automatically, like the rest of the builder. Both options are shown at their real width, one under the other. Part 3 shows where the <b>reference lift</b> of an exercise is set.</p>
+
+<h2>Part 0 – Library, as already approved (athletes now exist)</h2>
+<div class="screen">
+  <div class="bar"><b>Library</b><span class="sp"></span><span class="btn">Import program</span><span class="btn">Load Exercise List</span><span class="btn">Import everything</span><span class="btn">Export everything</span></div>
+  <div class="ah" style="border-top:0;padding-top:14px"><b>Athletes <span class="lbl" style="font-weight:400">3</span></b><span class="lifts"></span><span class="btn">Expand all</span><span class="btn p">New Athlete</span></div>
+  <div class="ath"><div class="ah"><span class="x">▶</span><b>Sam Lee</b><span class="lifts">Squat 200 · Bench 130 · Deadlift 240 · OHP 80 · 2.5 kg</span><span class="tag w">2 exercises unavailable</span><span class="tag">3 programs</span><span class="btn">Edit profile</span><span class="btn p">New Program</span></div></div>
+  <div class="ath"><div class="ah"><span class="x">▶</span><b>Jo Park</b><span class="lifts">Squat 110 · Bench 70 · Deadlift 135 · 1.25 kg</span><span class="tag">1 program</span><span class="btn">Edit profile</span><span class="btn p">New Program</span></div></div>
+  <div class="ath"><div class="ah"><span class="x">▶</span><b>Alex Mora</b><span class="lifts">Squat 165 (TM 150) · Bench 105 · Deadlift 190 · OHP 62.5</span><span class="tag w">6 exercises unavailable</span><span class="tag">0 programs</span><span class="btn">Edit profile</span><span class="btn p">New Program</span></div></div>
+</div>
+
+<h2>Option A – One page, sections one under the other</h2>
+<div class="pc"><b>Good:</b> simple to read top to bottom, the same pattern as the exercise settings panel, nothing hidden. The exercise list sits in a 4-column grid at the bottom. <b>Less good:</b> with the full Exercise List (hundreds of names) the page gets long, so the list needs its own search box and scrolls inside the page.</div>
+<div class="screen">
+  <div class="bar"><span class="crumb">Library &nbsp;/&nbsp; <b>Sam Lee</b></span><span class="sp"></span><span class="lbl">Saved automatically</span></div>
+  <div class="body">
+    <div class="sec"><div class="sh"><b>Athlete</b></div>
+      <div class="pr"><label>Name</label><span class="f t" style="width:280px">Sam Lee</span></div>
+      <div class="pr"><label>Notes</label><span class="f t" style="width:520px">Left knee: no deep squats until December.</span></div>
+    </div>
+    <div class="sec"><div class="sh"><b>Lifts and maxes</b><span>All values in kg. Percentages in a program use the value marked "Use".</span><span class="sp"></span><span class="btn">Add lift</span></div>
+      <table><tr><th style="width:240px">Lift</th><th style="width:110px">1RM</th><th style="width:110px">Training max</th><th style="width:170px">Use</th><th>Last updated</th><th></th></tr>
+        <tr><td>Back Squat</td><td><span class="f">200</span></td><td><span class="f">185</span></td><td><span class="seg"><span>1RM</span><span class="on">TM</span></span></td><td class="lbl">02/11/2026</td><td class="x">Remove</td></tr>
+        <tr><td>Bench Press</td><td><span class="f">130</span></td><td><span class="f">&nbsp;</span></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td><td class="lbl">02/11/2026</td><td class="x">Remove</td></tr>
+        <tr><td>Deadlift</td><td><span class="f">240</span></td><td><span class="f">&nbsp;</span></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td><td class="lbl">02/11/2026</td><td class="x">Remove</td></tr>
+        <tr><td>Overhead Press</td><td><span class="f">80</span></td><td><span class="f">&nbsp;</span></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td><td class="lbl">19/10/2026</td><td class="x">Remove</td></tr>
+      </table>
+      <div class="pr" style="margin-top:12px"><label>Round loads to</label><span class="f">2.5</span><span class="lbl">kg (the smallest step your plates allow)</span></div>
+    </div>
+    <div class="sec"><div class="sh"><b>Exercises Sam can't do</b><span>Tick what the gym doesn't have. Everything else is available.</span><span class="sp"></span><span class="f t" style="width:220px;color:var(--dim)">Search the Exercise List…</span></div>
+      <div class="ex-list" id="listA"></div>
+      <div class="warn" style="margin-top:8px">1 name is not in your Exercise List: "Hack Squat (old)".</div>
+    </div>
+  </div>
+</div>
+
+<h2>Option B – Two columns: maxes on the left, exercise list on the right</h2>
+<div class="pc"><b>Good:</b> the long exercise list gets a full-height column of its own with its own scrolling, so the lifts stay visible while you tick exercises. Fits a wide desktop screen. <b>Less good:</b> the left column is narrower, so the lifts table is tighter; on a window narrower than about 1100 px it would stack into Option A.</div>
+<div class="screen">
+  <div class="bar"><span class="crumb">Library &nbsp;/&nbsp; <b>Sam Lee</b></span><span class="sp"></span><span class="lbl">Saved automatically</span></div>
+  <div class="body two">
+    <div style="flex:0 0 560px">
+      <div class="sec"><div class="sh"><b>Athlete</b></div>
+        <div class="pr"><label>Name</label><span class="f t" style="width:260px">Sam Lee</span></div>
+        <div class="pr"><label>Notes</label><span class="f t" style="width:380px">Left knee: no deep squats until December.</span></div>
+      </div>
+      <div class="sec"><div class="sh"><b>Lifts and maxes</b><span>kg</span><span class="sp"></span><span class="btn">Add lift</span></div>
+        <table><tr><th>Lift</th><th>1RM</th><th>TM</th><th>Use</th><th></th></tr>
+          <tr><td>Back Squat</td><td><span class="f" style="min-width:56px">200</span></td><td><span class="f" style="min-width:56px">185</span></td><td><span class="seg"><span>1RM</span><span class="on">TM</span></span></td><td class="x">✕</td></tr>
+          <tr><td>Bench Press</td><td><span class="f" style="min-width:56px">130</span></td><td><span class="f" style="min-width:56px">&nbsp;</span></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td><td class="x">✕</td></tr>
+          <tr><td>Deadlift</td><td><span class="f" style="min-width:56px">240</span></td><td><span class="f" style="min-width:56px">&nbsp;</span></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td><td class="x">✕</td></tr>
+          <tr><td>Overhead Press</td><td><span class="f" style="min-width:56px">80</span></td><td><span class="f" style="min-width:56px">&nbsp;</span></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td><td class="x">✕</td></tr>
+        </table>
+        <div class="pr" style="margin-top:12px"><label>Round loads to</label><span class="f">2.5</span><span class="lbl">kg</span></div>
+      </div>
+    </div>
+    <div style="flex:1;border-left:1px solid var(--line);padding-left:32px">
+      <div class="sh"><b>Exercises Sam can't do</b><span class="sp"></span><span class="f t" style="width:200px;color:var(--dim)">Search…</span></div>
+      <div class="lbl" style="margin-bottom:8px">2 ticked of 236</div>
+      <div id="listB" style="display:grid;grid-template-columns:repeat(2,1fr);gap:2px 24px"></div>
+      <div class="warn" style="margin-top:8px">1 name is not in your Exercise List: "Hack Squat (old)".</div>
+    </div>
+  </div>
+</div>
+
+<h2>Part 3 – Reference lift on an exercise (same in both options)</h2>
+<div class="pc">The <b>reference lift</b> says which lift a % load is a percentage of (and which lift the exercise counts under in the charts later). It is one field per exercise: in the <b>settings panel</b> (under the exercise name, so it is visible next to the set groups) and in the <b>Add exercise</b> dialog. The list offers the lifts of the athlete's profile, "None", and "Other…". A % set group on an exercise with no reference lift shows a small warning in the panel.</div>
+<div class="screen" style="display:flex">
+  <div style="flex:1;padding:20px;color:var(--dim)">The grid is unchanged. Pause Squat is selected; the panel on the right shows the new row.</div>
+  <div class="panel">
+    <div style="font-size:16px;font-weight:700">Pause Squat</div><div class="lbl" style="margin-bottom:12px">Workout 1 · Heavy Squat + Bench</div>
+    <div class="pr"><label>Reference lift</label><span class="sel" style="width:170px;display:inline-block">Back Squat</span></div>
+    <div class="sec"><div class="sh"><b>Set group 1 · 3 × 5</b><span class="sp"></span><span class="lbl">Edit</span></div>
+      <div class="pr"><label>Load type</label><span class="seg"><span>kg</span><span class="on">%</span><span>RPE</span><span>RIR</span></span></div>
+      <div class="pr"><label>Load</label><span class="accent">72.5% · 130 kg</span></div>
+    </div>
+  </div>
+</div>
+<div style="height:16px"></div>
+<div class="modal">
+  <h4>Add exercise</h4>
+  <div class="form-row"><label>Name</label><span class="sel">Pause Squat</span></div>
+  <div class="form-row"><label>Reference lift (the lift a % load is based on)</label><span class="sel">Back Squat</span></div>
+  <div class="lbl">Options: Back Squat · Bench Press · Deadlift · Overhead Press (Sam's lifts) · None · Other…</div>
+  <div class="lbl" style="margin-top:6px">… the rest of the dialog (set groups, notes) is unchanged.</div>
+</div>
+
+<script>
+var names=['Back Squat','Front Squat','Pause Squat','Leg Press','Hack Squat','Bulgarian Split Squat','Romanian Deadlift','Sumo Deadlift','Bench Press','Close-Grip Bench','Incline DB Press','Cable Fly','Overhead Press','Lat Pulldown','Seal Row','Barbell Row','Face Pull','Hip Thrust','Leg Curl','Calf Raise'];
+var no={'Leg Press':1,'Hack Squat':1};
+function fill(id,n){ var h=''; names.slice(0,n).forEach(function(x){ h+='<label class="'+(no[x]?'no':'')+'"><span class="chk'+(no[x]?' on':'')+'"></span>'+x+'</label>'; }); document.getElementById(id).innerHTML=h; }
+fill('listA',20); document.getElementById('listA').classList.add('ex-list'); fill('listB',20);
+</script>
+</body>
+</html>

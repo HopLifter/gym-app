@@ -94,15 +94,24 @@
     position: sticky; left: 0; max-width: var(--mainw, calc(100vw - 40px));
     display: flex; align-items: baseline; gap: 10px; padding: 22px 14px 7px;
   }
-  .flag-select {
-    margin-left: 10px; padding: 1px 4px; font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none;
-    background: transparent; color: var(--text-dim); border: 1px solid transparent; border-radius: 9px;
-    color-scheme: dark; cursor: pointer; font-family: inherit;
+  /* Week heading: the title on the left, the flag icon at the right. */
+  .th-in { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .flag-btn {
+    display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 0 2px;
+    color: var(--text-dim); font-size: 15px; line-height: 1; font-weight: 400; letter-spacing: 0; text-transform: none;
   }
-  .flag-select:hover, .flag-select:focus { border-color: var(--line); outline: none; }
-  .flag-select.flag-deload { color: #E8B04A; border-color: #5A4720; }
-  .flag-select.flag-test { color: var(--rpe); border-color: #2C4A66; }
-  .flag-select.flag-comp { color: var(--accent); border-color: #3B4A1C; }
+  .flag-btn:hover:not(:disabled) { color: var(--text); }
+  .flag-name { font-size: 12px; font-weight: 600; }
+  .flag-btn.flag-deload, .flag-item.flag-deload { color: #E8B04A; }
+  .flag-btn.flag-test, .flag-item.flag-test { color: var(--rpe); }
+  .flag-btn.flag-comp, .flag-item.flag-comp { color: var(--accent); }
+  .flag-menu {
+    position: fixed; z-index: 150; min-width: 130px; display: flex; flex-direction: column; padding: 4px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  .flag-item { background: none; border: none; text-align: left; padding: 6px 10px; border-radius: 6px; color: var(--text-dim); }
+  .flag-item:hover { background: var(--bg); }
+  .flag-item.on { font-weight: 600; }
   .band .t { font-weight: 700; font-size: 14px; white-space: nowrap; }
   .band input.workout-desc {
     flex: 1; min-width: 0; background: transparent; color: var(--text-dim);
@@ -188,6 +197,36 @@
   .detail textarea:focus { outline: none; border-color: var(--accent); }
   .detail select { background: var(--bg); color: var(--text); font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
   .detail select:focus { outline: none; border-color: var(--accent); }
+  /* ---- Athletes in the Library, and the profile screen (two columns) ---- */
+  .lib-sect.static { cursor: default; }
+  .tag-template { font-size: 11px; padding: 1px 8px; border-radius: 9px; border: 1px solid #3B4A1C; color: var(--accent); }
+  .tag-warn { font-size: 11px; padding: 1px 8px; border-radius: 9px; border: 1px solid #5A4720; color: #E8B04A; white-space: nowrap; }
+  .warn-text { color: #E8B04A; font-size: 12px; }
+  .lib-row .t.dim { color: var(--text-dim); }
+  #profile { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #profile[hidden] { display: none; }
+  .lib-bar .dim { color: var(--text-dim); }
+  .pf-body { flex: 1 1 auto; min-height: 0; display: flex; }
+  .pf-left { flex: 0 0 600px; max-width: 60%; overflow: auto; padding: 16px 20px 24px; }
+  .pf-right { flex: 1 1 auto; min-width: 0; overflow: auto; border-left: 1px solid var(--line); padding: 16px 24px 24px; display: flex; flex-direction: column; }
+  .pf-left .pr > label { width: 110px; }
+  .pf-left .pr input[type="text"] { width: 300px; }
+  .pf-left .pr input.num-input { width: 70px; text-align: right; }
+  .pf-left textarea, .pf-right textarea {
+    width: 100%; background: var(--bg); color: var(--text); font: inherit; resize: vertical; min-height: 48px;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
+  }
+  .pf-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+  .pf-table th { text-align: left; color: var(--text-dim); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 10px 6px 0; }
+  .pf-table td { padding: 5px 10px 5px 0; border-top: 1px solid var(--hair); vertical-align: middle; }
+  .pf-table input[type="text"] { width: 100%; }
+  .pf-table input.num-input { width: 74px; text-align: right; }
+  .pf-table .segmented button { padding: 4px 10px; font-size: 12px; }
+  .pf-right .pr input[type="text"] { width: 100%; }
+  .pf-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 24px; margin-top: 8px; align-content: start; }
+  .pf-check { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
+  .pf-check input { accent-color: var(--danger); margin: 0; }
+  .pf-check.no { color: var(--danger); }
   .tempo-input { width: 110px; }
   .pr .tgt input[type="text"] { width: 54px; flex: none; }
   .pr .segmented button { padding: 4px 9px; font-size: 12px; }
@@ -315,6 +354,7 @@
   <div class="header" id="header"></div>
   <div id="save-warning" hidden><span>This browser could not save your last change. It will be lost when the page closes.</span><button id="warn-export">Export everything</button></div>
   <div id="library" hidden></div>
+  <div id="profile" hidden></div>
   <div id="workspace">
     <div class="main" id="main"><div class="grid-wrap" id="grid"></div></div>
     <div class="detail" id="detail" hidden></div>
@@ -331,6 +371,7 @@
 var DRAFT_KEY = 'builder_draft_v1';         // Phase 1 draft: read once to move it into the library, never written or deleted
 var PROGRAMS_KEY = 'builder_programs_v1';   // the library: array of { id, name, modified, program }
 var OPEN_KEY = 'builder_open_v1';           // { kind: 'program', id } of the item open in the editor
+var PROFILES_KEY = 'builder_profiles_v1';   // athlete profiles: array of profile objects (Phase 2 spec step 3)
 var LAST_EXPORT_KEY = 'builder_lastexport_v1'; // ISO date-time of the last Export everything
 var LIBRARY_FORMAT = 'gym-builder-library';    // the backup file made by Export everything
 var LIBRARY_FORMAT_VERSION = 1;
@@ -597,7 +638,7 @@ function cleanLibraryEntry(entry) {
   migrateOldPatterns(entry.program);
   if (!isValidProgram(entry.program)) return null;
   entry.program.workouts.forEach(purgeBrokenPairs);
-  return { id: entry.id, name: entry.program.name, modified: entry.modified, program: entry.program };
+  return { id: entry.id, name: entry.program.name, kind: entry.kind === 'template' ? 'template' : 'program', modified: entry.modified, program: entry.program };
 }
 
 // Returns the saved programs. An entry that fails the checks is skipped, never half-used.
@@ -619,6 +660,112 @@ function libraryLoadPrograms() {
   }
 }
 
+/* --------------------------------------------------------------------------
+   Athlete profiles (Phase 2 spec step 3). One object per athlete, all in one array under
+   builder_profiles_v1: name, notes, the lifts with their maxes, the rounding step, and the
+   exercises the athlete cannot do. Pure data and checks here; the screens come later in the file.
+   -------------------------------------------------------------------------- */
+
+var PROFILE_FORMAT = 'gym-builder-profile';
+var PROFILE_VERSION = 1;
+var STANDARD_LIFTS = ['Back Squat', 'Bench Press', 'Deadlift'];
+
+function newProfileId() {
+  return 'pf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// `base` says which value percentages use: '1rm' or 'tm' (training max). `updated` is the date the
+// maxes were last changed (ISO text), or null.
+function newLift(name) {
+  return { name: name, oneRm: null, trainingMax: null, base: '1rm', updated: null };
+}
+
+function newProfile(name) {
+  return {
+    format: PROFILE_FORMAT, version: PROFILE_VERSION, id: newProfileId(), name: name,
+    modified: new Date().toISOString(), rounding: 2.5, notes: '', unavailable: [],
+    lifts: STANDARD_LIFTS.map(newLift)
+  };
+}
+
+function isValidLift(l) {
+  return !!l && typeof l === 'object' && typeof l.name === 'string' && l.name.length <= 100
+    && (l.oneRm === null || (isNum(l.oneRm) && l.oneRm >= 0 && l.oneRm <= 2000))
+    && (l.trainingMax === null || (isNum(l.trainingMax) && l.trainingMax >= 0 && l.trainingMax <= 2000))
+    && (l.base === '1rm' || l.base === 'tm')
+    && (l.updated === null || (typeof l.updated === 'string' && !isNaN(new Date(l.updated).getTime())));
+}
+
+// Checks one profile from storage or from a file. Returns it, or null if anything is wrong.
+function cleanProfile(p) {
+  if (!p || typeof p !== 'object' || p.format !== PROFILE_FORMAT) return null;
+  if (!isWholeBetween(p.version, 1, PROFILE_VERSION)) return null;
+  if (typeof p.id !== 'string' || !/^pf_[a-z0-9]+$/.test(p.id)) return null;
+  if (typeof p.name !== 'string' || p.name.length > 200) return null;
+  if (typeof p.modified !== 'string' || isNaN(new Date(p.modified).getTime())) return null;
+  if (!isNum(p.rounding) || p.rounding < 0.5 || p.rounding > 10) return null;
+  if (typeof p.notes !== 'string' || p.notes.length > 2000) return null;
+  if (!Array.isArray(p.unavailable) || p.unavailable.length > MAX_EXERCISE_NAMES) return null;
+  if (!p.unavailable.every(function (n) { return typeof n === 'string' && n.length >= 1 && n.length <= 200; })) return null;
+  if (!Array.isArray(p.lifts) || p.lifts.length > 50 || !p.lifts.every(isValidLift)) return null;
+  return p;
+}
+
+function profilesLoad() {
+  try {
+    var data = JSON.parse(localStorage.getItem(PROFILES_KEY));
+    if (!Array.isArray(data)) return [];
+    var seen = {};
+    var good = [];
+    data.forEach(function (raw) {
+      var p = cleanProfile(raw);
+      if (!p || seen[p.id]) return;
+      seen[p.id] = true;
+      good.push(p);
+    });
+    return good;
+  } catch (err) {
+    return [];
+  }
+}
+
+function profilesSave(list) {
+  try {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+// A lift of the profile by name (capital letters and spaces at the ends do not matter), or null.
+function findLift(profile, name) {
+  if (!profile || typeof name !== 'string') return null;
+  var wanted = name.trim().toLowerCase();
+  for (var i = 0; i < profile.lifts.length; i++) {
+    if (profile.lifts[i].name.trim().toLowerCase() === wanted) return profile.lifts[i];
+  }
+  return null;
+}
+
+// The value percentages use for a lift: its 1RM or its training max, as the profile says. null if blank.
+function liftBaseValue(lift) {
+  var v = lift.base === 'tm' ? lift.trainingMax : lift.oneRm;
+  return v === undefined ? null : v;
+}
+
+// Spec 3.4: `percent` of the lift's base value, rounded to the profile's step. null when the lift is
+// missing, its value is blank, or the percent is blank. (Pure: no drawing, no storage.)
+function kgForPercent(percent, liftName, profile) {
+  if (percent === null || percent === undefined) return null;
+  var lift = findLift(profile, liftName);
+  if (!lift) return null;
+  var base = liftBaseValue(lift);
+  if (base === null) return null;
+  var step = profile.rounding;
+  return cleanNum(Math.round(percent / 100 * base / step) * step);
+}
+
 // ---- Export everything / Import everything (Phase 2 spec 1.4 and 1.5) ----
 
 // The date and time of the last Export everything (ISO text), or null if never.
@@ -638,15 +785,15 @@ function buildLibraryFile(exportedOn) {
     format: LIBRARY_FORMAT,
     version: LIBRARY_FORMAT_VERSION,
     exportedOn: exportedOn,
-    programs: library.map(function (e) { return { id: e.id, name: e.name, modified: e.modified, program: e.program }; }),
+    programs: library.map(function (e) { return { id: e.id, name: e.name, kind: e.kind, modified: e.modified, program: e.program }; }),
     templates: [],
-    profiles: [],
+    profiles: JSON.parse(JSON.stringify(profiles)),
     versions: [],
     exerciseList: loadExerciseList()
   };
 }
 
-// Reads and checks a library file. Returns { entries, exerciseList } or null. One broken item
+// Reads and checks a library file. Returns { entries, profiles, exerciseList } or null. One broken item
 // refuses the whole file: a half-imported backup would be worse than none.
 function parseLibraryFile(text) {
   var data;
@@ -667,6 +814,17 @@ function parseLibraryFile(text) {
     seen[entry.id] = true;
     entries.push(entry);
   }
+  // Athlete profiles: every one must be valid, like the programs.
+  var profs = [];
+  if (data.profiles !== undefined) {
+    var seenP = {};
+    for (var k = 0; k < data.profiles.length; k++) {
+      var pr = cleanProfile(data.profiles[k]);
+      if (!pr || seenP[pr.id]) return null;
+      seenP[pr.id] = true;
+      profs.push(pr);
+    }
+  }
   var names = [];
   if (data.exerciseList !== undefined) {
     if (!Array.isArray(data.exerciseList) || data.exerciseList.length > MAX_EXERCISE_NAMES) return null;
@@ -677,7 +835,7 @@ function parseLibraryFile(text) {
       if (t !== '' && t.length <= 200 && !have[t]) { have[t] = true; names.push(t); }
     });
   }
-  return { entries: entries, exerciseList: names };
+  return { entries: entries, profiles: profs, exerciseList: names };
 }
 
 // Returns true if the write worked (localStorage can fail: private mode, full storage).
@@ -993,6 +1151,13 @@ function saveLibrary() {
   return draftSaved;
 }
 
+var profiles = [];   // every athlete profile (see "Athlete profiles" above)
+
+function saveProfiles() {
+  draftSaved = profilesSave(profiles);
+  return draftSaved;
+}
+
 // Marks the open program as edited just now. Its entry shares the program object, so only the
 // name and date need copying across.
 function touchCurrent() {
@@ -1017,8 +1182,10 @@ function changedQuietly() {
   document.getElementById('save-warning').hidden = draftSaved;
 }
 
-function addProgramEntry(p) {
-  var entry = { id: newLibraryId(), name: p.name, modified: new Date().toISOString(), program: p };
+// `kind` is 'program' (default) or 'template'. A template is a program meant to be reused for many
+// athletes (Phase 2 spec step 4); both live in the same list and open in the same editor.
+function addProgramEntry(p, kind) {
+  var entry = { id: newLibraryId(), name: p.name, kind: kind === 'template' ? 'template' : 'program', modified: new Date().toISOString(), program: p };
   library.push(entry);
   return entry;
 }
@@ -1035,6 +1202,7 @@ function setCurrent(entry) {
 function startUp() {
   document.getElementById('warn-export').addEventListener('click', exportEverything);
   library = libraryLoadPrograms();
+  profiles = profilesLoad();
   if (library.length === 0) {
     // First visit to the library: move the Phase 1 draft in (the draft key itself is left alone),
     // or start with an empty program.
@@ -1066,15 +1234,16 @@ function sizeSteppers(state) {
 
 // New program (opened from the Library): name, weeks and workouts per week. The new program is
 // added to the library and opened in the editor.
-function openNewProgramDialog() {
+function openNewProgramDialog(kind) {
+  var isTemplate = kind === 'template';
   var state = { weeks: 4, workouts: 3 };
-  var nameInput = textInput('New Program', { maxlength: '200', 'aria-label': 'Program name' });
+  var nameInput = textInput(isTemplate ? 'New Template' : 'New Program', { maxlength: '200', 'aria-label': isTemplate ? 'Template name' : 'Program name' });
   var error = el('div', { className: 'form-error' });
   function create() {
     var name = nameInput.value.trim();
     if (name === '') { error.textContent = 'Enter a name.'; return; }
     closeModal();
-    var entry = addProgramEntry(createDefaultProgram({ name: name, weeks: state.weeks, workoutsPerWeek: state.workouts }));
+    var entry = addProgramEntry(createDefaultProgram({ name: name, weeks: state.weeks, workoutsPerWeek: state.workouts }), kind);
     saveLibrary();
     setCurrent(entry);
     libraryOpen = false;
@@ -1082,7 +1251,7 @@ function openNewProgramDialog() {
   }
   nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') create(); });
   openModal({
-    title: 'New program',
+    title: isTemplate ? 'New template' : 'New program',
     body: el('div', null, [
       formRow('Name', nameInput),
       sizeSteppers(state),
@@ -1430,6 +1599,7 @@ function askImportMode(data) {
     ])]);
   }
   var summary = 'This file holds ' + plural(data.entries.length, 'program') +
+    (data.profiles.length ? ', ' + plural(data.profiles.length, 'athlete') : '') +
     (data.exerciseList.length ? ' and an Exercise List of ' + plural(data.exerciseList.length, 'exercise') : '') + '.';
   function go() {
     closeModal();
@@ -1462,14 +1632,24 @@ function applyImport(data, mode) {
   if (mode === 'replace') {
     library = data.entries.slice();
     if (library.length === 0) addProgramEntry(createDefaultProgram());
+    profiles = data.profiles.slice();
   } else {
+    var usedNames = {};
+    profiles.forEach(function (p) { usedNames[p.name] = true; });
+    data.profiles.forEach(function (p) {
+      var copy = JSON.parse(JSON.stringify(p));
+      copy.id = newProfileId();   // a new id, so nothing you have is replaced
+      if (usedNames[copy.name]) copy.name = (copy.name + ' (imported)').slice(0, 200);
+      usedNames[copy.name] = true;
+      profiles.push(copy);
+    });
     var used = {};
     library.forEach(function (e) { used[e.name] = true; });
     data.entries.forEach(function (e) {
       var p = e.program;
       if (used[p.name]) p.name = (p.name + ' (imported)').slice(0, 200);
       used[p.name] = true;
-      var added = addProgramEntry(p); // gets a new id
+      var added = addProgramEntry(p, e.kind); // gets a new id
       added.modified = e.modified;
     });
   }
@@ -1478,9 +1658,11 @@ function applyImport(data, mode) {
     try { localStorage.setItem(EXERCISE_LIST_KEY, JSON.stringify(data.exerciseList)); } catch (err) { /* reported below if the library fails too */ }
   }
   if (!findEntry(currentId)) setCurrent(mostRecentEntry());
-  if (!saveLibrary()) showMessage('Import everything', 'The imported programs could not be saved in this browser. They are in memory only until the page closes.');
+  var savedPrograms = saveLibrary();
+  var savedProfiles = saveProfiles();
+  if (!savedPrograms || !savedProfiles) showMessage('Import everything', 'The imported items could not be saved in this browser. They are in memory only until the page closes.');
   render();
-  showNotice('Imported ' + plural(data.entries.length, 'program') + '.');
+  showNotice('Imported ' + plural(data.entries.length, 'program') + (data.profiles.length ? ' and ' + plural(data.profiles.length, 'athlete') : '') + '.');
 }
 
 // Import program (Library page): reads and checks a program file and adds it to the library as a
@@ -1677,6 +1859,8 @@ function renderHeader() {
   });
 
   header.appendChild(nameInput);
+  var openEntry = findEntry(currentId);
+  if (openEntry && openEntry.kind === 'template') header.appendChild(el('span', { className: 'tag-template', text: 'Template' }));
   header.appendChild(el('span', {
     className: 'meta-text',
     text: plural(program.weeks, 'week') + ' · ' + plural(program.workoutsPerWeek, 'workout') + ' per week'
@@ -2739,18 +2923,55 @@ function workoutSlots(workout) {
   return slots;
 }
 
-// The small flag control in a week heading: none, Deload, Test or Competition. A flagged week shows
-// the flag as a coloured tag.
-function weekFlagSelect(week) {
+// The flag control at the right of a week heading: a grey flag icon. Clicking it opens a small menu
+// (None, Deload, Test, Competition). A flagged week shows its flag name and icon in the flag's colour.
+function weekFlagButton(week) {
   var current = program.weekFlags[week];
-  var select = selectBox([['', 'Flag']].concat(WEEK_FLAGS.map(function (f) { return [f, WEEK_FLAG_LABELS[f]]; })), current || '');
-  select.className = 'flag-select' + (current ? ' flag-' + current : '');
-  select.setAttribute('aria-label', 'Flag for Week ' + (week + 1));
-  select.addEventListener('change', function () {
-    program.weekFlags[week] = select.value === '' ? null : select.value;
-    changed();
-  });
-  return select;
+  var label = current ? WEEK_FLAG_LABELS[current] : 'None';
+  // A flagged week shows just its name (in the flag's colour); the grey flag icon is only for unflagged weeks.
+  var children = [current
+    ? el('span', { className: 'flag-name', text: label })
+    : el('span', { className: 'flag-ico', text: '⚑' })];
+  var btn = el('button', {
+    className: 'flag-btn' + (current ? ' flag-' + current : ''),
+    title: 'Flag this week (now: ' + label + ')', 'aria-label': 'Flag for Week ' + (week + 1) + ': ' + label,
+    'aria-haspopup': 'menu'
+  }, children);
+  btn.addEventListener('click', function () { openFlagMenu(btn, week); });
+  return btn;
+}
+
+var flagMenuCleanup = null;
+
+function closeFlagMenu() {
+  var menu = document.getElementById('flag-menu');
+  if (menu) menu.remove();
+  if (flagMenuCleanup) { flagMenuCleanup(); flagMenuCleanup = null; }
+}
+
+function openFlagMenu(anchor, week) {
+  closeFlagMenu();
+  var current = program.weekFlags[week];
+  var items = [[null, 'None']].concat(WEEK_FLAGS.map(function (f) { return [f, WEEK_FLAG_LABELS[f]]; }));
+  var menu = el('div', { id: 'flag-menu', className: 'flag-menu', role: 'menu' }, items.map(function (item) {
+    return el('button', {
+      className: 'flag-item' + (item[0] ? ' flag-' + item[0] : '') + (item[0] === current ? ' on' : ''),
+      role: 'menuitem', text: item[1],
+      onclick: function () { closeFlagMenu(); program.weekFlags[week] = item[0]; changed(); }
+    });
+  }));
+  document.body.appendChild(menu);
+  var box = anchor.getBoundingClientRect();
+  menu.style.top = (box.bottom + 4) + 'px';
+  menu.style.left = Math.max(8, box.right - menu.offsetWidth) + 'px';   // right edge under the icon
+  function onDown(e) { if (!menu.contains(e.target) && !anchor.contains(e.target)) closeFlagMenu(); }
+  function onKey(e) { if (e.key === 'Escape') closeFlagMenu(); }
+  document.addEventListener('mousedown', onDown, true);
+  document.addEventListener('keydown', onKey);
+  flagMenuCleanup = function () {
+    document.removeEventListener('mousedown', onDown, true);
+    document.removeEventListener('keydown', onKey);
+  };
 }
 
 // One cell of the grid: what one slot looks like in one week. It is left blank where the exercise
@@ -2808,8 +3029,7 @@ function renderGrid() {
   var headRow = el('tr');
   for (var w = 0; w < program.weeks; w++) {
     headRow.appendChild(el('th', { className: 'week-col' }, [
-      el('span', { text: 'Week ' + (w + 1) }),
-      weekFlagSelect(w)
+      el('div', { className: 'th-in' }, [el('span', { text: 'Week ' + (w + 1) }), weekFlagButton(w)])
     ]));
   }
 
@@ -2874,7 +3094,18 @@ function render() {
   var header = document.getElementById('header');
   var workspace = document.getElementById('workspace');
   var lib = document.getElementById('library');
+  var profileBox = document.getElementById('profile');
   document.getElementById('save-warning').hidden = draftSaved;
+  if (profileOpenId !== null && findProfile(profileOpenId)) {
+    header.hidden = true;
+    workspace.hidden = true;
+    lib.hidden = true;
+    profileBox.hidden = false;
+    renderProfile();
+    return;
+  }
+  profileOpenId = null;
+  profileBox.hidden = true;
   if (libraryOpen) {
     header.hidden = true;
     workspace.hidden = true;
@@ -2928,9 +3159,25 @@ function plural(n, word) {
 function duplicateProgram(entry) {
   var copy = JSON.parse(JSON.stringify(entry.program));
   copy.name = (entry.program.name + ' copy').slice(0, 200);
-  addProgramEntry(copy);
+  addProgramEntry(copy, entry.kind);
   saveLibrary();
   showNotice('Duplicated.');
+  render();
+}
+
+// Saves a copy of a program as a template: same structure and prescriptions, with the calculated kg
+// values cleared (a template is for any athlete, so it carries no personal weights).
+function saveAsTemplate(entry) {
+  var copy = JSON.parse(JSON.stringify(entry.program));
+  copy.name = (entry.program.name + ' (template)').slice(0, 200);
+  copy.workouts.forEach(function (w) {
+    w.exercises.forEach(function (ex) {
+      ex.weeks.forEach(function (week) { week.groups.forEach(function (g) { g.kg = null; }); });
+    });
+  });
+  addProgramEntry(copy, 'template');
+  saveLibrary();
+  showNotice('Saved as a template.');
   render();
 }
 
@@ -2982,6 +3229,7 @@ function renderProgramRow(entry) {
   var acts = [];
   acts.push(el('button', { text: 'Open', onclick: function () { openFromLibrary(entry); } }));
   acts.push(el('button', { text: 'Duplicate', onclick: function () { duplicateProgram(entry); } }));
+  if (entry.kind !== 'template') acts.push(el('button', { text: 'Save as template', onclick: function () { saveAsTemplate(entry); } }));
   acts.push(el('button', { text: 'Rename', onclick: function () { renameProgram(entry); } }));
   acts.push(el('button', { text: 'Export', onclick: function () { downloadProgram(p); } }));
   acts.push(el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteProgram(entry); } }));
@@ -2996,11 +3244,28 @@ function renderProgramRow(entry) {
   ]);
 }
 
-// TEMPORARY section (see the note above): every program, newest edited first.
+// The Templates section (above the athletes): reusable programs, newest edited first.
+function renderTemplatesSection() {
+  var wrap = el('div');
+  var sorted = library.filter(function (e) { return e.kind === 'template'; })
+    .sort(function (a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; });
+  wrap.appendChild(el('div', { className: 'lib-sect static' }, [
+    el('span', { text: 'Templates' }),
+    el('span', { className: 'count', text: String(sorted.length) }),
+    el('button', { className: 'primary', text: 'New Template', onclick: function () { openNewProgramDialog('template'); } })
+  ]));
+  if (sorted.length === 0) {
+    wrap.appendChild(el('div', { className: 'lib-row' }, [el('div', { className: 't dim', text: 'No templates yet. A template is a program you reuse for different athletes. Create one, or use Save as template on a program below.' })]));
+  }
+  sorted.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry)); });
+  return wrap;
+}
+
+// TEMPORARY section (see the note above): every program that is not a template, newest edited first.
 function renderUnlinkedSection() {
   var wrap = el('div');
-  if (library.length === 0) return wrap; // hidden when empty
-  var sorted = library.slice().sort(function (a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; });
+  var sorted = library.filter(function (e) { return e.kind !== 'template'; })
+    .sort(function (a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; });
   wrap.appendChild(el('div', {
     className: 'lib-sect', role: 'button', tabindex: '0', 'aria-expanded': unlinkedOpen ? 'true' : 'false',
     onclick: function () { unlinkedOpen = !unlinkedOpen; render(); }
@@ -3056,10 +3321,359 @@ function renderLibrary() {
       el('button', { text: 'Export everything', onclick: exportEverything })
     ])
   ]));
-  var body = el('div', { className: 'lib-body' }, [renderUnlinkedSection()]);
+  var body = el('div', { className: 'lib-body' }, [renderTemplatesSection(), renderAthletesSection(), renderUnlinkedSection()]);
   box.appendChild(body);
   box.appendChild(renderLibraryFooter());   // always at the bottom of the page
   body.scrollTop = scrollTop;
+}
+
+/* ==========================================================================
+   ATHLETES (Phase 2 spec step 3): the Athletes section of the Library and the profile screen
+   ========================================================================== */
+
+var profileOpenId = null;   // id of the profile open on the profile screen, or null
+var profileSearch = '';     // the search text above the "can't do" list
+
+function findProfile(id) {
+  for (var i = 0; i < profiles.length; i++) if (profiles[i].id === id) return profiles[i];
+  return null;
+}
+
+// Called after every edit to a profile: stamps the date and saves. It does not redraw, so typing
+// in a box keeps its cursor.
+function profileTouched(p) {
+  p.modified = new Date().toISOString();
+  saveProfiles();
+  document.getElementById('save-warning').hidden = draftSaved;
+}
+
+function todayIso() { return new Date().toISOString(); }
+
+function openProfile(id) {
+  profileOpenId = id;
+  profileSearch = '';
+  render();
+}
+
+function closeProfile() {
+  profileOpenId = null;
+  libraryOpen = true;
+  render();
+}
+
+function addAthlete() {
+  var p = newProfile('New Athlete');
+  profiles.push(p);
+  saveProfiles();
+  openProfile(p.id);
+}
+
+function duplicateAthlete(p) {
+  var copy = JSON.parse(JSON.stringify(p));
+  copy.id = newProfileId();
+  copy.name = (p.name + ' copy').slice(0, 200);
+  copy.modified = new Date().toISOString();
+  profiles.push(copy);
+  saveProfiles();
+  showNotice('Duplicated.');
+  render();
+}
+
+// Programs made for this athlete. (Step 4 records the athlete in `program.source.profileId`; until
+// then no program is linked, so this is empty.)
+function programsOfAthlete(p) {
+  return library.filter(function (e) { return e.program.source && e.program.source.profileId === p.id; });
+}
+
+// Asks first. Programs made for the athlete are kept: they move to "Not linked to an athlete".
+// `after` (optional) runs instead of a plain redraw once the athlete is deleted.
+function deleteAthlete(p, after) {
+  var linked = programsOfAthlete(p);
+  var who = p.name || 'this athlete';
+  var text = 'This cannot be undone.';
+  if (linked.length > 0) {
+    text = plural(linked.length, 'program') + ' made for ' + who + ' will move to "Not linked to an athlete". The programs are kept. ' + text;
+  }
+  showConfirm({
+    title: 'Delete "' + who + '"?',
+    text: text,
+    confirmLabel: 'Delete',
+    onConfirm: function () {
+      linked.forEach(function (e) { e.program.source.profileId = null; });
+      profiles = profiles.filter(function (x) { return x !== p; });
+      saveProfiles();
+      if (linked.length > 0) saveLibrary();
+      if (after) after(); else render();
+    }
+  });
+}
+
+var SHORT_LIFT_NAMES = { 'Back Squat': 'Squat', 'Bench Press': 'Bench', 'Overhead Press': 'OHP' };
+
+// "Squat 200 · Bench 130 · Deadlift 240 · 2.5 kg steps" (a training max is marked TM).
+function liftsSummary(p) {
+  var parts = [];
+  p.lifts.forEach(function (l) {
+    var v = liftBaseValue(l);
+    if (v === null) return;
+    parts.push((SHORT_LIFT_NAMES[l.name] || l.name) + ' ' + formatNum(v) + (l.base === 'tm' ? ' TM' : ''));
+  });
+  return (parts.length ? parts.join(' · ') : 'No maxes entered') + ' · ' + formatNum(p.rounding) + ' kg steps';
+}
+
+function renderAthleteRow(p) {
+  var tags = [];
+  if (p.unavailable.length > 0) {
+    tags.push(el('span', { className: 'tag-warn', text: plural(p.unavailable.length, 'exercise') + ' unavailable' }));
+  }
+  return el('div', { className: 'lib-row ath-row' }, [
+    el('div', { className: 't' }, [
+      el('b', { text: p.name === '' ? '(No name)' : p.name }),
+      el('span', { text: liftsSummary(p) })
+    ])
+  ].concat(tags, [
+    el('span', { className: 'when', text: formatDate(p.modified) }),
+    el('div', { className: 'acts' }, [
+      el('button', { text: 'Edit profile', onclick: function () { openProfile(p.id); } }),
+      el('button', { text: 'Duplicate', onclick: function () { duplicateAthlete(p); } }),
+      el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteAthlete(p); } })
+    ])
+  ]));
+}
+
+// The Athletes section of the Library (above the programs).
+function renderAthletesSection() {
+  var wrap = el('div');
+  var sorted = profiles.slice().sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0; });
+  wrap.appendChild(el('div', { className: 'lib-sect static' }, [
+    el('span', { text: 'Athletes' }),
+    el('span', { className: 'count', text: String(sorted.length) }),
+    el('button', { className: 'primary', text: 'New Athlete', onclick: addAthlete })
+  ]));
+  if (sorted.length === 0) {
+    wrap.appendChild(el('div', { className: 'lib-row' }, [el('div', { className: 't dim', text: 'No athletes yet. Add one to keep their maxes and the exercises their gym does not have.' })]));
+  }
+  sorted.forEach(function (p) { wrap.appendChild(renderAthleteRow(p)); });
+  return wrap;
+}
+
+/* ---- The profile screen ---- */
+
+function sameName(a, b) { return a.trim().toLowerCase() === b.trim().toLowerCase(); }
+function isUnavailable(p, name) { return p.unavailable.some(function (n) { return sameName(n, name); }); }
+
+// A number typed in a box: returns a number from 0 to `max`, null for blank, or undefined if invalid.
+function readMax(text, max) {
+  var n = parseNumber(text);
+  if (n === null) return null;
+  return (isNaN(n) || n > max) ? undefined : n;
+}
+
+function renderLiftRow(p, l, index) {
+  var nameInput = textInput(l.name, { maxlength: '100', list: 'ex-datalist', 'aria-label': 'Lift name' });
+  nameInput.addEventListener('input', function () { l.name = nameInput.value; profileTouched(p); });
+
+  function maxInput(key, label) {
+    var input = textInput(l[key] === null ? '' : formatNum(l[key]), { inputmode: 'decimal', 'aria-label': label + ', ' + (l.name || 'lift') });
+    input.className = 'num-input';
+    input.addEventListener('change', function () {
+      var n = readMax(input.value, 2000);
+      if (n === undefined) {
+        showNotice('A max must be a number from 0 to 2000 kg, or left blank.');
+        input.value = l[key] === null ? '' : formatNum(l[key]);
+        return;
+      }
+      l[key] = n;
+      l.updated = todayIso();
+      profileTouched(p);
+      renderProfile();
+    });
+    return input;
+  }
+
+  function baseButton(value, text) {
+    return el('button', {
+      className: l.base === value ? 'on' : null, text: text, 'aria-pressed': l.base === value ? 'true' : 'false',
+      onclick: function () { l.base = value; profileTouched(p); renderProfile(); }
+    });
+  }
+
+  var note;
+  if (l.base === 'tm' && l.trainingMax === null) note = el('span', { className: 'warn-text', text: 'Add a training max' });
+  else note = el('span', { className: 'dim', text: l.updated ? formatDate(l.updated) : '' });
+
+  function remove() {
+    p.lifts.splice(index, 1);
+    profileTouched(p);
+    renderProfile();
+  }
+  var hasValues = l.oneRm !== null || l.trainingMax !== null;
+  return el('tr', null, [
+    el('td', null, [nameInput]),
+    el('td', null, [maxInput('oneRm', '1RM')]),
+    el('td', null, [maxInput('trainingMax', 'Training max')]),
+    el('td', null, [el('div', { className: 'segmented' }, [baseButton('1rm', '1RM'), baseButton('tm', 'TM')])]),
+    el('td', null, [note]),
+    el('td', null, [el('button', {
+      className: 'link-btn', text: '✕', 'aria-label': 'Remove ' + (l.name || 'lift'),
+      onclick: function () {
+        if (!hasValues) { remove(); return; }
+        showConfirm({ title: 'Remove ' + (l.name || 'this lift') + '?', text: 'Its maxes will be deleted.', confirmLabel: 'Remove', onConfirm: remove });
+      }
+    })])
+  ]);
+}
+
+// The right-hand column: the exercises this athlete cannot do, ticked from the Exercise List.
+function renderUnavailableColumn(p) {
+  var base = loadExerciseList();
+  var searchInput = textInput(profileSearch, { placeholder: 'Search the Exercise List…', 'aria-label': 'Search exercises' });
+  var countLine = el('div', { className: 'hint' });
+  var listBox = el('div', { className: 'pf-list' });
+  var addBox = el('div');
+
+  function names() {
+    // The Exercise List, then any ticked name that is not on it (marked so).
+    var extras = p.unavailable.filter(function (n) { return !base.some(function (b) { return sameName(b, n); }); });
+    return base.map(function (n) { return { name: n, extra: false }; })
+      .concat(extras.map(function (n) { return { name: n, extra: true }; }));
+  }
+
+  function toggle(name, on) {
+    if (on) { if (!isUnavailable(p, name)) p.unavailable.push(name); }
+    else p.unavailable = p.unavailable.filter(function (n) { return !sameName(n, name); });
+    profileTouched(p);
+    draw();
+  }
+
+  function draw() {
+    var all = names();
+    var q = profileSearch.trim().toLowerCase();
+    var shown = all.filter(function (x) { return q === '' || x.name.toLowerCase().indexOf(q) >= 0; });
+    countLine.textContent = p.unavailable.length + ' ticked of ' + all.length;
+    listBox.textContent = '';
+    if (base.length === 0) {
+      listBox.appendChild(el('div', { className: 'hint', text: 'Load your Exercise List (Library > Load Exercise List) to choose from it. You can still add names by typing them.' }));
+    }
+    shown.forEach(function (x) {
+      var box = el('input', { type: 'checkbox', 'aria-label': x.name });
+      box.checked = isUnavailable(p, x.name);
+      box.addEventListener('change', function () { toggle(x.name, box.checked); });
+      listBox.appendChild(el('label', { className: 'pf-check' + (box.checked ? ' no' : '') }, [
+        box,
+        el('span', { text: x.name }),
+        x.extra ? el('span', { className: 'warn-text', text: 'Not in your Exercise List' }) : el('span')
+      ]));
+    });
+    // A typed name that is not on the list can be added.
+    addBox.textContent = '';
+    var typed = profileSearch.trim();
+    if (typed !== '' && !all.some(function (x) { return sameName(x.name, typed); }) && typed.length <= 200) {
+      addBox.appendChild(el('button', {
+        className: 'link-btn acc', text: 'Add "' + typed + '" as unavailable',
+        onclick: function () {
+          p.unavailable.push(typed);
+          profileSearch = '';
+          searchInput.value = '';
+          profileTouched(p);
+          draw();
+        }
+      }));
+    }
+  }
+  searchInput.addEventListener('input', function () { profileSearch = searchInput.value; draw(); });
+  draw();
+
+  return el('div', { className: 'pf-right' }, [
+    el('div', { className: 'ps-head' }, [el('b', { text: "Exercises " + (p.name || 'this athlete') + " can't do" })]),
+    el('div', { className: 'hint', text: "Tick what the gym doesn't have. Everything else is available." }),
+    el('div', { className: 'pr' }, [searchInput]),
+    countLine,
+    addBox,
+    listBox
+  ]);
+}
+
+function renderProfile() {
+  var box = document.getElementById('profile');
+  var p = findProfile(profileOpenId);
+  if (!p) { profileOpenId = null; render(); return; }
+  var oldLeft = box.querySelector('.pf-left');
+  var oldList = box.querySelector('.pf-list');
+  var leftScroll = oldLeft ? oldLeft.scrollTop : 0;
+  var listScroll = oldList ? oldList.scrollTop : 0;
+  box.textContent = '';
+
+  var titleEl = el('span', { className: 'title', text: p.name === '' ? '(No name)' : p.name });
+  box.appendChild(el('div', { className: 'lib-bar' }, [
+    el('button', { className: 'link-btn', text: 'Library', onclick: closeProfile }),
+    el('span', { className: 'dim', text: '/' }),
+    titleEl,
+    el('div', { className: 'spacer' }, [
+      // Everything is saved as you type; Save makes it explicit and goes back to the Library.
+      el('button', { className: 'primary', text: 'Save', onclick: function () { saveProfiles(); showNotice('Saved.'); closeProfile(); } }),
+      el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteAthlete(p, closeProfile); } })
+    ])
+  ]));
+
+  // Name and notes
+  var nameInput = textInput(p.name, { maxlength: '200', 'aria-label': 'Athlete name' });
+  nameInput.addEventListener('input', function () {
+    p.name = nameInput.value;
+    titleEl.textContent = p.name === '' ? '(No name)' : p.name;
+    profileTouched(p);
+  });
+  var notes = el('textarea', { maxlength: '2000', 'aria-label': 'Notes', placeholder: 'Notes about this athlete' });
+  notes.value = p.notes;
+  notes.addEventListener('input', function () { p.notes = notes.value; profileTouched(p); });
+
+  // Lifts and maxes
+  var liftRows = el('tbody');
+  p.lifts.forEach(function (l, i) { liftRows.appendChild(renderLiftRow(p, l, i)); });
+  var liftTable = el('table', { className: 'pf-table' }, [
+    el('thead', null, [el('tr', null, [
+      el('th', { text: 'Lift' }), el('th', { text: '1RM' }), el('th', { text: 'Training max' }), el('th', { text: 'Use' }), el('th'), el('th')
+    ])]),
+    liftRows
+  ]);
+  var datalist = el('datalist', { id: 'ex-datalist' }, loadExerciseList().slice(0, 1000).map(function (n) { return el('option', { value: n }); }));
+
+  // Rounding
+  var roundInput = textInput(formatNum(p.rounding), { inputmode: 'decimal', 'aria-label': 'Round loads to' });
+  roundInput.className = 'num-input';
+  roundInput.addEventListener('change', function () {
+    var n = parseNumber(roundInput.value);
+    if (n === null || isNaN(n) || n < 0.5 || n > 10) {
+      showNotice('Rounding must be a number from 0.5 to 10 kg.');
+      roundInput.value = formatNum(p.rounding);
+      return;
+    }
+    p.rounding = n;
+    profileTouched(p);
+  });
+
+  var left = el('div', { className: 'pf-left' }, [
+    el('div', { className: 'ps-head' }, [el('b', { text: 'Athlete' })]),
+    panelRow('Name', [nameInput]),
+    panelRow('Notes', [notes]),
+    el('div', { className: 'ps' }, [
+      el('div', { className: 'ps-head' }, [
+        el('b', { text: 'Lifts and maxes' }),
+        el('span', { className: 'hint', text: 'kg · percentages use the value marked "Use"' }),
+        el('button', {
+          className: 'link-btn acc', text: 'Add lift',
+          onclick: function () { p.lifts.push(newLift('')); profileTouched(p); renderProfile(); }
+        })
+      ]),
+      liftTable,
+      datalist,
+      panelRow('Round loads to', [roundInput, el('span', { className: 'unit', text: 'kg (the smallest step your plates allow)' })])
+    ])
+  ]);
+  box.appendChild(el('div', { className: 'pf-body' }, [left, renderUnavailableColumn(p)]));
+  left.scrollTop = leftScroll;
+  var newList = box.querySelector('.pf-list');
+  if (newList) newList.scrollTop = listScroll;
 }
 
 /* ==========================================================================

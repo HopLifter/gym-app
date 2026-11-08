@@ -97,7 +97,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 | Key | Holds |
 |---|---|
 | `builder_programs_v1` | array of `{ id, name, modified, program }` |
-| `builder_templates_v1` | array of `{ id, name, modified, program }` (kg values all null) |
+| `builder_templates_v1` | not used. Decided 8 November 2026: a template is stored in `builder_programs_v1` as an entry with `kind: "template"` (programs have `kind: "program"`, or no `kind` in older data). Same editor, same Open, Duplicate, Rename, Export, Delete. A template has its calculated kg values cleared. |
 | `builder_profiles_v1` | array of profile objects (see 6.2) |
 | `builder_versions_v1` | array of `{ id, programId, savedOn, note, program }`, at most 10 per program |
 | `builder_open_v1` | `{ kind: "program" or "template", id }` of the item open in the editor |
@@ -175,7 +175,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 
 **2.4 Tempo.** Per set group, free text up to 12 characters (suggested format `3-1-1-0`). **2.5 Pause.** Per set group, seconds (0 to 30), shown as `2 s pause`.
 
-**2.6 Week flags.** Under each week heading in the grid, a small control: none, Deload, Test, Competition. Shown as a coloured tag on the week column. Deload only labels the week in this step (5.3 adds the behaviour).
+**2.6 Week flags.** At the right of each week heading in the grid, a grey flag icon; clicking it opens a small menu: None, Deload, Test, Competition. A flagged week shows the flag name and icon in the flag's colour (amber, blue, green), with no drop-down arrow. Deload only labels the week in this step (5.3 adds the behaviour).
 
 **2.7 Export of coaching fields.** Anything set is joined into the exercise `notes` in this fixed order, separated by ` · `, before the coach's own notes: `Top set · RIR 2 · 8–12 reps · Tempo 3-1-1-0 · 2 s pause`. For a group that has a load type of RIR, the `RIR 2` there is the whole prescription of the load. For an RPE target the value goes in the GymLog `rpe` field, not in notes. GymLog shows `notes` already, so nothing changes in the app. The builder's AI prompt (and `HOW TO READ THE PROGRAM JSON`) describes the new fields in this step's commit, as WORKFLOW requires.
 
@@ -197,6 +197,8 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 ### Step 3 – Reference lifts and athlete profiles
 
 **Goal:** the building blocks for Generate.
+
+**Build progress.** Step 3 is built in two stops. Stop 3a (built 8 November 2026, awaiting user test): athlete profiles (3.2, 3.3, 3.4, 3.6): storage, the Athletes section of the Library, the profile screen (layout B, two columns, chosen from `docs/mockups/Program Builder Athlete Profile - Options.html`), the unavailable-exercises list, and profiles in Export and Import everything. Stop 3b: the reference lift on exercises (3.1). Using the unavailable list inside programs (3.6 b to d) waits for step 4, which links a program to an athlete.
 
 **3.1 Reference lift on an exercise.** A `Reference lift` field in the Add exercise modal and in the table's exercise cell. It is a dropdown with the profile lift names (or the standard three if no profile is open), `None`, and `Other…` (free text). It applies to every set group of the exercise and is optional for kg and RPE loads (used for the charts). A % set group on an exercise with no reference lift shows a small warning `No reference lift`. Existing exercises default to none.
 
