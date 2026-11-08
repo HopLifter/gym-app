@@ -331,18 +331,18 @@ Before starting, ask me for my 1RM for every lift that uses a % load. I may also
 
 HOW TO READ THE PROGRAM JSON
 - "workouts" lists the workouts of one week. Each exercise has "weeks": one entry for each program week, in order (the first is Week 1). A week entry has "included" (false means the exercise is not done that week), "edited" and "groups".
-- A group is a set group: "sets" × "reps" at "load". "loadType" says what the load means: "kg" (kilograms), "pct" (percent of my 1RM) or "rpe" (target RPE). "rpe" is an optional target RPE for kg and pct loads. "rest" is in seconds. "kg" is the real weight you fill in; it is null for now.
-- Each exercise's "patterns" and "supersets" lists have one entry for each set group of its first week, in the same order. A blank load ("load": null) with a pattern changes every week by that pattern: "add" adds "amount" per week (in the unit of the load), and "percent" multiplies the previous weight by 1 + "amount" ÷ 100 and rounds to a multiple of "step" kg ("mode" says nearest, up or down). RPE never goes above 10.
+- A group is a set group: "sets" × "reps" at "load". "loadType" says what the load means: "kg" (kilograms), "pct" (percent of my 1RM), "rpe" (target RPE) or "rir" (target reps in reserve). "rpe" and "rir" are also optional effort targets for kg loads (a group never has both). "repsMax" is the top of a rep range, and then "reps" is the bottom. "setType" (warmup, top, backoff, amrap or drop), "tempo" and "pause" (seconds) are optional labels. "rest" is in seconds. "kg" is the real weight you fill in; it is null for now.
+- Each exercise's "patterns" and "supersets" lists have one entry for each set group of its first week, in the same order. A blank load ("load": null) with a pattern changes every week by that pattern: "add" adds "amount" per week (in the unit of the load), and "percent" multiplies the previous weight by 1 + "amount" ÷ 100 and rounds to a multiple of "step" kg ("mode" says nearest, up or down). RPE never goes above 10, and RIR never goes below 0.
 
 STEP 1: SUGGEST WEIGHTS
 Work out a kg value for every set group in a week where "included" is true:
 - "pct" load: 1RM × load ÷ 100, rounded to the nearest 2.5 kg.
 - "kg" load: use the load, unless I ask you to change it.
-- "rpe" or blank load: suggest a weight from my history. If there is no useful history, ask me for one. For a blank load with a pattern, suggest the first week's weight and follow the pattern for later weeks.
+- "rpe", "rir" or blank load: suggest a weight from my history. If there is no useful history, ask me for one. For a blank load with a pattern, suggest the first week's weight and follow the pattern for later weeks.
 Do not guess a 1RM. Ask if one is missing.
 
 STEP 2: SHOW ME A TABLE
-Show one table per workout, with these columns: Week, Exercise, Sets × Reps, Prescription, Suggested kg, Target RPE, Rest (min), Reasoning.
+Show one table per workout, with these columns: Week, Exercise, Sets × Reps, Prescription, Suggested kg, Target (RPE or RIR), Rest (min), Reasoning.
 Keep the Reasoning short. Group superset exercises together, and label them.
 Then ask me what I want to change.
 
@@ -372,7 +372,9 @@ Rules for File 1:
 - If an exercise has several set groups, create a separate exercise entry for each, in order.
 - "weight" is always in kg. "rest" is always in seconds.
 - Use a period for decimals.
-- "rpe" is the target RPE, or the load if the load type is "rpe". Leave it out if there is neither.
+- "rpe" is the target RPE, or the load if the load type is "rpe". Leave it out if there is neither. Never use "rpe" for RIR.
+- "reps" is the lower number of a rep range.
+- Put these in "notes", in this order, separated by " · ", before any notes I wrote: the set type (Warm-up, Top set, Back-off, AMRAP or Drop set), "RIR n" (the RIR target, or the load if the load type is "rir"), "a–b reps" for a rep range, "Tempo t" and "n s pause". Leave out anything that is not set.
 - For two set groups with the same value in their exercises' "supersets" list (the same pair id), give both entries the same "superset" letter if both exercises are included that week and both have that set group. Each pair gets its own letter. Letters restart in each workout. Put the two entries next to each other, at the position of the earlier one. An exercise with several paired set groups therefore appears several times.
 - Leave "superset" out for all other entries, including a paired set group when its partner isn't included that week.
 

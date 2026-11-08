@@ -82,8 +82,8 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 
 | New field | Type | Meaning |
 |---|---|---|
-| `rir` | number (0 to 10) or `null` | Step 2. Effort target in reps in reserve, for kg and % loads. A group has either `rpe` or `rir`, never both. It is `null` when `loadType` is `rir` or `rpe`. |
-| `loadType` | adds `"rir"` to `kg`, `pct`, `rpe` | Step 2. With `rir`, `load` is the RIR value and `kg` is always `null`. |
+| `rir` | number (0 to 10) or `null` | Step 2. Effort target in reps in reserve, for kg loads only (decided 8 November 2026; an older % load that already has a target keeps showing it so it can be cleared). A group has either `rpe` or `rir`, never both. It is `null` when `loadType` is `rir` or `rpe`. |
+| `loadType` | adds `"rir"` to `kg`, `pct`, `rpe` | Step 2. With `rir`, `load` is the RIR value, and `rpe` and `rir` (the targets) are `null`. `kg` may still be filled in (as for an RPE load). |
 | `setType` | `null` or `"warmup"`, `"top"`, `"backoff"`, `"amrap"`, `"drop"` | Step 2. |
 | `repsMax` | number or `null` | Step 2. `reps` is the lower end. When set it must be above `reps`. |
 | `tempo` | text or `null` | Step 2. Up to 12 characters, such as `3-1-1-0`. |
@@ -162,7 +162,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 **Goal:** the cheap options, all as fields with no new calculations.
 
 **2.1 RIR (reps in reserve).** RIR is a separate field from RPE. It works in two ways, per set group:
-- **As an effort target** next to a kg or % load. The set group's `Target` control chooses `RPE`, `RIR` or none. Only one is stored (`rpe` or `rir`); switching clears the other.
+- **As an effort target** next to a kg load (not next to a % load: decided 8 November 2026). The set group's `Target` control chooses `RPE`, `RIR` or none. Only one is stored (`rpe` or `rir`); switching clears the other.
 - **As a load type**, a fourth choice beside kg, % and RPE, for sets where the load itself is chosen by feel (for example 3 × 8 at RIR 2, weight blank). The load is the RIR value (0 to 10, whole or half steps).
 - **Patterns for the RIR load type:** `Same every week`, `−1 RIR per week` (never below 0), `Set each week manually`. A custom step is not offered, as for RPE.
 - Switching a group's load type to or from RIR follows the existing load-type switching rule (asks first if values exist; edited weeks can be kept or cleared).
@@ -178,6 +178,8 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 **2.6 Week flags.** Under each week heading in the grid, a small control: none, Deload, Test, Competition. Shown as a coloured tag on the week column. Deload only labels the week in this step (5.3 adds the behaviour).
 
 **2.7 Export of coaching fields.** Anything set is joined into the exercise `notes` in this fixed order, separated by ` · `, before the coach's own notes: `Top set · RIR 2 · 8–12 reps · Tempo 3-1-1-0 · 2 s pause`. For a group that has a load type of RIR, the `RIR 2` there is the whole prescription of the load. For an RPE target the value goes in the GymLog `rpe` field, not in notes. GymLog shows `notes` already, so nothing changes in the app. The builder's AI prompt (and `HOW TO READ THE PROGRAM JSON`) describes the new fields in this step's commit, as WORKFLOW requires.
+
+**Build progress.** Step 2 is built in three stops. Layout chosen from the mockup (`docs/mockups/Program Builder Coaching Fields - Options.html`): week editor option B (core fields on one line, a second line for set type, tempo and pause shown only when used or after one click); grid display 1 (set-type badge before the prescription, a dim detail line for tempo and pause only when used). Stop 1 (built 7 November 2026, awaiting user test): rep range, RPE or RIR target (as a target only), set type, tempo and pause, in the week editor and the grid; Phase 1 files migrate. Stop 2 (built 7 November 2026, awaiting user test): RIR as a fourth load type (`-1 RIR per week`, never below 0), set-type badge moved to the right of the load, and the AI prompt (and Phase 1 spec section 7) updated for all the new fields. Stop 3: week flags.
 
 **Data:** the set group, program and week-flag fields in section 5. Adding or removing a week adds or removes a flag entry. Phase 1 files open with all new fields empty.
 
@@ -418,6 +420,7 @@ Questions 1 to 6 were decided in review on 6 November 2026 (also recorded in sec
 4. **Back-offs (5.4):** no limit on top sets; any set group can take its load from any other set group of the same exercise (no loops).
 5. **Unavailable exercises on Generate (4.2):** flagged and kept in the new program.
 
+7. **kg only for programs that belong to a lifter (idea from the user, 7 November 2026; to confirm in step 3 or 4).** A kg load only makes sense once a program is tied to a specific lifter. So a template would offer % of 1RM, RPE and RIR (and RPE/RIR targets), and the kg option would be hidden or disabled in templates. A program tied to a lifter would offer all four. **Decided (8 November 2026):** a Phase 1 program that uses kg loads is not changed or converted. It stays in the Library under "Not linked to an athlete", with a small note (such as "pre-filled") saying it came in with kg loads already set. Building this and hiding kg in templates belongs to step 4. Not built; today every program offers all four load types.
 6. **Linking an existing program to an athlete:** not built. The "Not linked to an athlete" section is temporary (1.1), so it gets no `Link to athlete…` action. To use an old program for an athlete, save it as a template (step 4) and use it for that athlete.
 
 New questions that come up while building go here before they are decided.

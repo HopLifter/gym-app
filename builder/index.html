@@ -115,14 +115,22 @@
   .ex-scheme { color: var(--text-dim); }
   .ex-load { font-weight: 600; }
   /* The superset label (A1, A2) sits at the right end of the prescription line. */
-  .ex-label { color: var(--accent); font-weight: 700; margin-left: auto; padding-left: 8px; }
+  .ex-label { color: var(--accent); font-weight: 700; }
   /* All load types use the accent colour; the text itself names the type (kg, %, RPE). */
-  .load-kg, .load-pct, .load-rpe { color: var(--accent); }
+  .load-kg, .load-pct, .load-rpe, .load-rir { color: var(--accent); }
   .load-blank { color: var(--text-dim); font-style: italic; font-weight: 400; }
   .ex-more { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
   .ex-edited { color: var(--text-dim); font-size: 12px; margin-left: auto; white-space: nowrap; }
-  .ex-group { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; margin-top: 2px; }
+  /* A set group line: the prescription on the left (it can wrap), the superset label at the right. */
+  .ex-group { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; align-items: start; margin-top: 2px; }
+  .ex-rx { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; min-width: 0; }
   .ex-group + .ex-group { border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 6px; }
+  .set-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; align-self: center;
+    padding: 0 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--text-dim);
+  }
+  .set-badge.strong { border-color: #3B4A1C; color: var(--accent); }
+  .ex-sub { grid-column: 1 / -1; font-size: 12px; color: var(--text-dim); }
   .ss-block { border-left: 2px solid var(--accent); padding-left: 8px; margin-left: -10px; }
   .ss-block .ex { padding: 3px 0; }
   .ss-block .ex + .ex { border-top: 1px solid var(--hair); }
@@ -169,6 +177,11 @@
     border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
   }
   .detail textarea:focus { outline: none; border-color: var(--accent); }
+  .detail select { background: var(--bg); color: var(--text); font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
+  .detail select:focus { outline: none; border-color: var(--accent); }
+  .tempo-input { width: 110px; }
+  .pr .tgt input[type="text"] { width: 54px; flex: none; }
+  .pr .segmented button { padding: 4px 9px; font-size: 12px; }
   .danger-text { color: var(--danger); }
   .segmented { display: inline-flex; }
   .segmented button { border-radius: 0; margin-left: -1px; padding: 5px 12px; }
@@ -187,7 +200,7 @@
   .ex.clickable:focus-visible { outline: 2px solid var(--accent); }
 
   /* ---- Forms inside modals ---- */
-  .modal.wide { width: 720px; }
+  .modal.wide { width: 800px; }
   .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
   .form-row label, .group-row label { color: var(--text-dim); font-size: 12px; }
   .form-cols { display: flex; gap: 12px; }
@@ -205,6 +218,19 @@
   .group-row { display: flex; gap: 8px; align-items: flex-end; margin-bottom: 10px; }
   .group-row > div { flex: 1; min-width: 0; }
   .group-row .del { flex: 0 0 auto; }
+  /* Week editor: narrow fields so a whole set group (with rep range and target) fits on one line. */
+  .group-row > .w-xs { flex: 0 0 52px; }
+  .group-row > .w-sm { flex: 0 0 74px; }
+  .group-row > .w-target { flex: 0 0 172px; }
+  .tgt { display: flex; align-items: center; gap: 6px; }
+  .tgt input[type="text"] { width: 54px; flex: none; }
+  .tgt .segmented button { padding: 5px 7px; font-size: 12px; }
+  /* The second line of a set group: set type, tempo, pause. */
+  .group-more { display: flex; gap: 8px; align-items: flex-end; margin: -2px 0 14px 12px; padding-left: 12px; border-left: 2px solid var(--line); }
+  .group-more > div { min-width: 0; }
+  .group-more .w-md { flex: 0 0 150px; }
+  .group-more .w-sm { flex: 0 0 74px; }
+  .group-more-link { margin: -2px 0 12px 12px; }
   .opt { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; cursor: pointer; }
   .opt input { width: auto; margin: 0; accent-color: var(--accent); }
   .opt-label { font-weight: 600; }
@@ -246,7 +272,6 @@
   #library { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .lib-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
   .lib-bar, .lib-foot { flex: none; }
-  .lib-row .t.clickable { cursor: pointer; }
   .meta-text { color: var(--text-dim); }
   .icon-btn { background: none; border: none; padding: 2px 6px; font-size: 17px; line-height: 1; color: var(--text-dim); }
   .icon-btn:hover:not(:disabled) { color: var(--accent); border-color: transparent; }
@@ -332,9 +357,23 @@ function syncIdCounter(program) {
   nextIdNumber = highest + 1;
 }
 
+// Set types (Phase 2 spec 2.2): a label for a set group. Nothing is calculated from it yet.
+var SET_TYPES = ['warmup', 'top', 'backoff', 'amrap', 'drop'];
+var SET_TYPE_LABELS = { warmup: 'Warm-up', top: 'Top set', backoff: 'Back-off', amrap: 'AMRAP', drop: 'Drop set' };
+var SET_TYPE_BADGES = { warmup: 'Warm-up', top: 'Top', backoff: 'Back-off', amrap: 'AMRAP', drop: 'Drop' };
+
 function newGroup() {
   // `rest` is in seconds and belongs to the set group, so groups can rest for different times.
-  return { sets: 3, reps: 10, loadType: 'kg', load: null, rpe: null, kg: null, rest: 90 };
+  // Coaching fields (Phase 2 spec step 2), all optional (null = not used):
+  //   repsMax   upper end of a rep range (`reps` is then the lower end)
+  //   rir       target reps in reserve (a group has an RPE target or an RIR target, never both)
+  //   setType   one of SET_TYPES
+  //   tempo     free text up to 12 characters, such as 3-1-1-0
+  //   pause     seconds paused in the bottom position, 0 to 30
+  return {
+    sets: 3, reps: 10, repsMax: null, loadType: 'kg', load: null, rpe: null, rir: null, kg: null, rest: 90,
+    setType: null, tempo: null, pause: null
+  };
 }
 
 function newWeekEntry() {
@@ -398,12 +437,21 @@ function isValidGroup(g) {
   return !!g && typeof g === 'object'
     && isWholeBetween(g.sets, 1, 99)
     && isWholeBetween(g.reps, 1, 999)
-    && (g.loadType === 'kg' || g.loadType === 'pct' || g.loadType === 'rpe')
+    && (g.loadType === 'kg' || g.loadType === 'pct' || g.loadType === 'rpe' || g.loadType === 'rir')
     && isNumOrNull(g.load)
     && isNumOrNull(g.rpe)
     && (g.loadType !== 'rpe' || g.rpe === null)
+    && (g.loadType !== 'rir' || g.rpe === null)    // a load that is itself an RPE or RIR has no separate target
     && isNumOrNull(g.kg)
-    && isNum(g.rest) && g.rest >= 0;
+    && isNum(g.rest) && g.rest >= 0
+    // Coaching fields. migrateOldPatterns fills them in (as null) for files made before they existed.
+    && (g.repsMax === null || (isWholeBetween(g.repsMax, 2, 999) && g.repsMax > g.reps))
+    && isNumOrNull(g.rir) && (g.rir === null || (g.rir >= 0 && g.rir <= 10))
+    && (g.rir === null || g.rpe === null)                        // one effort target, not both
+    && ((g.loadType !== 'rpe' && g.loadType !== 'rir') || g.rir === null)
+    && (g.setType === null || SET_TYPES.indexOf(g.setType) >= 0)
+    && (g.tempo === null || (typeof g.tempo === 'string' && g.tempo.length <= 12))
+    && (g.pause === null || isWholeBetween(g.pause, 0, 30));
 }
 
 function isValidWeekEntry(w) {
@@ -418,7 +466,7 @@ function isValidWeekEntry(w) {
 function isValidPattern(p) {
   return !!p && typeof p === 'object'
     && (p.kind === 'same' || p.kind === 'add' || p.kind === 'percent' || p.kind === 'manual')
-    && (p.type === 'kg' || p.type === 'pct' || p.type === 'rpe')
+    && (p.type === 'kg' || p.type === 'pct' || p.type === 'rpe' || p.type === 'rir')
     && isNum(p.amount)
     // Percentage patterns also say how to round (step in kg, and nearest / up / down).
     && (p.step === undefined || (isNum(p.step) && p.step > 0))
@@ -494,7 +542,10 @@ function migrateOldPatterns(p) {
       e.weeks.forEach(function (week) {
         if (!week || !Array.isArray(week.groups)) return;
         week.groups.forEach(function (g) {
-          if (g && typeof g === 'object' && g.rest === undefined) g.rest = rest;
+          if (!g || typeof g !== 'object') return;
+          if (g.rest === undefined) g.rest = rest;
+          // Coaching fields added in Phase 2 step 2: older files do not have them.
+          ['repsMax', 'rir', 'setType', 'tempo', 'pause'].forEach(function (key) { if (g[key] === undefined) g[key] = null; });
         });
       });
       delete e.rest;
@@ -670,14 +721,27 @@ function loadDraft() {
 function cleanNum(v) { return Math.round(v * 10000) / 10000; }
 
 function cloneGroup(g) {
-  return { sets: g.sets, reps: g.reps, loadType: g.loadType, load: g.load, rpe: g.rpe, kg: g.kg, rest: g.rest };
+  return {
+    sets: g.sets, reps: g.reps, repsMax: g.repsMax, loadType: g.loadType, load: g.load, rpe: g.rpe, rir: g.rir,
+    kg: g.kg, rest: g.rest, setType: g.setType, tempo: g.tempo, pause: g.pause
+  };
+}
+
+// Are two lists of set groups the same? (Compared field by field, so the order of keys in the
+// objects does not matter.)
+var GROUP_KEYS = ['sets', 'reps', 'repsMax', 'loadType', 'load', 'rpe', 'rir', 'kg', 'rest', 'setType', 'tempo', 'pause'];
+function groupsEqual(a, b) {
+  return a.length === b.length && a.every(function (x, i) {
+    return GROUP_KEYS.every(function (key) { return x[key] === b[i][key]; });
+  });
 }
 
 // The load one week later, following the pattern. `load` is never null here.
 function nextLoad(load, pattern) {
   if (pattern.kind === 'add') {
     var next = cleanNum(load + pattern.amount);
-    return pattern.type === 'rpe' ? Math.min(10, Math.max(0, next)) : next; // RPE tops out at 10
+    // RPE tops out at 10 and RIR cannot go below 0 (both stay between 0 and 10).
+    return (pattern.type === 'rpe' || pattern.type === 'rir') ? Math.min(10, Math.max(0, next)) : next;
   }
   if (pattern.kind === 'percent') {
     // e.g. +5% rounded to the nearest 2.5 kg: round(previous x 1.05 / 2.5) x 2.5.
@@ -784,6 +848,24 @@ function purgeBrokenPairs(workout) {
 
 function formatNum(v) { return String(Math.round(v * 100) / 100); }
 
+// "8" or "8–12" (a rep range).
+function repsText(g) { return g.reps + (g.repsMax !== null ? '–' + g.repsMax : ''); }
+// "3 × 8–12"
+function setsRepsText(g) { return g.sets + ' × ' + repsText(g); }
+// " @ RPE 8", " @ RIR 2", or '' when the group has no effort target.
+function targetText(g) {
+  if (g.rpe !== null) return ' @ RPE ' + formatNum(g.rpe);
+  if (g.rir !== null) return ' @ RIR ' + formatNum(g.rir);
+  return '';
+}
+// The tempo and pause of a group as one dim line, or '' if neither is set.
+function tempoPauseText(g) {
+  var parts = [];
+  if (g.tempo) parts.push('Tempo ' + g.tempo);
+  if (g.pause !== null) parts.push(g.pause + ' s pause');
+  return parts.join(' · ');
+}
+
 // How a set group's load is shown (spec 5.4, 5.11). Returns { text, cls }.
 // `plan` (optional) is text such as " + 5 kg": the change the pattern will make once a load is set.
 function describeLoad(g, plan) {
@@ -795,10 +877,11 @@ function describeLoad(g, plan) {
     return { text: shown, cls: 'load-kg' };
   }
   if (g.loadType === 'pct') return { text: formatNum(g.load) + '%' + kgPart, cls: 'load-pct' };
+  if (g.loadType === 'rir') return { text: 'RIR ' + formatNum(g.load) + kgPart, cls: 'load-rir' };
   return { text: 'RPE ' + formatNum(g.load) + kgPart, cls: 'load-rpe' };
 }
 
-var UNIT_SUFFIX = { kg: ' kg', pct: '%', rpe: ' RPE' };
+var UNIT_SUFFIX = { kg: ' kg', pct: '%', rpe: ' RPE', rir: ' RIR' };
 
 // For a set group whose load is still blank: the total change its pattern plans for this week,
 // counted from Week 1 (e.g. Week 3 of "+5 kg per week" gives " + 10 kg"). Returns '' when there
@@ -834,8 +917,9 @@ function replaceEditedGroup(ex, k) {
     if (g && f && g.loadType === f.loadType && g.load !== f.load) { g.load = f.load; g.kg = null; }
     var same = w.groups.length === fresh[i].groups.length && w.groups.every(function (x, j) {
       var y = fresh[i].groups[j];
-      return x.sets === y.sets && x.reps === y.reps && x.loadType === y.loadType
-        && x.load === y.load && x.rpe === y.rpe && x.rest === y.rest;
+      return x.sets === y.sets && x.reps === y.reps && x.repsMax === y.repsMax && x.loadType === y.loadType
+        && x.load === y.load && x.rpe === y.rpe && x.rir === y.rir && x.rest === y.rest
+        && x.setType === y.setType && x.tempo === y.tempo && x.pause === y.pause;
     });
     if (same) w.edited = false;
   });
@@ -1418,18 +1502,18 @@ var AI_PROMPT_LINES = [
   '',
   'HOW TO READ THE PROGRAM JSON',
   '- "workouts" lists the workouts of one week. Each exercise has "weeks": one entry for each program week, in order (the first is Week 1). A week entry has "included" (false means the exercise is not done that week), "edited" and "groups".',
-  '- A group is a set group: "sets" × "reps" at "load". "loadType" says what the load means: "kg" (kilograms), "pct" (percent of my 1RM) or "rpe" (target RPE). "rpe" is an optional target RPE for kg and pct loads. "rest" is in seconds. "kg" is the real weight you fill in; it is null for now.',
-  '- Each exercise\'s "patterns" and "supersets" lists have one entry for each set group of its first week, in the same order. A blank load ("load": null) with a pattern changes every week by that pattern: "add" adds "amount" per week (in the unit of the load), and "percent" multiplies the previous weight by 1 + "amount" ÷ 100 and rounds to a multiple of "step" kg ("mode" says nearest, up or down). RPE never goes above 10.',
+  '- A group is a set group: "sets" × "reps" at "load". "loadType" says what the load means: "kg" (kilograms), "pct" (percent of my 1RM), "rpe" (target RPE) or "rir" (target reps in reserve). "rpe" and "rir" are also optional effort targets for kg loads (a group never has both). "repsMax" is the top of a rep range, and then "reps" is the bottom. "setType" (warmup, top, backoff, amrap or drop), "tempo" and "pause" (seconds) are optional labels. "rest" is in seconds. "kg" is the real weight you fill in; it is null for now.',
+  '- Each exercise\'s "patterns" and "supersets" lists have one entry for each set group of its first week, in the same order. A blank load ("load": null) with a pattern changes every week by that pattern: "add" adds "amount" per week (in the unit of the load), and "percent" multiplies the previous weight by 1 + "amount" ÷ 100 and rounds to a multiple of "step" kg ("mode" says nearest, up or down). RPE never goes above 10, and RIR never goes below 0.',
   '',
   'STEP 1: SUGGEST WEIGHTS',
   'Work out a kg value for every set group in a week where "included" is true:',
   '- "pct" load: 1RM × load ÷ 100, rounded to the nearest 2.5 kg.',
   '- "kg" load: use the load, unless I ask you to change it.',
-  '- "rpe" or blank load: suggest a weight from my history. If there is no useful history, ask me for one. For a blank load with a pattern, suggest the first week\'s weight and follow the pattern for later weeks.',
+  '- "rpe", "rir" or blank load: suggest a weight from my history. If there is no useful history, ask me for one. For a blank load with a pattern, suggest the first week\'s weight and follow the pattern for later weeks.',
   'Do not guess a 1RM. Ask if one is missing.',
   '',
   'STEP 2: SHOW ME A TABLE',
-  'Show one table per workout, with these columns: Week, Exercise, Sets × Reps, Prescription, Suggested kg, Target RPE, Rest (min), Reasoning.',
+  'Show one table per workout, with these columns: Week, Exercise, Sets × Reps, Prescription, Suggested kg, Target (RPE or RIR), Rest (min), Reasoning.',
   'Keep the Reasoning short. Group superset exercises together, and label them.',
   'Then ask me what I want to change.',
   '',
@@ -1459,7 +1543,9 @@ var AI_PROMPT_LINES = [
   '- If an exercise has several set groups, create a separate exercise entry for each, in order.',
   '- "weight" is always in kg. "rest" is always in seconds.',
   '- Use a period for decimals.',
-  '- "rpe" is the target RPE, or the load if the load type is "rpe". Leave it out if there is neither.',
+  '- "rpe" is the target RPE, or the load if the load type is "rpe". Leave it out if there is neither. Never use "rpe" for RIR.',
+  '- "reps" is the lower number of a rep range.',
+  '- Put these in "notes", in this order, separated by " · ", before any notes I wrote: the set type (Warm-up, Top set, Back-off, AMRAP or Drop set), "RIR n" (the RIR target, or the load if the load type is "rir"), "a–b reps" for a rep range, "Tempo t" and "n s pause". Leave out anything that is not set.',
   '- For two set groups with the same value in their exercises\' "supersets" list (the same pair id), give both entries the same "superset" letter if both exercises are included that week and both have that set group. Each pair gets its own letter. Letters restart in each workout. Put the two entries next to each other, at the position of the earlier one. An exercise with several paired set groups therefore appears several times.',
   '- Leave "superset" out for all other entries, including a paired set group when its partner isn\'t included that week.',
   '',
@@ -1579,14 +1665,20 @@ function renderHeader() {
 // replaces the spec's "+N more").
 // `label` (optional) is a superset label such as "A1", shown in front of the line.
 function renderGroupLines(g, plan, label) {
-  var scheme = g.sets + ' × ' + g.reps;
-  if (g.rpe !== null) scheme += ' @ RPE ' + formatNum(g.rpe);
   var load = describeLoad(g, plan);
-  var line = el('div', { className: 'ex-group' }, [
-    el('span', { className: 'ex-scheme', text: scheme }),
-    el('span', { className: 'ex-load ' + load.cls, text: load.text })
-  ]);
-  if (label) line.appendChild(el('span', { className: 'ex-label', text: label })); // right end of the line
+  var line = el('div', { className: 'ex-group' });
+  // The prescription (it may wrap inside its own column) and, to its right, the superset label.
+  var rx = el('div', { className: 'ex-rx' });
+  // sets × reps (with a rep range and RPE or RIR target) and the load, always starting at the left;
+  // the set-type badge comes after them.
+  rx.appendChild(el('span', { className: 'ex-scheme', text: setsRepsText(g) + targetText(g) }));
+  rx.appendChild(el('span', { className: 'ex-load ' + load.cls, text: load.text }));
+  if (g.setType) rx.appendChild(el('span', { className: 'set-badge' + (g.setType === 'top' ? ' strong' : ''), text: SET_TYPE_BADGES[g.setType] }));
+  line.appendChild(rx);
+  if (label) line.appendChild(el('span', { className: 'ex-label', text: label }));
+  // Tempo and pause: a dim line of their own, only when used.
+  var extra = tempoPauseText(g);
+  if (extra) line.appendChild(el('span', { className: 'ex-sub', text: extra }));
   return line;
 }
 
@@ -1648,7 +1740,7 @@ function findSelected() {
 function groupHasLoadValues(ex, k) {
   return ex.weeks.some(function (w) {
     var g = w.groups[k];
-    return !!g && (g.load !== null || g.rpe !== null || g.kg !== null);
+    return !!g && (g.load !== null || g.rpe !== null || g.rir !== null || g.kg !== null);
   });
 }
 
@@ -1663,6 +1755,7 @@ function applyGroupLoadType(ex, k, type, replaceEdited) {
     g.loadType = type;
     g.load = null;
     g.rpe = null;
+    g.rir = null;
     g.kg = null;
   });
   ex.patterns[k] = samePattern(type);
@@ -1787,7 +1880,11 @@ function parseSigned(text) {
 function patternOption(p) {
   if (p.kind === 'manual') return 'manual';
   if (p.kind === 'percent') return 'percent';
-  if (p.kind === 'add') return (p.type === 'rpe' && p.amount === 1) ? 'rpe1' : 'custom';
+  if (p.kind === 'add') {
+    if (p.type === 'rpe' && p.amount === 1) return 'rpe1';
+    if (p.type === 'rir' && p.amount === -1) return 'rir1';
+    return 'custom';
+  }
   return 'same';
 }
 
@@ -1797,6 +1894,9 @@ function patternOptionsFor(type) {
   if (type === 'rpe') {
     // RPE is subjective and tops out at 10, so it only offers a whole-number step.
     list.push({ key: 'rpe1', label: '+1 RPE per week', desc: '' });
+  } else if (type === 'rir') {
+    // RIR also only offers a whole-number step, and goes down as the weeks get harder (never below 0).
+    list.push({ key: 'rir1', label: '−1 RIR per week', desc: '' });
   } else {
     list.push({ key: 'custom', label: 'Custom change per week', desc: '' });
     if (type === 'kg') {
@@ -1811,7 +1911,8 @@ function patternText(p) {
   var u = UNIT_SUFFIX[p.type];
   switch (patternOption(p)) {
     case 'rpe1':
-    case 'custom': return signedNum(p.amount) + u + ' per week';
+    case 'rir1':
+    case 'custom': return signedNum(p.amount).replace('-', '−') + u + ' per week';
     case 'percent':
       return '+' + formatNum(p.amount) + '% per week (rounded '
         + ({ up: 'up to', down: 'down to' }[p.mode] || 'to the nearest') + ' ' + formatNum(p.step || 2.5) + ' kg)';
@@ -1848,12 +1949,13 @@ function openPatternPicker(wi, ex, k) {
 
   function kindFor(opt) {
     if (opt === 'same' || opt === 'manual' || opt === 'percent') return opt;
-    return 'add'; // custom and rpe1
+    return 'add'; // custom, rpe1 and rir1
   }
 
   // The amount typed for the current option, or null if it is not a valid number.
   function amountFor(opt) {
     if (opt === 'rpe1') return 1;
+    if (opt === 'rir1') return -1;
     if (opt === 'custom') {
       var c = parseSigned(state.custom);
       return (isNaN(c) || Math.abs(c) > CUSTOM_LIMIT[type]) ? null : c;
@@ -2032,6 +2134,13 @@ function openPatternPicker(wi, ex, k) {
         noteBox.textContent = 'RPE is capped at 10. Every week after it reaches 10 stays at 10.';
       }
     }
+    // RIR cannot go below 0.
+    if (type === 'rir' && state.option === 'rir1') {
+      var startRir = readLoad(state.start, type);
+      if (!startRir.error && startRir.value !== null && startRir.value - (weekCount - 1) < 0) {
+        noteBox.textContent = 'RIR stops at 0. Every week after it reaches 0 stays at 0.';
+      }
+    }
   }
 
   // Weeks edited by hand: ask whether the new pattern should replace them or skip them.
@@ -2091,7 +2200,7 @@ function openPatternPicker(wi, ex, k) {
   }
 
   var groupLabel = ex.weeks[0].groups.length > 1
-    ? ' · Set group ' + (k + 1) + ' (' + group0.sets + ' × ' + group0.reps + ')'
+    ? ' · Set group ' + (k + 1) + ' (' + setsRepsText(group0) + ')'
     : '';
   var body = el('div', null, [
     el('div', { className: 'sub', text: ex.name + ' · Workout ' + (wi + 1) + groupLabel }),
@@ -2266,7 +2375,7 @@ function openSupersetPicker(wi, ex, k) {
       radio.addEventListener('change', function () { state.group = f.k; drawInfo(); });
       groupsBox.appendChild(el('label', { className: 'opt' }, [
         radio,
-        el('span', { className: 'opt-label', text: 'Set group ' + (f.k + 1) + ': ' + g.sets + ' × ' + g.reps }),
+        el('span', { className: 'opt-label', text: 'Set group ' + (f.k + 1) + ': ' + setsRepsText(g) }),
         el('span', { className: 'opt-desc', text: describeLoad(g).text })
       ]));
     });
@@ -2305,7 +2414,7 @@ function openSupersetPicker(wi, ex, k) {
   openModal({
     title: 'Superset',
     body: el('div', null, [
-      el('div', { className: 'sub', text: ex.name + ' · set group ' + (k + 1) + ' (' + mine.sets + ' × ' + mine.reps + ')' }),
+      el('div', { className: 'sub', text: ex.name + ' · set group ' + (k + 1) + ' (' + setsRepsText(mine) + ')' }),
       formRow('Superset with', partnerSelect),
       el('label', { className: 'pv-title', text: 'Which set group?' }),
       groupsBox,
@@ -2352,7 +2461,7 @@ function supersetRow(workout, wi, ex, r) {
     var pg = partner.ex.weeks[0].groups[partner.k];
     var many = partner.ex.weeks[0].groups.length > 1;
     return panelRow('Superset', [
-      el('span', { text: 'With ' + partner.ex.name + (many ? ' (group ' + (partner.k + 1) + ')' : '') + ', ' + pg.sets + ' × ' + pg.reps }),
+      el('span', { text: 'With ' + partner.ex.name + (many ? ' (group ' + (partner.k + 1) + ')' : '') + ', ' + setsRepsText(pg) }),
       el('button', { className: 'link-btn', text: 'Remove', onclick: function () { unpairGroup(workout, ex, r); } })
     ]);
   }
@@ -2366,25 +2475,99 @@ function supersetRow(workout, wi, ex, r) {
   return panelRow('Superset', [btn]);
 }
 
+// Changes fields of set group k in Week 1 (the source) and lets the weeks that are not edited follow.
+function setGroupFields(ex, k, changes) {
+  var g = ex.weeks[0].groups[k];
+  Object.keys(changes).forEach(function (key) { g[key] = changes[key]; });
+  ex.weeks = generateWeeks(ex, program.weeks);
+  changed();
+}
+
+// Which effort target (RPE or RIR) the panel shows for a set group while its number is blank.
+var targetModeMemory = {};
+
+// The effort target: an RPE | RIR switch and a number. Not shown when the group's load is an RPE.
+function targetRow(ex, r) {
+  var g = ex.weeks[0].groups[r];
+  if (!hasEffortTarget(g.loadType, g.rpe !== null || g.rir !== null)) return null;
+  var key = ex.id + ':' + r;
+  var mode = g.rir !== null ? 'rir' : (g.rpe !== null ? 'rpe' : (targetModeMemory[key] || 'rpe'));
+  var seg = el('div', { className: 'segmented' }, ['rpe', 'rir'].map(function (m) {
+    return el('button', {
+      className: m === mode ? 'on' : null, text: m.toUpperCase(),
+      onclick: function () {
+        if (m === mode) return;
+        targetModeMemory[key] = m;
+        setGroupFields(ex, r, { rpe: null, rir: null });   // the number is not carried over: RPE 8 is not RIR 8
+      }
+    });
+  }));
+  var value = mode === 'rir' ? g.rir : g.rpe;
+  var input = textInput(value === null ? '' : formatNum(value), { inputmode: 'decimal', 'aria-label': 'Target ' + mode.toUpperCase() + ', set group ' + (r + 1), placeholder: '–' });
+  input.addEventListener('change', function () {
+    var target = readEffortTarget(input.value, mode.toUpperCase());
+    if (target.error) { showNotice(target.error); input.value = value === null ? '' : formatNum(value); return; }
+    setGroupFields(ex, r, mode === 'rir' ? { rir: target.value, rpe: null } : { rpe: target.value, rir: null });
+  });
+  return panelRow('Target', [el('div', { className: 'tgt' }, [seg, input])]);
+}
+
+function setTypeRow(ex, r) {
+  var g = ex.weeks[0].groups[r];
+  var select = selectBox([['', 'None']].concat(SET_TYPES.map(function (t) { return [t, SET_TYPE_LABELS[t]]; })), g.setType || '');
+  select.setAttribute('aria-label', 'Set type, set group ' + (r + 1));
+  select.addEventListener('change', function () { setGroupFields(ex, r, { setType: select.value === '' ? null : select.value }); });
+  return panelRow('Set type', [select]);
+}
+
+function tempoRow(ex, r) {
+  var g = ex.weeks[0].groups[r];
+  var input = textInput(g.tempo || '', { maxlength: '12', placeholder: '3-1-1-0', 'aria-label': 'Tempo, set group ' + (r + 1) });
+  input.className = 'tempo-input';
+  input.addEventListener('change', function () {
+    var text = input.value.trim();
+    if (text.length > 12) { showNotice('Tempo can have at most 12 characters.'); input.value = g.tempo || ''; return; }
+    setGroupFields(ex, r, { tempo: text === '' ? null : text });
+  });
+  return panelRow('Tempo', [input]);
+}
+
+function pauseRow(ex, r) {
+  var g = ex.weeks[0].groups[r];
+  var input = textInput(g.pause === null ? '' : String(g.pause), { inputmode: 'numeric', placeholder: '–', 'aria-label': 'Pause in seconds, set group ' + (r + 1) });
+  input.className = 'rest-input';
+  input.addEventListener('change', function () {
+    var text = input.value.trim();
+    var n = text === '' ? null : parseWhole(text, 0, 30);
+    if (n !== null && isNaN(n)) { showNotice('Pause must be a whole number of seconds from 0 to 30.'); input.value = g.pause === null ? '' : String(g.pause); return; }
+    setGroupFields(ex, r, { pause: n });
+  });
+  return panelRow('Pause', [input, el('span', { className: 'unit', text: 's' })]);
+}
+
 function renderSetGroupSection(workout, wi, ex, r) {
   var g = ex.weeks[0].groups[r];
   return el('div', { className: 'ps' }, [
     el('div', { className: 'ps-head' }, [
-      el('b', { text: 'Set group ' + (r + 1) + ' · ' + g.sets + ' × ' + g.reps }),
+      el('b', { text: 'Set group ' + (r + 1) + ' · ' + setsRepsText(g) }),
       el('button', {
-        className: 'link-btn', text: 'Edit', title: 'Edit sets, reps and load in Week 1',
+        className: 'link-btn', text: 'Edit', title: 'Edit sets, reps, rep range and load in Week 1',
         onclick: function () { openWeekEditor(wi, ex, 0); }
       })
     ]),
     panelRow('Load type', [loadTypeControl(ex, r)]),
+    targetRow(ex, r),
     restRow(workout, ex, r),
+    setTypeRow(ex, r),
+    tempoRow(ex, r),
+    pauseRow(ex, r),
     panelRow('Progression', [el('button', {
       className: 'link-btn acc', title: 'Change how this set group repeats across weeks',
       text: patternText(ex.patterns[r]) + ' ▸',
       onclick: function () { openPatternPicker(wi, ex, r); }
     })]),
     supersetRow(workout, wi, ex, r)
-  ]);
+  ].filter(Boolean));
 }
 
 // One row per week, one column per set group. Click a value to edit that week. A dashed underline
@@ -2413,7 +2596,7 @@ function renderWeeksStrip(wi, ex) {
           var first = ex.weeks[0].groups[g];
           var load = describeLoad(grp, plannedChange(ex.patterns[g] || samePattern(grp.loadType), w, grp, entry));
           var text = load.text;
-          if (first && (first.sets !== grp.sets || first.reps !== grp.reps)) text = grp.sets + ' × ' + grp.reps + ' · ' + text;
+          if (first && setsRepsText(first) !== setsRepsText(grp)) text = setsRepsText(grp) + ' · ' + text;
           td = el('td', {
             className: 'v' + (load.cls === 'load-blank' ? ' blank' : '') + (entry.edited ? ' edited' : ''),
             role: 'button', tabindex: '0', text: text, 'aria-label': 'Edit ' + ex.name + ' in Week ' + (w + 1)
@@ -2562,7 +2745,7 @@ function renderSlotCell(workout, wi, week, slot, isFirstWeek) {
 // The foot of a workout in one week: add an exercise, or remove the whole workout from the week.
 function renderFootCell(workout, wi, week) {
   var foot = [el('button', {
-    className: 'link-btn', text: '+ Add exercise',
+    className: 'link-btn', text: 'Add exercise',
     onclick: function () { openAddExerciseModal(wi, week); }
   })];
   if (workout.exercises.length > 0) {
@@ -2756,8 +2939,7 @@ function renderProgramRow(entry) {
   acts.push(el('button', { text: 'Export', onclick: function () { downloadProgram(p); } }));
   acts.push(el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteProgram(entry); } }));
   return el('div', { className: 'lib-row' + (isCurrent ? ' current' : '') }, [
-    // Clicking the name opens the program too.
-    el('div', { className: 't clickable', title: 'Open', onclick: function () { openFromLibrary(entry); } }, [
+    el('div', { className: 't' }, [
       el('b', { text: entry.name === '' ? '(No name)' : entry.name }),
       el('span', { text: plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout') })
     ]),
@@ -2880,8 +3062,13 @@ function parseWhole(text, lo, hi) {
   return n;
 }
 
-var LOAD_LIMITS = { kg: 2000, pct: 500, rpe: 10 };
-var LOAD_LABELS = { kg: 'kg', pct: '% of 1RM', rpe: 'RPE' };
+var LOAD_LIMITS = { kg: 2000, pct: 500, rpe: 10, rir: 10 };
+var LOAD_LABELS = { kg: 'kg', pct: '% of 1RM', rpe: 'RPE', rir: 'RIR' };
+
+// Only a kg load has a separate effort target (RPE or RIR). A % load, and a load that is itself an
+// RPE or RIR, do not. An older % load that already has a target keeps showing it (`hasValue`), so
+// it can still be changed or cleared.
+function hasEffortTarget(loadType, hasValue) { return loadType === 'kg' || !!hasValue; }
 
 // Returns { value } (a number or null) or { error }.
 function readLoad(text, loadType) {
@@ -2898,9 +3085,10 @@ function readRestMinutes(text) {
   return (n === null || isNaN(n) || n > 60) ? null : Math.round(n * 60);
 }
 
-function readTargetRpe(text) {
+// An effort target: a number from 0 to 10 (half steps allowed), or blank. `name` is "RPE" or "RIR".
+function readEffortTarget(text, name) {
   var n = parseNumber(text);
-  if (n !== null && (isNaN(n) || n > 10)) return { error: 'Target RPE must be a number from 0 to 10, or left blank.' };
+  if (n !== null && (isNaN(n) || n > 10)) return { error: 'Target ' + name + ' must be a number from 0 to 10, or left blank.' };
   return { value: n };
 }
 
@@ -3035,7 +3223,7 @@ function selectBox(options, value) {
   return select;
 }
 
-var LOAD_TYPE_OPTIONS = [['kg', 'kg'], ['pct', '% of 1RM'], ['rpe', 'RPE']];
+var LOAD_TYPE_OPTIONS = [['kg', 'kg'], ['pct', '% of 1RM'], ['rpe', 'RPE'], ['rir', 'RIR']];
 
 /* ---- Add exercise (spec 5.6) ---- */
 
@@ -3125,7 +3313,7 @@ function openAddExerciseModal(wi, weekIndex) {
       if (load.error) return showError(n + load.error);
       var rest = readRestMinutes(d.rest);
       if (rest === null) return showError(n + 'rest must be a number of minutes from 0 to 60.');
-      groups.push({ sets: sets, reps: reps, loadType: d.loadType, load: load.value, rpe: null, kg: null, rest: rest });
+      groups.push(Object.assign(newGroup(), { sets: sets, reps: reps, loadType: d.loadType, load: load.value, rest: rest }));
     }
 
     closeModal();
@@ -3189,16 +3377,26 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
   // `origIndex` remembers which set group a row came from, so its pattern follows it in Week 1.
   var drafts = entry.groups.map(function (g, i) {
     return {
-      sets: String(g.sets), reps: String(g.reps), loadType: g.loadType,
+      sets: String(g.sets), reps: String(g.reps), repsMax: g.repsMax === null ? '' : String(g.repsMax),
+      loadType: g.loadType,
       load: g.load === null ? '' : formatNum(g.load),
-      rpe: g.rpe === null ? '' : formatNum(g.rpe),
+      // One effort target per set group: RPE or RIR (`targetMode` says which; `target` is the number).
+      targetMode: g.rir !== null ? 'rir' : 'rpe',
+      target: g.rir !== null ? formatNum(g.rir) : (g.rpe === null ? '' : formatNum(g.rpe)),
       rest: formatNum(g.rest / 60),
+      setType: g.setType || '', tempo: g.tempo || '', pause: g.pause === null ? '' : String(g.pause),
+      // The second line (set type, tempo, pause) is shown when the group uses it, or after one click.
+      more: !!(g.setType || g.tempo || g.pause !== null),
       orig: g, origIndex: i
     };
   });
 
   function newDraftLike(last) {
-    return { sets: last.sets, reps: last.reps, loadType: last.loadType, load: '', rpe: '', rest: last.rest, orig: null, origIndex: null };
+    return {
+      sets: last.sets, reps: last.reps, repsMax: '', loadType: last.loadType, load: '',
+      targetMode: last.targetMode, target: '', rest: last.rest,
+      setType: '', tempo: '', pause: '', more: false, orig: null, origIndex: null
+    };
   }
   if (addGroup) drafts.push(newDraftLike(drafts[drafts.length - 1]));
 
@@ -3209,10 +3407,34 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
     errorBox.hidden = false;
   }
 
-  function field(d, key, labelText, attrs) {
+  function field(d, key, labelText, attrs, cls) {
     var input = textInput(d[key], Object.assign({ inputmode: 'decimal' }, attrs || {}));
     input.addEventListener('input', function () { d[key] = input.value; });
-    return el('div', null, [el('label', { text: labelText }), input]);
+    return el('div', { className: cls || null }, [el('label', { text: labelText }), input]);
+  }
+
+  // The effort target: RPE or RIR (a small switch) and its number.
+  function targetControl(d, i) {
+    var seg = el('div', { className: 'segmented' }, ['rpe', 'rir'].map(function (mode) {
+      return el('button', {
+        className: d.targetMode === mode ? 'on' : null, text: mode.toUpperCase(),
+        onclick: function () { d.targetMode = mode; drawRows(); }
+      });
+    }));
+    var input = textInput(d.target, { inputmode: 'decimal', 'aria-label': 'Target ' + d.targetMode.toUpperCase() + ', set group ' + (i + 1) });
+    input.addEventListener('input', function () { d.target = input.value; });
+    return el('div', { className: 'w-target' }, [el('label', { text: 'Target' }), el('div', { className: 'tgt' }, [seg, input])]);
+  }
+
+  // The second line: set type, tempo and pause.
+  function moreFields(d) {
+    var typeSelect = selectBox([['', 'None']].concat(SET_TYPES.map(function (t) { return [t, SET_TYPE_LABELS[t]]; })), d.setType);
+    typeSelect.addEventListener('change', function () { d.setType = typeSelect.value; });
+    return el('div', { className: 'group-more' }, [
+      el('div', { className: 'w-md' }, [el('label', { text: 'Set type' }), typeSelect]),
+      field(d, 'tempo', 'Tempo', { inputmode: 'text', maxlength: '12', placeholder: '3-1-1-0' }, 'w-md'),
+      field(d, 'pause', 'Pause (s)', { inputmode: 'numeric' }, 'w-sm')
+    ]);
   }
 
   function drawRows() {
@@ -3223,15 +3445,16 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
       var typeSelect = selectBox(LOAD_TYPE_OPTIONS, d.loadType);
       typeSelect.setAttribute('aria-label', 'Load type, set group ' + (i + 1));
       if (d.orig) typeSelect.disabled = true;
-      typeSelect.addEventListener('change', function () { d.loadType = typeSelect.value; d.load = ''; d.rpe = ''; drawRows(); });
+      typeSelect.addEventListener('change', function () { d.loadType = typeSelect.value; d.load = ''; d.target = ''; drawRows(); });
       var cols = [
-        field(d, 'sets', 'Sets'),
-        field(d, 'reps', 'Reps'),
+        field(d, 'sets', 'Sets', null, 'w-xs'),
+        field(d, 'reps', 'Reps', null, 'w-xs'),
+        field(d, 'repsMax', 'to', { 'aria-label': 'Upper reps (a rep range), set group ' + (i + 1) }, 'w-xs'),
         el('div', null, [el('label', { text: 'Load type' }), typeSelect]),
-        field(d, 'load', 'Load (' + LOAD_LABELS[d.loadType] + ')')
+        field(d, 'load', 'Load (' + LOAD_LABELS[d.loadType] + ')', null, 'w-sm')
       ];
-      if (d.loadType !== 'rpe') cols.push(field(d, 'rpe', 'Target RPE'));
-      cols.push(field(d, 'rest', 'Rest (min)'));
+      if (hasEffortTarget(d.loadType, d.target.trim() !== '')) cols.push(targetControl(d, i));
+      cols.push(field(d, 'rest', 'Rest (min)', null, 'w-sm'));
       if (drafts.length > 1) {
         cols.push(el('button', {
           className: 'del', text: 'Delete', 'aria-label': 'Delete set group ' + (i + 1),
@@ -3239,6 +3462,14 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
         }));
       }
       rowsBox.appendChild(el('div', { className: 'group-row' }, cols));
+      if (d.more) {
+        rowsBox.appendChild(moreFields(d));
+      } else {
+        rowsBox.appendChild(el('div', { className: 'group-more-link' }, [el('button', {
+          className: 'link-btn acc', text: '▸ Set type, tempo, pause…',
+          onclick: function () { d.more = true; drawRows(); }
+        })]));
+      }
     });
   }
   drawRows();
@@ -3262,18 +3493,35 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
       if (isNaN(reps)) return showError('Set group ' + n + ': reps must be a whole number from 1 to 999.');
       var load = readLoad(d.load, d.loadType);
       if (load.error) return showError('Set group ' + n + ': ' + load.error);
-      var rpe = { value: null };
-      if (d.loadType !== 'rpe') {
-        rpe = readTargetRpe(d.rpe);
-        if (rpe.error) return showError('Set group ' + n + ': ' + rpe.error);
+      // Rep range: the upper number must be a whole number above the lower one, or blank.
+      var repsMax = null;
+      if (d.repsMax.trim() !== '') {
+        repsMax = parseWhole(d.repsMax, 2, 999);
+        if (isNaN(repsMax) || repsMax <= reps) return showError('Set group ' + n + ': the upper reps must be a whole number above the lower reps, or left blank.');
+      }
+      // Effort target: RPE or RIR (only one is stored). A group whose load is an RPE has no target.
+      var rpe = null;
+      var rir = null;
+      if (hasEffortTarget(d.loadType, d.target.trim() !== '')) {
+        var target = readEffortTarget(d.target, d.targetMode.toUpperCase());
+        if (target.error) return showError('Set group ' + n + ': ' + target.error);
+        if (d.targetMode === 'rir') rir = target.value; else rpe = target.value;
       }
       var rest = readRestMinutes(d.rest);
       if (rest === null) return showError('Set group ' + n + ': rest must be a number of minutes from 0 to 60.');
+      var tempo = d.tempo.trim();
+      if (tempo.length > 12) return showError('Set group ' + n + ': tempo can have at most 12 characters.');
+      var pause = null;
+      if (d.pause.trim() !== '') {
+        pause = parseWhole(d.pause, 0, 30);
+        if (isNaN(pause)) return showError('Set group ' + n + ': pause must be a whole number of seconds from 0 to 30.');
+      }
       // A kg value is cleared when its load or load type changes (spec 5.11).
       var keepKg = d.orig && d.orig.loadType === d.loadType && d.orig.load === load.value;
       groups.push({
-        sets: sets, reps: reps, loadType: d.loadType, load: load.value,
-        rpe: rpe.value, kg: keepKg ? d.orig.kg : null, rest: rest
+        sets: sets, reps: reps, repsMax: repsMax, loadType: d.loadType, load: load.value,
+        rpe: rpe, rir: rir, kg: keepKg ? d.orig.kg : null, rest: rest,
+        setType: d.setType === '' ? null : d.setType, tempo: tempo === '' ? null : tempo, pause: pause
       });
     }
     closeModal();
@@ -3295,7 +3543,7 @@ function openWeekEditor(wi, ex, weekIndex, addGroup) {
       purgeBrokenPairs(workout); // a deleted set group unpairs its partner
       syncPairs(workout, ex, 0);
       changed();
-    } else if (JSON.stringify(groups) !== JSON.stringify(entry.groups)) {
+    } else if (!groupsEqual(groups, entry.groups)) {
       entry.groups = groups;
       entry.edited = true;
       syncPairs(workout, ex, weekIndex);
