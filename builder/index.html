@@ -172,6 +172,20 @@
   .ph .x { background: none; border: none; color: var(--text-dim); font-size: 22px; line-height: 1; padding: 0 4px; }
   .ph .x:hover { color: var(--text); }
   .ps { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+  .ph-acts { display: flex; gap: 8px; margin-left: auto; }
+  .scope-note { padding: 6px 0; font-size: 12px; color: var(--text-dim); }
+  .wl-box { margin: 4px 0 6px; }
+  .wl { display: flex; align-items: center; gap: 8px; padding: 2px 0; font-size: 12px; }
+  .wl .k { width: 26px; color: var(--text-dim); }
+  .wl .dim { color: var(--text-dim); }
+  .wl input[type="text"].wl-input { width: 78px; padding: 3px 6px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; font: inherit; }
+  .wl input.edited { border-bottom-style: dashed; border-bottom-color: var(--accent); }
+  .opt-add { display: flex; gap: 12px; padding: 4px 0; }
+  .scope-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .scope-bar label { color: var(--text-dim); font-size: 12px; }
+  .scope-bar select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; font: inherit; font-size: 12px; }
+  .scope-bar .segmented button { padding: 4px 9px; font-size: 12px; }
+  .scope-bar .hint { flex: 1 0 100%; }
   .ps-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
   .ps-head b { font-size: 13px; }
   .hint { color: var(--text-dim); font-size: 12px; }
@@ -2222,7 +2236,7 @@ function renderBox(ex, wi, weekIndex, entries) {
   if (entry.edited) top.appendChild(el('span', { className: 'ex-edited', text: '(edited)' }));
 
   var isSelected = selected !== null && selected.exId === ex.id;
-  var choose = function () { selectExercise(wi, ex.id); };
+  var choose = function () { selectExercise(wi, ex.id, weekIndex); };
   var box = el('div', {
     className: 'ex clickable' + (isSelected ? ' selected' : ''),
     role: 'button', tabindex: '0', onclick: choose
@@ -2244,7 +2258,17 @@ function renderBox(ex, wi, weekIndex, entries) {
 
 var selected = null; // null, or { wi: workout index, exId: exercise id }
 
-function selectExercise(wi, exId) {
+// The panel's scope: whether a change to Target, Set type, Tempo or Pause applies to all weeks (it is
+// made in Week 1 and the weeks not edited by hand follow) or to one week only. Screen state, not saved.
+var panelScope = { mode: 'all', week: 0 };
+
+// `week` (optional) is the week whose cell was clicked; it becomes the week for "this week only".
+function selectExercise(wi, exId, week) {
+  if (!selected || selected.exId !== exId) panelScope = { mode: 'all', week: 0 };
+  if (week !== undefined) panelScope.week = week;
+  // An exercise that is not in every week starts on "One week only" (the clicked week).
+  var ex = program.workouts[wi].exercises.filter(function (o) { return o.id === exId; })[0];
+  if (ex && ex.weeks.some(function (w) { return !w.included; })) panelScope.mode = 'one';
   selected = { wi: wi, exId: exId };
   render();
 }
@@ -3007,11 +3031,27 @@ function supersetRow(workout, wi, ex, r) {
 }
 
 // Changes fields of set group k in Week 1 (the source) and lets the weeks that are not edited follow.
+// With the scope on "this week only", only that week changes and it is marked edited. For Week 1 that
+// means the later weeks must keep their present values, so they are marked edited first.
 function setGroupFields(ex, k, changes) {
-  var g = ex.weeks[0].groups[k];
-  Object.keys(changes).forEach(function (key) { g[key] = changes[key]; });
+  if (panelScope.mode === 'one') {
+    var w = panelScope.week;
+    var target = ex.weeks[w].groups[k];
+    if (!target) return;
+    if (w === 0) ex.weeks.forEach(function (e, i) { if (i > 0 && e.included && e.groups[k]) e.edited = true; });
+    else ex.weeks[w].edited = true;
+    Object.keys(changes).forEach(function (key) { target[key] = changes[key]; });
+  } else {
+    var g = ex.weeks[0].groups[k];
+    Object.keys(changes).forEach(function (key) { g[key] = changes[key]; });
+  }
   ex.weeks = generateWeeks(ex, program.weeks);
   changed();
+}
+
+// The set group the panel shows: Week 1's, or the chosen week's when the scope is "this week only".
+function viewGroup(ex, k) {
+  return panelScope.mode === 'one' ? ex.weeks[panelScope.week].groups[k] : ex.weeks[0].groups[k];
 }
 
 // Which effort target (RPE or RIR) the panel shows for a set group while its number is blank.
@@ -3019,7 +3059,7 @@ var targetModeMemory = {};
 
 // The effort target: an RPE | RIR switch and a number. Not shown when the group's load is an RPE.
 function targetRow(ex, r) {
-  var g = ex.weeks[0].groups[r];
+  var g = viewGroup(ex, r);
   if (!hasEffortTarget(g.loadType, g.rpe !== null || g.rir !== null)) return null;
   var key = ex.id + ':' + r;
   var mode = g.rir !== null ? 'rir' : (g.rpe !== null ? 'rpe' : (targetModeMemory[key] || 'rpe'));
@@ -3043,16 +3083,39 @@ function targetRow(ex, r) {
   return panelRow('Target', [el('div', { className: 'tgt' }, [seg, input])]);
 }
 
-function setTypeRow(ex, r) {
-  var g = ex.weeks[0].groups[r];
-  var select = selectBox([['', 'None']].concat(SET_TYPES.map(function (t) { return [t, SET_TYPE_LABELS[t]]; })), g.setType || '');
-  select.setAttribute('aria-label', 'Set type, set group ' + (r + 1));
-  select.addEventListener('change', function () { setGroupFields(ex, r, { setType: select.value === '' ? null : select.value }); });
-  return panelRow('Set type', [select]);
+// Optional fields (Set type, Tempo, Pause) stay hidden until chosen with a "+ Tempo" style button.
+// A field that already holds a value is always shown. `shownOptional` is screen state, not saved.
+var shownOptional = {};   // 'exerciseId:setGroup:field' -> true
+var OPTIONAL_FIELDS = ['setType', 'tempo', 'pause'];
+var OPTIONAL_LABELS = { setType: 'Set type', tempo: 'Tempo', pause: 'Pause' };
+
+function optionalKey(ex, r, name) { return ex.id + ':' + r + ':' + name; }
+
+function optionalUsed(ex, r, name, g) {
+  return !!shownOptional[optionalKey(ex, r, name)] || (name === 'pause' ? g.pause !== null : !!g[name]);
 }
 
-function tempoRow(ex, r) {
-  var g = ex.weeks[0].groups[r];
+// The row of one optional field, with a × that clears and hides it.
+function optionalRow(ex, r, name, control) {
+  var remove = el('button', {
+    className: 'link-btn', text: '×', title: 'Remove ' + OPTIONAL_LABELS[name], 'aria-label': 'Remove ' + OPTIONAL_LABELS[name],
+    onclick: function () {
+      delete shownOptional[optionalKey(ex, r, name)];
+      var patch = {}; patch[name] = null;
+      setGroupFields(ex, r, patch);
+    }
+  });
+  return panelRow(OPTIONAL_LABELS[name], [control, remove]);
+}
+
+function setTypeControl(ex, r, g) {
+  var select = selectBox([['', 'Choose…']].concat(SET_TYPES.map(function (t) { return [t, SET_TYPE_LABELS[t]]; })), g.setType || '');
+  select.setAttribute('aria-label', 'Set type, set group ' + (r + 1));
+  select.addEventListener('change', function () { setGroupFields(ex, r, { setType: select.value === '' ? null : select.value }); });
+  return select;
+}
+
+function tempoControl(ex, r, g) {
   var input = textInput(g.tempo || '', { maxlength: '12', placeholder: '3-1-1-0', 'aria-label': 'Tempo, set group ' + (r + 1) });
   input.className = 'tempo-input';
   input.addEventListener('change', function () {
@@ -3060,11 +3123,10 @@ function tempoRow(ex, r) {
     if (text.length > 12) { showNotice('Tempo can have at most 12 characters.'); input.value = g.tempo || ''; return; }
     setGroupFields(ex, r, { tempo: text === '' ? null : text });
   });
-  return panelRow('Tempo', [input]);
+  return input;
 }
 
-function pauseRow(ex, r) {
-  var g = ex.weeks[0].groups[r];
+function pauseControl(ex, r, g) {
   var input = textInput(g.pause === null ? '' : String(g.pause), { inputmode: 'numeric', placeholder: '–', 'aria-label': 'Pause in seconds, set group ' + (r + 1) });
   input.className = 'rest-input';
   input.addEventListener('change', function () {
@@ -3073,86 +3135,139 @@ function pauseRow(ex, r) {
     if (n !== null && isNaN(n)) { showNotice('Pause must be a whole number of seconds from 0 to 30.'); input.value = g.pause === null ? '' : String(g.pause); return; }
     setGroupFields(ex, r, { pause: n });
   });
-  return panelRow('Pause', [input, el('span', { className: 'unit', text: 's' })]);
+  return input;
 }
 
-function renderSetGroupSection(workout, wi, ex, r) {
-  var g = ex.weeks[0].groups[r];
-  return el('div', { className: 'ps' }, [
+var OPTIONAL_CONTROLS = { setType: setTypeControl, tempo: tempoControl, pause: pauseControl };
+
+// A load typed for one week of one set group. Week 1 is the source (the weeks not edited follow).
+// Any other week becomes edited by hand.
+function setWeekLoad(ex, w, k, text) {
+  var grp = ex.weeks[w].groups[k];
+  var res = readLoad(text, grp.loadType);
+  if (res.error) { showNotice(res.error); render(); return; }
+  if (res.value === grp.load) return;
+  grp.load = res.value;
+  grp.kg = null;                      // a changed load clears its calculated kg
+  if (w > 0) ex.weeks[w].edited = true;
+  ex.weeks = generateWeeks(ex, program.weeks);
+  changed();
+}
+
+// The load of every week for one set group, as inputs, so no dialog is needed to type a load.
+function renderWeekLoads(wi, ex, k) {
+  var box = el('div', { className: 'wl-box' });
+  ex.weeks.forEach(function (entry, w) {
+    var row = el('div', { className: 'wl' }, [el('span', { className: 'k', text: 'W' + (w + 1) })]);
+    var grp = entry.groups[k];
+    if (!entry.included) {
+      row.appendChild(el('span', { className: 'dim', text: 'Not in this week' }));
+      if (k === 0) row.appendChild(el('button', { className: 'link-btn acc', text: 'Add', onclick: function () { addToWeek(ex, w); } }));
+    } else if (!grp) {
+      row.appendChild(el('span', { className: 'dim', text: '—' }));
+    } else {
+      var planned = plannedChange(ex.patterns[k] || samePattern(grp.loadType), w, grp, entry).trim();
+      var input = textInput(grp.load === null ? '' : formatNum(grp.load), {
+        inputmode: 'decimal', placeholder: planned || '–', 'aria-label': 'Load, Week ' + (w + 1) + ', set group ' + (k + 1)
+      });
+      input.className = 'wl-input' + (entry.edited ? ' edited' : '');
+      input.addEventListener('change', function () { setWeekLoad(ex, w, k, input.value); });
+      row.appendChild(input);
+      row.appendChild(el('span', { className: 'unit', text: LOAD_LABELS[grp.loadType] === '% of 1RM' ? '%' : LOAD_LABELS[grp.loadType] }));
+      var first = ex.weeks[0].groups[k];
+      if (first && w > 0 && setsRepsText(first) !== setsRepsText(grp)) row.appendChild(el('span', { className: 'dim', text: setsRepsText(grp) }));
+      if (entry.edited && w > 0) {
+        row.appendChild(el('button', {
+          className: 'link-btn', text: 'Reset', title: 'Use the progression value again for Week ' + (w + 1),
+          onclick: function () { entry.edited = false; ex.weeks = generateWeeks(ex, program.weeks); changed(); }
+        }));
+      }
+    }
+    box.appendChild(row);
+  });
+  return box;
+}
+
+function renderSetGroupSection(workout, wi, ex, r, scopedOk, isLast) {
+  var g0 = ex.weeks[0].groups[r];
+  var g = scopedOk ? viewGroup(ex, r) : g0;
+  var editWeek = panelScope.mode === 'one' ? panelScope.week : 0;
+  var parts = [
     el('div', { className: 'ps-head' }, [
       el('b', { text: 'Set group ' + (r + 1) + ' · ' + setsRepsText(g) }),
       el('button', {
-        className: 'link-btn', text: 'Edit', title: 'Edit sets, reps, rep range and load in Week 1',
-        onclick: function () { openWeekEditor(wi, ex, 0); }
+        className: 'link-btn', text: 'Edit', title: 'Edit sets, reps and rep range in Week ' + (editWeek + 1),
+        onclick: function () { openWeekEditor(wi, ex, editWeek); }
       })
     ]),
     panelRow('Load type', [loadTypeControl(ex, r)]),
-    targetRow(ex, r),
-    restRow(workout, ex, r),
-    setTypeRow(ex, r),
-    tempoRow(ex, r),
-    pauseRow(ex, r),
     panelRow('Progression', [el('button', {
       className: 'link-btn acc', title: 'Change how this set group repeats across weeks',
       text: patternText(ex.patterns[r]) + ' ▸',
       onclick: function () { openPatternPicker(wi, ex, r); }
     })]),
-    supersetRow(workout, wi, ex, r)
-  ].filter(Boolean));
+    renderWeekLoads(wi, ex, r)
+  ];
+  if (scopedOk) {
+    parts.push(targetRow(ex, r));
+    parts.push(restRow(workout, ex, r));
+    var chips = [];
+    OPTIONAL_FIELDS.forEach(function (name) {
+      if (optionalUsed(ex, r, name, g)) {
+        parts.push(optionalRow(ex, r, name, OPTIONAL_CONTROLS[name](ex, r, g)));
+      } else {
+        chips.push(el('button', {
+          className: 'link-btn acc', text: '+ ' + OPTIONAL_LABELS[name],
+          onclick: function () { shownOptional[optionalKey(ex, r, name)] = true; render(); }
+        }));
+      }
+    });
+    if (chips.length > 0) parts.push(el('div', { className: 'opt-add' }, chips));
+  }
+  parts.push(supersetRow(workout, wi, ex, r));
+  if (isLast) {
+    parts.push(el('div', { className: 'opt-add' }, [el('button', {
+      className: 'link-btn acc', text: '+ Add set group', title: 'Add another set group to this exercise',
+      onclick: function () { openWeekEditor(wi, ex, 0, true); }
+    })]));
+  }
+  return el('div', { className: 'ps' }, parts.filter(Boolean));
 }
 
-// One row per week, one column per set group. Click a value to edit that week. A dashed underline
-// marks a week edited by hand.
-function renderWeeksStrip(wi, ex) {
-  var most = 0;
-  ex.weeks.forEach(function (w) { if (w.included && w.groups.length > most) most = w.groups.length; });
-  if (most === 0) most = ex.weeks[0].groups.length;
-  var head = el('tr', null, [el('th')]);
-  for (var k = 0; k < most; k++) head.appendChild(el('th', { text: most > 1 ? 'Group ' + (k + 1) : 'Load' }));
-  var rows = [el('thead', null, [head])];
-  var body = el('tbody');
-  ex.weeks.forEach(function (entry, w) {
-    var row = el('tr', null, [el('td', { className: 'k', text: 'W' + (w + 1) })]);
-    if (!entry.included) {
-      row.appendChild(el('td', { colspan: String(most), className: 'k' }, [
-        el('button', { className: 'link-btn acc', text: 'Add', title: 'Add this exercise to Week ' + (w + 1), onclick: function () { addToWeek(ex, w); } })
-      ]));
-    } else {
-      for (var g = 0; g < most; g++) {
-        var grp = entry.groups[g];
-        var td;
-        if (!grp) {
-          td = el('td', { className: 'k', text: '—' });
-        } else {
-          var first = ex.weeks[0].groups[g];
-          var load = describeLoad(grp, plannedChange(ex.patterns[g] || samePattern(grp.loadType), w, grp, entry));
-          var text = load.text;
-          if (first && setsRepsText(first) !== setsRepsText(grp)) text = setsRepsText(grp) + ' · ' + text;
-          td = el('td', {
-            className: 'v' + (load.cls === 'load-blank' ? ' blank' : '') + (entry.edited ? ' edited' : ''),
-            role: 'button', tabindex: '0', text: text, 'aria-label': 'Edit ' + ex.name + ' in Week ' + (w + 1)
-          });
-          (function (weekIndex) {
-            td.addEventListener('click', function () { openWeekEditor(wi, ex, weekIndex); });
-            td.addEventListener('keydown', function (e) {
-              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openWeekEditor(wi, ex, weekIndex); }
-            });
-          })(w);
-        }
-        row.appendChild(td);
-      }
-    }
-    body.appendChild(row);
+// Switching to "All weeks": the exercise goes into every week. If it was only in one week, that
+// week's settings become Week 1 (the source) so nothing typed is lost.
+function applyToAllWeeks(ex) {
+  var src = ex.weeks[0];
+  var from = ex.weeks[panelScope.week];
+  if (!src.included && panelScope.week > 0 && from.included && from.groups.length === src.groups.length) {
+    src.groups = from.groups.map(cloneGroup);
+    from.edited = false;
+  }
+  ex.weeks.forEach(function (w) {
+    if (!w.included) { w.included = true; w.edited = false; }
   });
-  rows.push(body);
-  return el('div', { className: 'ps' }, [
-    el('div', { className: 'ps-head' }, [
-      el('b', { text: 'Weeks' }),
-      el('span', { className: 'hint', text: 'Click a value to edit that week' })
-    ]),
-    el('table', { className: 'prog' }, rows),
-    el('div', { className: 'hint', text: 'Dashed underline = edited by hand.' })
+  panelScope.mode = 'all';
+  ex.weeks = generateWeeks(ex, program.weeks);
+  changed();
+}
+
+// "Apply changes to: All weeks | One week only". Applies to Target, Set type, Tempo, Pause and the
+// Edit link; Load type, Rest, Progression and Superset always apply to all weeks.
+function renderScopeBar(ex) {
+  var one = panelScope.mode === 'one';
+  var seg = el('div', { className: 'segmented' }, [
+    el('button', { className: one ? null : 'on', text: 'All weeks', onclick: function () { if (one) applyToAllWeeks(ex); } }),
+    el('button', { className: one ? 'on' : null, text: 'One week only', onclick: function () { panelScope.mode = 'one'; render(); } })
   ]);
+  var kids = [el('label', { text: 'Apply changes to' }), seg];
+  if (one) {
+    var weekSelect = selectBox(ex.weeks.map(function (w, i) { return [String(i), 'Week ' + (i + 1)]; }), String(panelScope.week));
+    weekSelect.setAttribute('aria-label', 'Week to change');
+    weekSelect.addEventListener('change', function () { panelScope.week = Number(weekSelect.value); render(); });
+    kids.push(weekSelect);
+  }
+  var bar = el('div', { className: 'scope-bar' }, kids);
+  return bar;
 }
 
 function renderDetail() {
@@ -3171,16 +3286,34 @@ function renderDetail() {
   box.hidden = false;
   box.textContent = '';
 
+  var up = el('button', { className: 'link-btn', text: 'Move up', onclick: function () { moveExercise(workout, ex, -1); } });
+  var down = el('button', { className: 'link-btn', text: 'Move down', onclick: function () { moveExercise(workout, ex, 1); } });
+  if (!canMove(workout, ex, -1)) { up.disabled = true; up.title = 'Already first'; }
+  if (!canMove(workout, ex, 1)) { down.disabled = true; down.title = 'Already last'; }
   box.appendChild(el('div', { className: 'ph' }, [
     el('div', { className: 't' }, [
       el('b', { text: ex.name }),
       el('span', { text: 'Workout ' + (wi + 1) + (workout.description ? ' · ' + workout.description : '') })
     ]),
+    el('div', { className: 'ph-acts' }, [up, down]),
     el('button', { className: 'x', text: '×', title: 'Close', 'aria-label': 'Close the exercise settings', onclick: closeDetail })
   ]));
 
-  ex.weeks[0].groups.forEach(function (g, r) { box.appendChild(renderSetGroupSection(workout, wi, ex, r)); });
-  box.appendChild(renderWeeksStrip(wi, ex));
+  if (panelScope.week >= ex.weeks.length) panelScope = { mode: 'all', week: 0 };   // the program lost weeks
+  box.appendChild(renderScopeBar(ex));
+  var scopedOk = true;
+  if (panelScope.mode === 'one' && !ex.weeks[panelScope.week].included) {
+    scopedOk = false;
+    box.appendChild(el('div', { className: 'scope-note' }, [
+      el('span', { text: 'Not in Week ' + (panelScope.week + 1) + '. ' }),
+      el('button', { className: 'link-btn acc', text: 'Add to this week', onclick: function () { addToWeek(ex, panelScope.week); } })
+    ]));
+  }
+  var count = ex.weeks[0].groups.length;
+  ex.weeks[0].groups.forEach(function (g, r) {
+    if (scopedOk && !viewGroup(ex, r)) return;   // this week has no such set group
+    box.appendChild(renderSetGroupSection(workout, wi, ex, r, scopedOk, r === count - 1));
+  });
 
   var notes = el('textarea', { maxlength: '500', 'aria-label': 'Notes for ' + ex.name, placeholder: 'Notes for this exercise' });
   notes.value = ex.notes;
@@ -3190,16 +3323,7 @@ function renderDetail() {
   });
   box.appendChild(el('div', { className: 'ps' }, [el('div', { className: 'ps-head' }, [el('b', { text: 'Notes' })]), notes]));
 
-  var up = el('button', { className: 'link-btn', text: 'Move up', onclick: function () { moveExercise(workout, ex, -1); } });
-  var down = el('button', { className: 'link-btn', text: 'Move down', onclick: function () { moveExercise(workout, ex, 1); } });
-  if (!canMove(workout, ex, -1)) { up.disabled = true; up.title = 'Already first'; }
-  if (!canMove(workout, ex, 1)) { down.disabled = true; down.title = 'Already last'; }
   box.appendChild(el('div', { className: 'panel-acts' }, [
-    el('button', {
-      className: 'link-btn acc', text: '+ Add set group', title: 'Add another set group to this exercise',
-      onclick: function () { openWeekEditor(wi, ex, 0, true); }
-    }),
-    up, down,
     el('button', { className: 'link-btn danger-link', text: 'Delete exercise', onclick: function () { confirmDeleteExercise(workout, ex); } })
   ]));
   box.scrollTop = scrollTop;
@@ -3308,7 +3432,7 @@ function renderSlotCell(workout, wi, week, slot, isFirstWeek) {
   if (slot.type === 'run') {
     var box = boxFor(slot.ex, slot.ks);
     if (box) td.appendChild(box);
-    else td.addEventListener('click', function () { selectExercise(wi, slot.ex.id); });
+    else td.addEventListener('click', function () { selectExercise(wi, slot.ex.id, week); });
     if (selected !== null && selected.exId === slot.ex.id) td.className += ' sel';
     return td;
   }
@@ -3328,7 +3452,7 @@ function renderSlotCell(workout, wi, week, slot, isFirstWeek) {
 function renderFootCell(workout, wi, week) {
   var foot = [el('button', {
     className: 'link-btn', text: 'Add exercise',
-    onclick: function () { openAddExerciseModal(wi, week); }
+    onclick: function () { openAddExerciseModal(wi, week); }   // the exercise starts in this week only
   })];
   if (workout.exercises.length > 0) {
     foot.push(el('button', {
@@ -3506,18 +3630,7 @@ function saveAsTemplate(entry) {
       ex.weeks.forEach(function (week) { week.groups.forEach(function (g) { g.kg = null; }); });
     });
   });
-  if (hasKgLoads(copy)) {
-    // kg loads belong to one lifter, so this cannot be a template. The copy stays an ordinary program under
-    // "Not linked to an athlete", marked as pre-filled.
-    copy.name = (entry.program.name + ' (pre-filled)').slice(0, 200);
-    var kept = addProgramEntry(copy, 'program');
-    kept.note = 'pre-filled';
-    saveLibrary();
-    showNotice('This program has kg loads, so it cannot be a template. A copy was added below, marked pre-filled.');
-    render();
-    return;
-  }
-  addProgramEntry(copy, 'template');
+  addProgramEntry(copy, 'template');   // kg loads typed by hand are kept; templates may use kg
   saveLibrary();
   showNotice('Saved as a template.');
   render();
@@ -4356,7 +4469,7 @@ function createExercise(workout, fields, weekIndex) {
   var ex = newExercise(fields.name, program.weeks);
   ex.notes = fields.notes;
   ex.weeks[0].groups = fields.groups;
-  ex.patterns = fields.groups.map(function (g) { return samePattern(g.loadType); });
+  ex.patterns = fields.patterns || fields.groups.map(function (g) { return samePattern(g.loadType); });
   ex.supersets = fields.groups.map(function () { return null; });
   // Every week (even hidden ones) keeps a copy of the entered values.
   ex.weeks = generateWeeks(ex, program.weeks);
@@ -4368,6 +4481,9 @@ function createExercise(workout, fields, weekIndex) {
     });
   }
   workout.exercises.push(ex);
+  // Open the settings panel on the new exercise, for per-week values and the rest.
+  selected = { wi: program.workouts.indexOf(workout), exId: ex.id };
+  panelScope = weekIndex === null ? { mode: 'all', week: 0 } : { mode: 'one', week: weekIndex };
   changed();
 }
 
@@ -4417,14 +4533,17 @@ function currentIsTemplate() {
   return !!entry && entry.kind === 'template';
 }
 
-// The load types to offer. A template is for any athlete, so it offers no kg (kg belongs to a program
-// made for one lifter), except for a set group that already uses it.
+// The load types to offer. kg is offered everywhere, templates included (the user's main use case);
+// kg is first and is the default.
 function loadTypeChoices(currentType) {
-  return LOAD_TYPE_OPTIONS.filter(function (o) { return o[0] !== 'kg' || currentType === 'kg' || !currentIsTemplate(); });
+  return LOAD_TYPE_OPTIONS.slice();
 }
 
-/* ---- Add exercise (spec 5.6) ---- */
+/* ---- Add exercise ---- */
 
+// A small picker: choose an exercise (or create a new one). The exercise is added to every week with
+// default settings (3 x 10, kg, blank load, 90 s rest) and the settings panel opens on it; everything
+// else is set there.
 function openAddExerciseModal(wi, weekIndex) {
   var workout = program.workouts[wi];
   var list = loadExerciseList();
@@ -4432,64 +4551,16 @@ function openAddExerciseModal(wi, weekIndex) {
 
   var nameSelect = null;
   if (list.length > 0) {
-    nameSelect = selectBox([[NEW, 'New Exercise']].concat(list.map(function (n) { return [n, n]; })), NEW);
+    nameSelect = selectBox([['', 'Select Exercise'], [NEW, 'Create New Exercise']].concat(list.map(function (n) { return [n, n]; })), '');
   }
   var nameText = textInput('', { maxlength: '200', placeholder: 'New exercise name' });
-
-  // Every exercise on the list can be picked. "New Exercise" shows a box to type a new name, which
-  // is added to the list when the exercise is created.
   function updateNameUi() {
     nameText.hidden = !(!nameSelect || nameSelect.value === NEW);
   }
   if (nameSelect) nameSelect.addEventListener('change', updateNameUi);
+  nameText.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
 
-  // Set groups: one row each, so a start value, sets and reps can be entered for every group now.
-  // Each set group has its own load type and rest time.
-  var drafts = [{ sets: '3', reps: '10', loadType: currentIsTemplate() ? 'pct' : 'kg', load: '', rest: '1,5' }];   // a template has no kg
-  var rowsBox = el('div');
-
-  function draftField(d, key, labelText, attrs) {
-    var input = textInput(d[key], Object.assign({ inputmode: 'decimal' }, attrs || {}));
-    input.addEventListener('input', function () { d[key] = input.value; });
-    return el('div', null, [el('label', { text: labelText }), input]);
-  }
-
-  function drawRows() {
-    rowsBox.textContent = '';
-    drafts.forEach(function (d, i) {
-      var typeSelect = selectBox(loadTypeChoices(d.loadType), d.loadType);
-      typeSelect.setAttribute('aria-label', 'Load type, set group ' + (i + 1));
-      typeSelect.addEventListener('change', function () { d.loadType = typeSelect.value; drawRows(); });
-      var cols = [
-        draftField(d, 'sets', 'Sets', { inputmode: 'numeric' }),
-        draftField(d, 'reps', 'Reps', { inputmode: 'numeric' }),
-        el('div', null, [el('label', { text: 'Load type' }), typeSelect]),
-        draftField(d, 'load', 'Load (' + LOAD_LABELS[d.loadType] + ')', { placeholder: 'Blank = later' }),
-        draftField(d, 'rest', 'Rest (min)')
-      ];
-      if (drafts.length > 1) {
-        cols.push(el('button', {
-          className: 'del', text: 'Delete', 'aria-label': 'Delete set group ' + (i + 1),
-          onclick: function () { drafts.splice(i, 1); drawRows(); }
-        }));
-      }
-      rowsBox.appendChild(el('div', { className: 'group-row' }, cols));
-    });
-  }
-  drawRows();
-  var addGroupBtn = el('button', {
-    text: 'Add set group',
-    onclick: function () {
-      var last = drafts[drafts.length - 1];
-      drafts.push({ sets: last.sets, reps: last.reps, loadType: last.loadType, load: '', rest: last.rest });
-      drawRows();
-    }
-  });
-  var notesInput = el('textarea', { maxlength: '500' });
-  var addToSelect = selectBox(
-    [['all', 'All weeks'], ['one', 'This week only (Week ' + (weekIndex + 1) + ')']], 'all');
   var errorBox = el('div', { className: 'form-error', hidden: 'hidden' });
-
   function showError(message) {
     errorBox.textContent = message;
     errorBox.hidden = false;
@@ -4498,45 +4569,22 @@ function openAddExerciseModal(wi, weekIndex) {
   function submit() {
     var typedNew = !nameSelect || nameSelect.value === NEW;
     var name = typedNew ? nameText.value.trim() : nameSelect.value;
-    if (name === '') return showError('Enter an exercise name.');
-    var groups = [];
-    for (var i = 0; i < drafts.length; i++) {
-      var d = drafts[i];
-      var n = drafts.length > 1 ? 'Set group ' + (i + 1) + ': ' : '';
-      var sets = parseWhole(d.sets, 1, 99);
-      if (isNaN(sets)) return showError(n + 'sets must be a whole number from 1 to 99.');
-      var reps = parseWhole(d.reps, 1, 999);
-      if (isNaN(reps)) return showError(n + 'reps must be a whole number from 1 to 999.');
-      var load = readLoad(d.load, d.loadType);
-      if (load.error) return showError(n + load.error);
-      var rest = readRestMinutes(d.rest);
-      if (rest === null) return showError(n + 'rest must be a number of minutes from 0 to 60.');
-      groups.push(Object.assign(newGroup(), { sets: sets, reps: reps, loadType: d.loadType, load: load.value, rest: rest }));
-    }
-
+    if (name === '') return showError(nameSelect && nameSelect.value === '' ? 'Select an exercise, or choose Create New Exercise.' : 'Enter an exercise name.');
     closeModal();
     if (typedNew) name = addToExerciseList(name);   // a new name joins the global list
-    createExercise(workout, {
-      name: name,
-      groups: groups,
-      notes: notesInput.value.trim()
-    }, addToSelect.value === 'one' ? weekIndex : null);
+    // The exercise goes into the week whose "Add exercise" was clicked; "All weeks" in the panel adds it to the rest.
+    createExercise(workout, { name: name, groups: [newGroup()], notes: '' }, weekIndex === undefined ? null : weekIndex);
   }
 
   var body = el('div', null, [
-    el('div', { className: 'sub', text: 'Workout ' + (wi + 1) + ', Week ' + (weekIndex + 1) }),
+    el('div', { className: 'sub', text: 'Workout ' + (wi + 1) }),
     formRow('Name', nameSelect || nameText)
   ]);
   if (nameSelect) body.appendChild(el('div', { className: 'form-row' }, [nameText]));
-  body.appendChild(rowsBox);
-  body.appendChild(el('div', { className: 'form-row' }, [addGroupBtn]));
-  body.appendChild(formRow('Notes (optional)', notesInput));
-  body.appendChild(formRow('Add to', addToSelect));
   body.appendChild(errorBox);
 
   openModal({
     title: 'Add exercise',
-    wide: true,
     body: body,
     actions: [
       el('button', { text: 'Cancel', onclick: closeModal }),
