@@ -220,7 +220,7 @@ All changes are additive. Existing Phase 1 files and drafts open unchanged: miss
 }
 ```
 - `base` says whether percentages use `oneRm` or `trainingMax`. `base: "tm"` needs a training max.
-- A new profile starts with Back Squat, Bench Press and Deadlift (blank values). The coach can add, rename, reorder and delete lifts; names may come from the Exercise List.
+- A new profile starts with no lifts (changed 15 November 2026; it used to start with Back Squat, Bench Press and Deadlift). The coach can add, rename, reorder and delete lifts; names may come from the Exercise List.
 - `rounding` is a number from 0.5 to 10 (default 2.5). Rounding is always to the nearest step.
 - The profile also keeps an optional notes box and the date the 1RMs were last updated (dd/mm/yyyy).
 

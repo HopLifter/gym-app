@@ -741,7 +741,6 @@ function libraryLoadPrograms() { return loadList(PROGRAMS_KEY, cleanLibraryEntry
 
 var PROFILE_FORMAT = 'gym-builder-profile';
 var PROFILE_VERSION = 1;
-var STANDARD_LIFTS = ['Back Squat', 'Bench Press', 'Deadlift'];
 
 function newProfileId() {
   return 'pf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -757,7 +756,7 @@ function newProfile(name) {
   return {
     format: PROFILE_FORMAT, version: PROFILE_VERSION, id: newProfileId(), name: name,
     modified: todayIso(), rounding: 2.5, notes: '', unavailable: [],
-    lifts: STANDARD_LIFTS.map(newLift)
+    lifts: []   // the coach adds each lift with its own name (Add lift)
   };
 }
 
@@ -1343,11 +1342,13 @@ function addProgramEntry(p, kind) {
 }
 
 // Makes an entry the program in the editor. It does not redraw and does not leave the Library.
+// With an empty library `entry` is null: there is no open program and only the Library shows.
 function setCurrent(entry) {
+  selected = null;
+  if (!entry) { currentId = null; program = null; libraryOpen = true; return; }
   currentId = entry.id;
   program = entry.program;
   syncIdCounter(program);
-  selected = null;
   libraryWriteOpenId(entry.id);
 }
 
@@ -1355,12 +1356,13 @@ function startUp() {
   document.getElementById('warn-export').addEventListener('click', exportEverything);
   library = libraryLoadPrograms();
   profiles = profilesLoad();
-  if (library.length === 0) {
-    // First visit to the library: move the Phase 1 draft in (the draft key itself is left alone),
-    // or start with an empty template.
-    addProgramEntry(loadDraft() || createDefaultProgram({ name: 'New Template' }), 'template');
-    saveLibrary();
-  }
+  // The very first visit (no library saved yet): move the Phase 1 draft in, if there is one (the
+  // draft key itself is left alone). A library that the user emptied stays empty.
+  var firstVisit = false;
+  try { firstVisit = localStorage.getItem(PROGRAMS_KEY) === null; } catch (err) { /* no storage: start empty */ }
+  var oldDraft = firstVisit ? loadDraft() : null;
+  if (oldDraft) addProgramEntry(oldDraft, 'template');
+  if (firstVisit) saveLibrary();
   if (adoptProgramsWithoutAthlete() > 0) saveLibrary();
   setCurrent(findEntry(libraryReadOpenId()) || mostRecentEntry());
   libraryOpen = true;   // the builder starts on the Library; pick a program to work on
@@ -1791,7 +1793,6 @@ function askImportMode(data) {
 function applyImport(data, mode) {
   if (mode === 'replace') {
     library = data.entries.slice();
-    if (library.length === 0) addProgramEntry(createDefaultProgram({ name: 'New Template' }), 'template');
     profiles = data.profiles.slice();
   } else {
     var usedNames = {};
@@ -3600,7 +3601,8 @@ function render() {
   var lib = document.getElementById('library');
   document.getElementById('save-warning').hidden = draftSaved;
   document.getElementById('profile-changed').hidden = true;   // only the editor shows it (below)
-  if (libraryOpen) {
+  if (libraryOpen || !program) {
+    libraryOpen = true;
     header.hidden = true;
     workspace.hidden = true;
     lib.hidden = false;
@@ -3731,7 +3733,6 @@ function deleteProgram(entry) {
     confirmLabel: 'Delete',
     onConfirm: function () {
       library = library.filter(function (e) { return e !== entry; });
-      if (library.length === 0) addProgramEntry(createDefaultProgram({ name: 'New Template' }), 'template');
       if (entry.id === currentId) setCurrent(mostRecentEntry());
       libSel = null;
       saveLibrary();
@@ -3818,6 +3819,9 @@ function renderLibraryList(sel) {
     el('span', { className: 'count', text: String(templates.length) }),
     el('button', { text: 'New template', onclick: openNewTemplateDialog })
   ]));
+  if (templates.length === 0) {
+    list.appendChild(el('div', { className: 'lib-empty', text: 'No templates yet. A template is a program plan that you can use for many athletes.' }));
+  }
   templates.forEach(function (entry) { list.appendChild(renderEntryRow(entry, sel, false)); });
 
   var athletes = profiles.slice().sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0; });
@@ -4074,7 +4078,6 @@ function deleteAthlete(p) {
     if (keep) linked.forEach(makeTemplate);
     else library = library.filter(function (e) { return linked.indexOf(e) < 0; });
     profiles = profiles.filter(function (x) { return x !== p; });
-    if (library.length === 0) addProgramEntry(createDefaultProgram({ name: 'New Template' }), 'template');
     if (!findEntry(currentId)) setCurrent(mostRecentEntry());
     libSel = null;
     saveProfiles();
@@ -4311,7 +4314,11 @@ function renderLiftRow(p, l, index) {
       l[key] = n;
       l.updated = todayIso();
       profileTouched(p);
-      render();
+      // No full redraw: it would rebuild every box and drop the cursor, so Tab would not reach the next box.
+      input.value = n === null ? '' : formatNum(n);
+      drawNote();
+      var rowLine = document.querySelector('#library .lib-row[data-ath="' + p.id + '"] .t span');
+      if (rowLine) rowLine.textContent = liftsSummary(p);
     });
     return input;
   }
@@ -4323,16 +4330,20 @@ function renderLiftRow(p, l, index) {
     });
   }
 
-  var note;
-  if (l.base === 'tm' && l.trainingMax === null) note = el('span', { className: 'warn-text', text: 'Add a training max' });
-  else note = el('span', { className: 'dim', text: l.updated ? formatDate(l.updated) : '' });
+  // The last column: the date of the last change, or a reminder when the training max is missing.
+  var note = el('span');
+  function drawNote() {
+    var missing = l.base === 'tm' && l.trainingMax === null;
+    note.className = missing ? 'warn-text' : 'dim';
+    note.textContent = missing ? 'Add a training max' : (l.updated ? formatDate(l.updated) : '');
+  }
+  drawNote();
 
   function remove() {
     p.lifts.splice(index, 1);
     profileTouched(p);
     render();
   }
-  var hasValues = l.oneRm !== null || l.trainingMax !== null;
   return el('tr', null, [
     el('td', null, [nameInput]),
     el('td', null, [maxInput('oneRm', '1RM')]),
@@ -4340,7 +4351,7 @@ function renderLiftRow(p, l, index) {
     el('td', null, [el('div', { className: 'segmented' }, [baseButton('1rm', '1RM'), baseButton('tm', 'TM')])]),
     el('td', null, [note]),
     el('td', null, [iconButton('close', 'Remove ' + (l.name || 'lift'), function () {
-        if (!hasValues) { remove(); return; }
+        if (l.oneRm === null && l.trainingMax === null) { remove(); return; }
         showConfirm({ title: 'Remove ' + (l.name || 'this lift') + '?', text: 'Its maxes will be deleted.', confirmLabel: 'Remove', onConfirm: remove });
     })])
   ]);
@@ -4485,10 +4496,16 @@ function renderAthletePanel(p) {
         el('span', { className: 'hint', text: 'kg · percentages use the value marked "Use"' }),
         el('button', {
           className: 'link-btn acc', text: 'Add lift',
-          onclick: function () { p.lifts.push(newLift('')); profileTouched(p); render(); }
+          onclick: function () {
+            p.lifts.push(newLift(''));
+            profileTouched(p);
+            render();
+            var boxes = document.querySelectorAll('#library .pf-table input[aria-label="Lift name"]');
+            if (boxes.length) boxes[boxes.length - 1].focus();   // the cursor goes to the new lift's name
+          }
         })
       ]),
-      liftTable,
+      p.lifts.length === 0 ? el('div', { className: 'lib-empty', text: 'No lifts yet. Use Add lift for each lift that has a max.' }) : liftTable,
       datalist,
       panelRow('Round loads to', [roundInput, el('span', { className: 'unit', text: 'kg (the smallest step your plates allow)' })])
     ]),
