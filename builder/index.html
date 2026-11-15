@@ -268,48 +268,57 @@
   /* The last column always keeps the width of the reset button, so the table does not move when the button comes. */
   .wk th:last-child, .wk td:last-child { width: 28px; min-width: 28px; padding-right: 0; }
 
-  /* ---- Library screen. Flat: dividers and spacing, no boxes around items. ---- */
-  #library, #profile { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-  .lib-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+  /* ---- Library screen: a list on the left, the details of the selected item on the right. Flat: dividers and spacing, no boxes. ---- */
+  #library { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   .lib-bar { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); }
   .lib-bar .title { font-size: var(--f-xl); font-weight: 600; }
   .lib-bar .spacer { margin-left: auto; display: flex; gap: var(--s2); }
-  .lib-sect { display: flex; align-items: center; gap: var(--s2); padding: var(--s4) var(--s4) var(--s2); font-weight: 600; cursor: pointer; }
-  .lib-sect.static { cursor: default; }
-  .lib-sect .car, .ath-head .car { width: 16px; flex: none; color: var(--text-dim); }
+  .lib-cols { flex: 1 1 auto; min-height: 0; display: flex; }
+  .lib-list { width: 400px; flex: none; overflow: auto; border-right: 1px solid var(--line); padding-bottom: var(--s4); }
+  .lib-sect { display: flex; align-items: center; gap: var(--s2); padding: var(--s4) var(--s4) var(--s2); font-weight: 600; }
   .lib-sect .count { color: var(--text-dim); font-weight: 400; font-size: var(--f-xs); }
-  .lib-sect button { margin-left: auto; min-height: 28px; padding: 0 var(--s2); }
-  .lib-sect button + button { margin-left: var(--s2); }
-  .lib-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s4) var(--s2) 40px; border-top: 1px solid var(--line); }
+  .lib-sect button { margin-left: auto; min-height: 28px; padding: 0 var(--s2); font-size: var(--f-xs); font-weight: 400; }
+  .lib-row { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s4); border-top: 1px solid var(--line); cursor: pointer; }
   .lib-row:hover { background: var(--surface); }
-  .lib-row.current { background: var(--accent-tint); box-shadow: inset 2px 0 0 var(--accent); }
-  .lib-row.nested, .lib-row.sub-row { padding-left: 64px; }
+  .lib-row.sel { background: var(--accent-tint); box-shadow: inset 2px 0 0 var(--accent); }
+  .lib-row:focus-visible { outline-offset: -2px; }
+  .lib-row.ath { padding-left: var(--s1); gap: var(--s1); }
+  .lib-row.sub, .lib-empty.sub { padding-left: 36px; }
   .lib-row .t { flex: 1; min-width: 0; }
-  .lib-row .t.dim { color: var(--text-dim); }
-  /* The name of a program is a button that opens it. */
-  .lib-row button.row-open { display: block; min-height: 0; padding: 0; background: none; border: none; border-radius: var(--r1); text-align: left; }
-  .lib-row button.row-open:hover b { text-decoration: underline; text-underline-offset: 3px; }
-  .lib-row .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-row .t b, .lib-row .t span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lib-row .t span { color: var(--text-dim); font-size: var(--f-xs); }
-  .lib-row .when { color: var(--text-dim); }
-  .lib-row .acts { display: flex; gap: var(--s2); }
-  .lib-row .acts button { min-height: 28px; padding: 0 var(--s2); font-size: var(--f-xs); }
-  .ath-head { cursor: pointer; padding-left: var(--s4); gap: var(--s2); }
+  .lib-row .hint { white-space: nowrap; }
+  .lib-empty { padding: var(--s2) var(--s4); border-top: 1px solid var(--line); color: var(--text-dim); font-size: var(--f-sm); }
   .lib-foot { display: flex; align-items: center; gap: var(--s4); padding: var(--s2) var(--s4); border-top: 1px solid var(--line); color: var(--text-dim); font-size: var(--f-xs); }
   .lib-foot .grow { flex: 1; }
   .lib-foot .stale { color: var(--warn); }
   .meter { width: 120px; height: 4px; background: var(--line); border-radius: var(--r1); overflow: hidden; display: inline-block; vertical-align: middle; margin-left: var(--s2); }
   .meter i { display: block; height: 100%; background: var(--accent); }
   .meter.warn i { background: var(--danger); }
-
-  /* ---- Athlete profile screen (two columns) ---- */
-  .pf-body { flex: 1 1 auto; min-height: 0; display: flex; }
-  .pf-left { flex: 0 0 600px; max-width: 60%; overflow: auto; padding: var(--s4) var(--s4) var(--s5); }
-  .pf-right { flex: 1 1 auto; min-width: 0; overflow: auto; border-left: 1px solid var(--line); padding: var(--s4) var(--s5) var(--s5); display: flex; flex-direction: column; }
-  .pf-left .pr > label { width: 112px; }
-  .pf-left .pr input[type="text"] { width: 300px; }
-  .pf-left .pr input.num-input { width: 72px; text-align: right; }
-  .pf-right .pr input[type="text"] { width: 100%; }
+  /* The details panel. The text has a maximum width, so it is easy to read on a wide screen. */
+  .lib-det { flex: 1 1 auto; min-width: 0; overflow: auto; padding: var(--s4) var(--s5) var(--s5); }
+  .lib-det-in { max-width: 720px; }
+  .det-head { display: flex; align-items: flex-start; gap: var(--s2); }
+  .det-head .t { flex: 1; min-width: 0; }
+  .det-head .t b { display: block; font-size: var(--f-xl); word-break: break-word; }
+  .det-head .t span { color: var(--text-dim); font-size: var(--f-sm); }
+  .det-acts { display: flex; gap: var(--s2); margin-top: var(--s3); }
+  .kv { display: grid; grid-template-columns: 112px 1fr; gap: var(--s1) var(--s2); }
+  .kv .k { color: var(--text-dim); font-size: var(--f-xs); padding-top: 2px; }
+  .kv .warn { color: var(--warn); }
+  .kv .flag-deload { color: var(--warn); }
+  .kv .flag-test { color: var(--info); }
+  .kv .flag-comp { color: var(--accent); }
+  /* The workouts of a template or a program: one column for each workout. */
+  .wo { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--s4); font-size: var(--f-sm); }
+  .wo b { display: block; margin-bottom: var(--s1); }
+  .wo-line { display: flex; justify-content: space-between; gap: var(--s2); padding: 2px 0; border-top: 1px solid var(--hair); }
+  .wo-line span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wo-line span:last-child { color: var(--text-dim); white-space: nowrap; }
+  /* The athlete profile in the details panel. */
+  .lib-det .pr > label { width: 112px; }
+  .lib-det .pr input[type="text"] { width: 300px; }
+  .lib-det .pr input.num-input { width: 72px; text-align: right; }
   .pf-table { width: 100%; border-collapse: collapse; margin-bottom: var(--s2); }
   .pf-table th { text-align: left; color: var(--text-dim); font-size: var(--f-xs); font-weight: 600; padding: 0 var(--s2) var(--s2) 0; }
   .pf-table td { padding: var(--s1) var(--s2) var(--s1) 0; border-top: 1px solid var(--hair); vertical-align: middle; }
@@ -367,7 +376,6 @@
   <div id="save-warning" hidden><span>This browser could not save your last change. It will be lost when the page closes.</span><button id="warn-export">Back up everything</button></div>
   <div id="profile-changed" hidden></div>
   <div id="library" hidden></div>
-  <div id="profile" hidden></div>
   <div id="workspace">
     <div class="main" id="main"><div class="grid-wrap" id="grid"></div></div>
     <div class="detail" id="detail" hidden></div>
@@ -1359,10 +1367,11 @@ function startUp() {
   profiles = profilesLoad();
   if (library.length === 0) {
     // First visit to the library: move the Phase 1 draft in (the draft key itself is left alone),
-    // or start with an empty program.
-    addProgramEntry(loadDraft() || createDefaultProgram());
+    // or start with an empty template.
+    addProgramEntry(loadDraft() || createDefaultProgram({ name: 'New Template' }), 'template');
     saveLibrary();
   }
+  if (adoptProgramsWithoutAthlete() > 0) saveLibrary();
   setCurrent(findEntry(libraryReadOpenId()) || mostRecentEntry());
   libraryOpen = true;   // the builder starts on the Library; pick a program to work on
   render();
@@ -1386,18 +1395,17 @@ function sizeSteppers(state) {
   return box;
 }
 
-// New program (opened from the Library): name, weeks and workouts per week. The new program is
-// added to the library and opened in the editor.
-function openNewProgramDialog(kind) {
-  var isTemplate = kind === 'template';
+// New template (opened from the Library): name, weeks and workouts per week. The new template is
+// added to the library and opened in the editor. (A program is made from a template for an athlete.)
+function openNewTemplateDialog() {
   var state = { weeks: 4, workouts: 3 };
-  var nameInput = textInput(isTemplate ? 'New Template' : 'New Program', { maxlength: '200', 'aria-label': isTemplate ? 'Template name' : 'Program name' });
+  var nameInput = textInput('New Template', { maxlength: '200', 'aria-label': 'Template name' });
   var error = el('div', { className: 'form-error' });
   function create() {
     var name = nameInput.value.trim();
     if (name === '') { error.textContent = 'Enter a name.'; return; }
     closeModal();
-    var entry = addProgramEntry(createDefaultProgram({ name: name, weeks: state.weeks, workoutsPerWeek: state.workouts }), kind);
+    var entry = addProgramEntry(createDefaultProgram({ name: name, weeks: state.weeks, workoutsPerWeek: state.workouts }), 'template');
     saveLibrary();
     setCurrent(entry);
     libraryOpen = false;
@@ -1405,11 +1413,11 @@ function openNewProgramDialog(kind) {
   }
   nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') create(); });
   openModal({
-    title: isTemplate ? 'New template' : 'New program',
+    title: 'New template',
     body: el('div', null, [
       formRow('Name', nameInput),
       sizeSteppers(state),
-      el('div', { className: 'sub', text: 'You can change the weeks and workouts later with Edit.' }),
+      el('div', { className: 'sub', text: 'You can change the weeks and workouts later, in the "⋯" menu of the editor.' }),
       error
     ]),
     actions: [
@@ -1806,7 +1814,7 @@ function askImportMode(data) {
 function applyImport(data, mode) {
   if (mode === 'replace') {
     library = data.entries.slice();
-    if (library.length === 0) addProgramEntry(createDefaultProgram());
+    if (library.length === 0) addProgramEntry(createDefaultProgram({ name: 'New Template' }), 'template');
     profiles = data.profiles.slice();
   } else {
     var usedNames = {};
@@ -1845,7 +1853,9 @@ function applyImport(data, mode) {
   if (data.exerciseList.length && (mode === 'replace' || loadExerciseList().length === 0)) {
     try { localStorage.setItem(EXERCISE_LIST_KEY, JSON.stringify(data.exerciseList)); } catch (err) { /* reported below if the library fails too */ }
   }
+  adoptProgramsWithoutAthlete();   // a program in the file without an athlete becomes a template
   if (!findEntry(currentId)) setCurrent(mostRecentEntry());
+  libSel = null;
   var savedPrograms = saveLibrary();
   var savedProfiles = saveProfiles();
   if (!savedPrograms || !savedProfiles) showMessage('Restore backup', 'The imported items could not be saved in this browser. They are in memory only until the page closes.');
@@ -1853,17 +1863,19 @@ function applyImport(data, mode) {
   showNotice('Imported ' + plural(data.entries.length, 'program') + (data.profiles.length ? ' and ' + plural(data.profiles.length, 'athlete') : '') + '.');
 }
 
-// Import program (Library page): reads and checks a program file and adds it to the library as a
-// new program. Nothing is replaced and the Library stays open. An invalid file changes nothing.
+// Import program file (Library page): reads and checks a program file and adds it to the library as
+// a template. Nothing is replaced and the Library stays open. An invalid file changes nothing.
 function importProgramFile() {
   function cannotOpen() { showMessage('Import program file', "This file can't be opened."); }
   pickTextFile(MAX_PROGRAM_FILE_BYTES, function (text) {
     var data = parseProgramFile(text);
     if (!data) { cannotOpen(); return; }
-    var entry = addProgramEntry(data);
+    stripAthlete(data);
+    var entry = addProgramEntry(data, 'template');
+    libSel = { type: 'entry', id: entry.id };
     saveLibrary();
     render();
-    showNotice('Imported "' + entry.name + '".');
+    showNotice('Imported "' + entry.name + '" as a template.');
   }, cannotOpen);
 }
 
@@ -3608,19 +3620,8 @@ function render() {
   var header = document.getElementById('header');
   var workspace = document.getElementById('workspace');
   var lib = document.getElementById('library');
-  var profileBox = document.getElementById('profile');
   document.getElementById('save-warning').hidden = draftSaved;
   document.getElementById('profile-changed').hidden = true;   // only the editor shows it (below)
-  if (profileOpenId !== null && findProfile(profileOpenId)) {
-    header.hidden = true;
-    workspace.hidden = true;
-    lib.hidden = true;
-    profileBox.hidden = false;
-    renderProfile();
-    return;
-  }
-  profileOpenId = null;
-  profileBox.hidden = true;
   if (libraryOpen) {
     header.hidden = true;
     workspace.hidden = true;
@@ -3648,17 +3649,16 @@ function updateMainWidth() {
 window.addEventListener('resize', updateMainWidth);
 
 /* ==========================================================================
-   LIBRARY SCREEN (Phase 2 spec 1.1)
-   Step 1 shows one section, "Not linked to an athlete", holding every program. It is TEMPORARY:
-   athlete blocks arrive in step 3 and programs move under them. Everything that belongs only to
-   that section is in renderUnlinkedSection(); removing the section later means deleting that
-   function and its one call in renderLibrary().
+   LIBRARY SCREEN
+   The left side lists the templates, and the athletes with the programs made for them. One click
+   selects an item and the right side shows its details (for an athlete: the profile, edited there).
+   A program always belongs to an athlete. A program without an athlete (an old library, an
+   imported program file, a deleted athlete) is a template.
    ========================================================================== */
-
-var unlinkedOpen = true; // step 1 has no other section, so it starts open (spec: collapsed once athletes exist)
 
 function openLibrary() {
   libraryOpen = true;
+  libSel = { type: 'entry', id: currentId };   // the program you came from is selected
   render();
 }
 
@@ -3677,33 +3677,47 @@ function duplicateProgram(entry) {
   copy.name = (entry.program.name + ' copy').slice(0, 200);
   var added = addProgramEntry(copy, entry.kind);
   added.note = entry.note;
+  libSel = { type: 'entry', id: added.id };
   saveLibrary();
   showNotice('Duplicated.');
   render();
 }
 
-// Does a program have kg loads that are already filled in (not blank)?
-function hasKgLoads(prog) {
-  return prog.workouts.some(function (w) {
-    return w.exercises.some(function (ex) {
-      return ex.weeks.some(function (week) { return week.groups.some(function (g) { return g.loadType === 'kg' && g.load !== null; }); });
-    });
-  });
-}
-
-// Saves a copy of a program as a template: same structure and prescriptions, with the calculated kg
-// values cleared (a template is for any athlete, so it carries no personal weights).
-function saveAsTemplate(entry) {
-  var copy = JSON.parse(JSON.stringify(entry.program));
-  copy.name = (entry.program.name + ' (template)').slice(0, 200);
-  copy.source = null;        // a template is for any athlete
-  copy.profileUsed = null;
-  copy.workouts.forEach(function (w) {
+// Removes everything that belongs to one athlete from a program: the link to the athlete, the maxes
+// it was calculated with, and the calculated kg values. Loads typed in kg stay (a template may use kg).
+function stripAthlete(prog) {
+  prog.source = null;
+  prog.profileUsed = null;
+  prog.workouts.forEach(function (w) {
     w.exercises.forEach(function (ex) {
       ex.weeks.forEach(function (week) { week.groups.forEach(function (g) { g.kg = null; }); });
     });
   });
-  addProgramEntry(copy, 'template');   // kg loads typed by hand are kept; templates may use kg
+}
+
+// Turns a library entry into a template.
+function makeTemplate(entry) {
+  entry.kind = 'template';
+  stripAthlete(entry.program);
+}
+
+// A program always belongs to an athlete. Every program without one (an old library, a backup from
+// an older version, an athlete that no longer exists) becomes a template. Returns how many changed.
+function adoptProgramsWithoutAthlete() {
+  var changedCount = 0;
+  library.forEach(function (entry) {
+    if (entry.kind !== 'template' && !isLinkedProgram(entry)) { makeTemplate(entry); changedCount++; }
+  });
+  return changedCount;
+}
+
+// Saves a copy of a program as a template: same structure and prescriptions, for any athlete.
+function saveAsTemplate(entry) {
+  var copy = JSON.parse(JSON.stringify(entry.program));
+  copy.name = (entry.program.name + ' (template)').slice(0, 200);
+  stripAthlete(copy);
+  var added = addProgramEntry(copy, 'template');
+  libSel = { type: 'entry', id: added.id };
   saveLibrary();
   showNotice('Saved as a template.');
   render();
@@ -3743,86 +3757,204 @@ function deleteProgram(entry) {
     confirmLabel: 'Delete',
     onConfirm: function () {
       library = library.filter(function (e) { return e !== entry; });
-      if (library.length === 0) addProgramEntry(createDefaultProgram());
+      if (library.length === 0) addProgramEntry(createDefaultProgram({ name: 'New Template' }), 'template');
       if (entry.id === currentId) setCurrent(mostRecentEntry());
+      libSel = null;
       saveLibrary();
       render();
     }
   });
 }
 
-function renderProgramRow(entry, nested) {
+/* ---- The Library: a list on the left, the details of the selected item on the right ---- */
+
+// What is selected in the Library: { type: 'entry' | 'athlete', id }, or null. Screen state, not saved.
+var libSel = null;
+var lastRowClick = { id: null, time: 0 };   // to tell a double click on a row from two single clicks
+
+function selectInLibrary(type, id) {
+  if (!libSel || libSel.type !== type || libSel.id !== id) profileSearch = '';
+  libSel = { type: type, id: id };
+  render();
+}
+
+// The selected item: { type, item }. With nothing (valid) selected it is the program open in the editor.
+function librarySelection() {
+  if (libSel && libSel.type === 'athlete' && findProfile(libSel.id)) return { type: 'athlete', item: findProfile(libSel.id) };
+  var entry = (libSel && libSel.type === 'entry' && findEntry(libSel.id)) || findEntry(currentId);
+  return entry ? { type: 'entry', item: entry } : null;
+}
+
+// One template or program in the list. A click selects it. A double click opens it in the editor.
+function renderEntryRow(entry, sel, nested) {
   var p = entry.program;
-  var isCurrent = entry.id === currentId;
+  var isSelected = !!sel && sel.item === entry;
+  return keyClick(el('div', {
+    className: 'lib-row' + (nested ? ' sub' : '') + (isSelected ? ' sel' : ''), role: 'button', tabindex: '0',
+    'aria-pressed': isSelected ? 'true' : 'false', title: 'Double-click to open in the editor',
+    onclick: function () {
+      var now = Date.now();
+      if (lastRowClick.id === entry.id && now - lastRowClick.time < 400) { openFromLibrary(entry); return; }
+      lastRowClick = { id: entry.id, time: now };
+      selectInLibrary('entry', entry.id);
+    }
+  }, [
+    el('div', { className: 't' }, [
+      el('b', { text: entry.name === '' ? '(No name)' : entry.name }),
+      el('span', { text: plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout') + ' · ' + formatDate(entry.modified) })
+    ])
+  ]));
+}
+
+// One athlete in the list, and below it (when open) the programs made for that athlete.
+function renderAthleteRows(p, sel) {
+  var progs = programsOfAthlete(p).sort(byNewest);
+  var open = isAthleteOpen(p);
+  var isSelected = !!sel && sel.item === p;
+  var caretLabel = (open ? 'Hide' : 'Show') + ' the programs of ' + (p.name || 'this athlete');
+  var caret = el('button', {
+    className: 'icon-btn', title: caretLabel, 'aria-label': caretLabel, 'aria-expanded': open ? 'true' : 'false',
+    onclick: function (e) { e.stopPropagation(); athleteOpenState[p.id] = !open; render(); }
+  }, [icon(open ? 'down' : 'right')]);
+  var rows = [keyClick(el('div', {
+    className: 'lib-row ath' + (isSelected ? ' sel' : ''), role: 'button', tabindex: '0', 'data-ath': p.id,
+    'aria-pressed': isSelected ? 'true' : 'false',
+    onclick: function () { athleteOpenState[p.id] = true; selectInLibrary('athlete', p.id); }
+  }, [
+    caret,
+    el('div', { className: 't' }, [
+      el('b', { text: p.name === '' ? '(No name)' : p.name }),
+      el('span', { text: liftsSummary(p) })
+    ]),
+    el('span', { className: 'hint', text: plural(progs.length, 'program') })
+  ]))];
+  if (open) {
+    if (progs.length === 0) rows.push(el('div', { className: 'lib-empty sub', text: 'No programs yet for this athlete.' }));
+    progs.forEach(function (entry) { rows.push(renderEntryRow(entry, sel, true)); });
+  }
+  return rows;
+}
+
+// The left side: the templates, then the athletes with their programs. Each section has one "New" button.
+function renderLibraryList(sel) {
+  var list = el('div', { className: 'lib-list' });
+  var templates = library.filter(function (e) { return e.kind === 'template'; }).sort(byNewest);
+  list.appendChild(el('div', { className: 'lib-sect' }, [
+    el('span', { text: 'Templates' }),
+    el('span', { className: 'count', text: String(templates.length) }),
+    el('button', { text: 'New template', onclick: openNewTemplateDialog })
+  ]));
+  templates.forEach(function (entry) { list.appendChild(renderEntryRow(entry, sel, false)); });
+
+  var athletes = profiles.slice().sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0; });
+  list.appendChild(el('div', { className: 'lib-sect' }, [
+    el('span', { text: 'Athletes' }),
+    el('span', { className: 'count', text: String(athletes.length) }),
+    el('button', { text: 'New athlete', onclick: addAthlete })
+  ]));
+  if (athletes.length === 0) {
+    list.appendChild(el('div', { className: 'lib-empty', text: 'No athletes yet. An athlete keeps the maxes and the exercises that the gym does not have.' }));
+  }
+  athletes.forEach(function (p) { renderAthleteRows(p, sel).forEach(function (row) { list.appendChild(row); }); });
+  return list;
+}
+
+/* ---- The details panel for a template or a program ---- */
+
+// The lines of one workout for the details panel: [{ name, text }], one for each set group, from
+// Week 1 (or from the first week that has the exercise).
+function workoutSummary(workout) {
+  var lines = [];
+  workout.exercises.forEach(function (ex) {
+    var week = ex.weeks.filter(function (w) { return w.included; })[0];
+    if (!week) return;
+    week.groups.forEach(function (g) {
+      lines.push({ name: ex.name, text: setsRepsText(g) + (g.load !== null ? ' · ' + describeLoad(g).text : '') });
+    });
+  });
+  return lines;
+}
+
+// "Sam Lee (2 programs), Maria Okafor (1 program)": the athletes who have a program from this template.
+function templateUsers(entry) {
+  var parts = [];
+  profiles.forEach(function (p) {
+    var n = programsOfAthlete(p).filter(function (e) { return e.program.source.templateId === entry.id; }).length;
+    if (n > 0) parts.push((p.name || '(No name)') + ' (' + plural(n, 'program') + ')');
+  });
+  return parts.join(', ');
+}
+
+function renderEntryPanel(entry) {
+  var p = entry.program;
   var isTemplate = entry.kind === 'template';
+  var owner = p.source ? findProfile(p.source.profileId) : null;
   var open = function () { openFromLibrary(entry); };
-  // One visible action for each row: a template is used for an athlete, a program is opened. A click
-  // on the name opens the item too. The other actions are in the menu.
-  var acts = [isTemplate
-    ? el('button', { text: 'Use for athlete', onclick: function () { openGenerateDialog({ template: entry }); } })
-    : el('button', { text: 'Open', onclick: open })];
-  acts.push(menuButton('More actions for ' + (entry.name || 'this item'), function () {
-    var items = [];
-    if (isTemplate) items.push({ text: 'Open', onClick: open });
-    items.push({ text: 'Rename', onClick: function () { renameProgram(entry); } });
-    items.push({ text: 'Duplicate', onClick: function () { duplicateProgram(entry); } });
+
+  var subtitle = 'Template';
+  if (!isTemplate) {
+    subtitle = 'Program for ' + (owner && owner.name ? owner.name : 'an athlete');
+    if (p.source && p.source.templateName) subtitle += ' · from the template ' + p.source.templateName;
+  }
+  var menu = menuButton('More actions for ' + (entry.name || 'this item'), function () {
+    var items = [
+      { text: 'Rename', onClick: function () { renameProgram(entry); } },
+      { text: 'Duplicate', onClick: function () { duplicateProgram(entry); } }
+    ];
     if (!isTemplate) items.push({ text: 'Save as template', onClick: function () { saveAsTemplate(entry); } });
     items.push({ text: 'Export program file', onClick: function () { downloadProgram(p); } });
     items.push({ text: 'Delete', cls: 'danger-text', onClick: function () { deleteProgram(entry); } });
     return items;
-  }));
-  var detail = plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout');
-  if (p.source && p.source.templateName) detail += ' · from ' + p.source.templateName;
-  if (entry.note) detail += ' · ' + entry.note;
-  return el('div', { className: 'lib-row' + (isCurrent ? ' current' : '') + (nested ? ' nested' : '') }, [
-    el('button', { className: 't row-open', title: 'Open in the editor', onclick: open }, [
-      el('b', { text: entry.name === '' ? '(No name)' : entry.name }),
-      el('span', { text: detail })
+  });
+  // The one main action: a template is used for an athlete, a program is opened.
+  var acts = isTemplate
+    ? [el('button', { className: 'primary', text: 'Use for athlete', onclick: function () { openGenerateDialog({ template: entry }); } }),
+       el('button', { text: 'Open', onclick: open })]
+    : [el('button', { className: 'primary', text: 'Open', onclick: open }),
+       el('button', { text: 'Export for GymLog', onclick: function () { setCurrent(entry); exportForGymLog(); } })];
+
+  var count = p.workouts.reduce(function (n, w) { return n + w.exercises.length; }, 0);
+  var facts = [['Size', [el('span', { text: plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout') + ' · ' + plural(count, 'exercise') })]]];
+  var flags = [];
+  p.weekFlags.forEach(function (f, w) {
+    if (!f) return;
+    if (flags.length > 0) flags.push(el('span', { className: 'dim', text: ' · ' }));
+    flags.push(el('span', { className: 'flag-' + f, text: WEEK_FLAG_LABELS[f] }));
+    flags.push(el('span', { text: ' Week ' + (w + 1) }));
+  });
+  if (flags.length > 0) facts.push(['Week flags', flags]);
+  facts.push(['Last change', [el('span', { text: formatDate(entry.modified) })]]);
+  if (isTemplate) {
+    var users = templateUsers(entry);
+    facts.push(['Used for', [el('span', { className: users ? null : 'dim', text: users || 'No athlete yet' })]]);
+  } else {
+    var cannot = unavailableInProgram(p);
+    if (cannot.length > 0) facts.push(['Check', [el('span', { className: 'warn', text: (owner && owner.name ? owner.name : 'The athlete') + " can't do: " + cannot.join(', ') })]]);
+  }
+  var kv = el('div', { className: 'kv' });
+  facts.forEach(function (f) { kv.appendChild(el('span', { className: 'k', text: f[0] })); kv.appendChild(el('span', null, f[1])); });
+
+  var workouts = el('div', { className: 'wo' });
+  p.workouts.forEach(function (workout, wi) {
+    var lines = workoutSummary(workout);
+    var col = el('div', null, [el('b', { text: (wi + 1) + (workout.description ? ' · ' + workout.description : '') })]);
+    if (lines.length === 0) col.appendChild(el('div', { className: 'dim', text: 'No exercises yet' }));
+    lines.forEach(function (line) { col.appendChild(el('div', { className: 'wo-line' }, [el('span', { text: line.name }), el('span', { text: line.text })])); });
+    workouts.appendChild(col);
+  });
+
+  return el('div', { className: 'lib-det-in' }, [
+    el('div', { className: 'det-head' }, [
+      el('div', { className: 't' }, [el('b', { text: entry.name === '' ? '(No name)' : entry.name }), el('span', { text: subtitle })]),
+      menu
     ]),
-    isCurrent ? el('span', { className: 'tag-now', text: 'Open now' }) : el('span'),
-    el('span', { className: 'when', text: formatDate(entry.modified) }),
-    el('div', { className: 'acts' }, acts)
+    el('div', { className: 'det-acts' }, acts),
+    el('div', { className: 'ps' }, [kv]),
+    el('div', { className: 'ps' }, [
+      el('div', { className: 'ps-head' }, [el('b', { text: 'Workouts' }), el('span', { className: 'hint', text: 'Week 1' })]),
+      workouts
+    ])
   ]);
-}
-
-// The Templates section (above the athletes): reusable programs, newest edited first.
-function renderTemplatesSection() {
-  var wrap = el('div');
-  var sorted = library.filter(function (e) { return e.kind === 'template'; })
-    .sort(function (a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; });
-  wrap.appendChild(el('div', { className: 'lib-sect static' }, [
-    el('span', { text: 'Templates' }),
-    el('span', { className: 'count', text: String(sorted.length) }),
-    el('button', { text: 'New template', onclick: function () { openNewProgramDialog('template'); } })
-  ]));
-  if (sorted.length === 0) {
-    wrap.appendChild(el('div', { className: 'lib-row' }, [
-      el('div', { className: 't dim', text: 'No templates yet. A template is a program that you use again for different athletes. You can also use "Save as template" in the menu of a program.' }),
-      el('div', { className: 'acts' }, [el('button', { text: 'New template', onclick: function () { openNewProgramDialog('template'); } })])
-    ]));
-  }
-  sorted.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry)); });
-  return wrap;
-}
-
-// TEMPORARY section (see the note above): every program that is not a template, newest edited first.
-function renderUnlinkedSection() {
-  var wrap = el('div');
-  var sorted = library.filter(function (e) { return e.kind !== 'template' && !isLinkedProgram(e); })
-    .sort(function (a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; });
-  wrap.appendChild(keyClick(el('div', {
-    className: 'lib-sect', role: 'button', tabindex: '0', 'aria-expanded': unlinkedOpen ? 'true' : 'false',
-    onclick: function () { unlinkedOpen = !unlinkedOpen; render(); }
-  }, [
-    el('span', { className: 'car' }, [icon(unlinkedOpen ? 'down' : 'right')]),
-    el('span', { text: 'Not linked to an athlete' }),
-    el('span', { className: 'count', text: plural(sorted.length, 'program') })
-  ])));
-  if (unlinkedOpen && sorted.length === 0) {
-    wrap.appendChild(el('div', { className: 'lib-row' }, [el('div', { className: 't dim', text: 'No programs here. "New program" at the top of the page makes a blank program.' })]));
-  }
-  if (unlinkedOpen) sorted.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry)); });
-  return wrap;
 }
 
 // "never", or "dd/mm/yyyy (N days ago)", and whether to show it as a warning.
@@ -3853,10 +3985,14 @@ function renderLibraryFooter() {
   ]);
 }
 
+var libPanelKey = '';   // which item the details panel showed last, to keep its scroll position
+
 function renderLibrary() {
   var box = document.getElementById('library');
-  var oldBody = box.querySelector('.lib-body');
-  var scrollTop = oldBody ? oldBody.scrollTop : 0;
+  var oldList = box.querySelector('.lib-list');
+  var oldDet = box.querySelector('.lib-det');
+  var listScroll = oldList ? oldList.scrollTop : 0;
+  var detScroll = oldDet ? oldDet.scrollTop : 0;
   box.textContent = '';
   // "Import" opens a menu with the three kinds of file that the builder can read.
   var importBtn = el('button', { text: 'Import', 'aria-haspopup': 'menu' });
@@ -3871,21 +4007,27 @@ function renderLibrary() {
     el('span', { className: 'title', text: 'Library' }),
     el('div', { className: 'spacer' }, [
       importBtn,
-      el('button', { text: 'Back up everything', title: 'Save templates, athletes and programs in one file', onclick: exportEverything }),
-      el('button', { className: 'primary', text: 'New program', title: 'Make a blank program', onclick: function () { openNewProgramDialog(); } })
+      el('button', { text: 'Back up everything', title: 'Save templates, athletes and programs in one file', onclick: exportEverything })
     ])
   ]));
-  var body = el('div', { className: 'lib-body' }, [renderTemplatesSection(), renderAthletesSection(), renderUnlinkedSection()]);
-  box.appendChild(body);
+  var sel = librarySelection();
+  var list = renderLibraryList(sel);
+  var det = el('div', { className: 'lib-det' }, [
+    !sel ? el('div', { className: 'dim', text: 'Select a template, an athlete or a program.' })
+      : sel.type === 'athlete' ? renderAthletePanel(sel.item) : renderEntryPanel(sel.item)
+  ]);
+  box.appendChild(el('div', { className: 'lib-cols' }, [list, det]));
   box.appendChild(renderLibraryFooter());   // always at the bottom of the page
-  body.scrollTop = scrollTop;
+  list.scrollTop = listScroll;
+  var key = sel ? sel.type + ':' + sel.item.id : '';
+  det.scrollTop = key === libPanelKey ? detScroll : 0;
+  libPanelKey = key;
 }
 
 /* ==========================================================================
    ATHLETES (Phase 2 spec step 3): the Athletes section of the Library and the profile screen
    ========================================================================== */
 
-var profileOpenId = null;   // id of the profile open on the profile screen, or null
 var profileSearch = '';     // the search text above the "can't do" list
 
 function findProfile(id) {
@@ -3903,23 +4045,16 @@ function profileTouched(p) {
 
 function todayIso() { return new Date().toISOString(); }
 
-function openProfile(id) {
-  profileOpenId = id;
-  profileSearch = '';
-  render();
-}
-
-function closeProfile() {
-  profileOpenId = null;
-  libraryOpen = true;
-  render();
-}
-
+// A new athlete is selected in the Library, with the cursor in the name box.
 function addAthlete() {
   var p = newProfile('New Athlete');
   profiles.push(p);
   saveProfiles();
-  openProfile(p.id);
+  athleteOpenState[p.id] = true;
+  libraryOpen = true;
+  selectInLibrary('athlete', p.id);
+  var nameBox = document.querySelector('#library .lib-det input[type="text"]');
+  if (nameBox) { nameBox.focus(); nameBox.select(); }
 }
 
 function duplicateAthlete(p) {
@@ -3939,26 +4074,41 @@ function programsOfAthlete(p) {
   return library.filter(function (e) { return e.kind !== 'template' && e.program.source && e.program.source.profileId === p.id; });
 }
 
-// Asks first. Programs made for the athlete are kept: they move to "Not linked to an athlete".
-// `after` (optional) runs instead of a plain redraw once the athlete is deleted.
-function deleteAthlete(p, after) {
+// Asks first. If the athlete has programs, the dialog asks what to do with them: keep them as
+// templates (a program always belongs to an athlete) or delete them too.
+function deleteAthlete(p) {
   var linked = programsOfAthlete(p);
   var who = p.name || 'this athlete';
-  var text = 'This cannot be undone.';
-  if (linked.length > 0) {
-    text = plural(linked.length, 'program') + ' made for ' + who + ' will move to "Not linked to an athlete". The programs are kept. ' + text;
+  function go(keep) {
+    if (keep) linked.forEach(makeTemplate);
+    else library = library.filter(function (e) { return linked.indexOf(e) < 0; });
+    profiles = profiles.filter(function (x) { return x !== p; });
+    if (library.length === 0) addProgramEntry(createDefaultProgram({ name: 'New Template' }), 'template');
+    if (!findEntry(currentId)) setCurrent(mostRecentEntry());
+    libSel = null;
+    saveProfiles();
+    saveLibrary();
+    render();
   }
-  showConfirm({
+  if (linked.length === 0) {
+    showConfirm({ title: 'Delete "' + who + '"?', text: 'This cannot be undone.', confirmLabel: 'Delete', onConfirm: function () { go(true); } });
+    return;
+  }
+  var choice = 'keep';
+  var n = plural(linked.length, 'program');
+  var radios = [['keep', 'Keep the ' + n + ' as ' + (linked.length === 1 ? 'a template' : 'templates')], ['delete', 'Delete the ' + n + ' too']].map(function (c) {
+    var radio = el('input', { type: 'radio', name: 'athlete-programs', value: c[0] });
+    radio.checked = c[0] === choice;
+    radio.addEventListener('change', function () { choice = c[0]; });
+    return el('label', { className: 'opt' }, [radio, el('span', { text: c[1] })]);
+  });
+  openModal({
     title: 'Delete "' + who + '"?',
-    text: text,
-    confirmLabel: 'Delete',
-    onConfirm: function () {
-      linked.forEach(function (e) { e.program.source.profileId = null; });
-      profiles = profiles.filter(function (x) { return x !== p; });
-      saveProfiles();
-      if (linked.length > 0) saveLibrary();
-      if (after) after(); else render();
-    }
+    body: el('div', null, [el('p', { text: who + ' has ' + n + '. This cannot be undone.' })].concat(radios)),
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', { className: 'danger', text: 'Delete', onclick: function () { closeModal(); go(choice === 'keep'); } })
+    ]
   });
 }
 
@@ -3994,76 +4144,6 @@ function isAthleteOpen(p) {
   return athleteOpenState[p.id] !== undefined ? athleteOpenState[p.id] : p.id === defaultOpenAthleteId();
 }
 
-// One athlete in the Library: a header row that expands to the programs made for them.
-function renderAthleteBlock(p) {
-  var progs = programsOfAthlete(p).sort(byNewest);
-  var open = isAthleteOpen(p);
-  var tags = [];
-  if (p.unavailable.length > 0) tags.push(el('span', { className: 'tag-warn', text: plural(p.unavailable.length, 'exercise') + ' unavailable' }));
-  tags.push(el('span', { className: 'tag', text: plural(progs.length, 'program') }));
-  function stop(fn) { return function (e) { e.stopPropagation(); fn(); }; }
-  var fromTemplate = function () { openGenerateDialog({ profile: p }); };
-  var head = keyClick(el('div', {
-    className: 'lib-row ath-head', role: 'button', tabindex: '0', 'aria-expanded': open ? 'true' : 'false',
-    onclick: function () { athleteOpenState[p.id] = !open; render(); }
-  }, [
-    el('span', { className: 'car' }, [icon(open ? 'down' : 'right')]),
-    el('div', { className: 't' }, [
-      el('b', { text: p.name === '' ? '(No name)' : p.name }),
-      el('span', { text: liftsSummary(p) })
-    ])
-  ].concat(tags, [
-    el('div', { className: 'acts' }, [
-      el('button', { text: 'Edit profile', onclick: stop(function () { openProfile(p.id); }) }),
-      el('button', { text: 'Program from template', title: 'Make a program for this athlete from a template', onclick: stop(fromTemplate) }),
-      menuButton('More actions for ' + (p.name || 'this athlete'), function () {
-        return [
-          { text: 'Duplicate', onClick: function () { duplicateAthlete(p); } },
-          { text: 'Delete', cls: 'danger-text', onClick: function () { deleteAthlete(p); } }
-        ];
-      })
-    ])
-  ])));
-  var wrap = el('div', null, [head]);
-  if (open) {
-    if (progs.length === 0) {
-      wrap.appendChild(el('div', { className: 'lib-row sub-row' }, [
-        el('div', { className: 't dim', text: 'No programs yet for this athlete.' }),
-        el('div', { className: 'acts' }, [el('button', { text: 'Program from template', onclick: fromTemplate })])
-      ]));
-    }
-    progs.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry, true)); });
-  }
-  return wrap;
-}
-
-// The Athletes section of the Library (below the templates).
-function renderAthletesSection() {
-  var wrap = el('div');
-  var sorted = profiles.slice().sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0; });
-  var anyClosed = sorted.some(function (p) { return !isAthleteOpen(p); });
-  var head = [
-    el('span', { text: 'Athletes' }),
-    el('span', { className: 'count', text: String(sorted.length) })
-  ];
-  if (sorted.length > 0) {
-    head.push(el('button', {
-      className: 'expand-all', text: anyClosed ? 'Expand all' : 'Collapse all',
-      onclick: function () { sorted.forEach(function (p) { athleteOpenState[p.id] = anyClosed; }); render(); }
-    }));
-  }
-  head.push(el('button', { text: 'New athlete', onclick: addAthlete }));
-  wrap.appendChild(el('div', { className: 'lib-sect static' }, head));
-  if (sorted.length === 0) {
-    wrap.appendChild(el('div', { className: 'lib-row' }, [
-      el('div', { className: 't dim', text: 'No athletes yet. An athlete keeps the maxes and the exercises that the gym does not have.' }),
-      el('div', { className: 'acts' }, [el('button', { text: 'New athlete', onclick: addAthlete })])
-    ]));
-  }
-  sorted.forEach(function (p) { wrap.appendChild(renderAthleteBlock(p)); });
-  return wrap;
-}
-
 /* ---- Generate: make a program for an athlete from a template (Phase 2 spec 4.2) ---- */
 
 // Makes the program and opens it. `extras` is { exerciseName: kg } for exercises with no matching lift.
@@ -4076,6 +4156,7 @@ function generateProgram(tplEntry, profile, name, extras) {
   recalcKg(copy);
   var entry = addProgramEntry(copy, 'program');
   athleteOpenState[profile.id] = true;
+  libSel = { type: 'entry', id: entry.id };
   saveLibrary();
   setCurrent(entry);
   libraryOpen = false;
@@ -4242,7 +4323,7 @@ function renderLiftRow(p, l, index) {
       l[key] = n;
       l.updated = todayIso();
       profileTouched(p);
-      renderProfile();
+      render();
     });
     return input;
   }
@@ -4250,7 +4331,7 @@ function renderLiftRow(p, l, index) {
   function baseButton(value, text) {
     return el('button', {
       className: l.base === value ? 'on' : null, text: text, 'aria-pressed': l.base === value ? 'true' : 'false',
-      onclick: function () { l.base = value; profileTouched(p); renderProfile(); }
+      onclick: function () { l.base = value; profileTouched(p); render(); }
     });
   }
 
@@ -4261,7 +4342,7 @@ function renderLiftRow(p, l, index) {
   function remove() {
     p.lifts.splice(index, 1);
     profileTouched(p);
-    renderProfile();
+    render();
   }
   var hasValues = l.oneRm !== null || l.trainingMax !== null;
   return el('tr', null, [
@@ -4337,44 +4418,36 @@ function renderUnavailableColumn(p) {
   searchInput.addEventListener('input', function () { profileSearch = searchInput.value; draw(); });
   draw();
 
-  return el('div', { className: 'pf-right' }, [
-    el('div', { className: 'ps-head' }, [el('b', { text: "Exercises " + (p.name || 'this athlete') + " can't do" })]),
-    el('div', { className: 'hint', text: "Tick what the gym doesn't have. Everything else is available." }),
-    el('div', { className: 'pr' }, [searchInput]),
-    countLine,
+  return el('div', { className: 'ps' }, [
+    el('div', { className: 'ps-head' }, [
+      el('b', { text: "Exercises " + (p.name || 'this athlete') + " can't do" }),
+      el('span', { className: 'hint', text: "Tick what the gym doesn't have" })
+    ]),
+    el('div', { className: 'pr' }, [searchInput, countLine]),
     addBox,
     listBox
   ]);
 }
 
-function renderProfile() {
-  var box = document.getElementById('profile');
-  var p = findProfile(profileOpenId);
-  if (!p) { profileOpenId = null; render(); return; }
-  var oldLeft = box.querySelector('.pf-left');
-  var oldList = box.querySelector('.pf-list');
-  var leftScroll = oldLeft ? oldLeft.scrollTop : 0;
-  var listScroll = oldList ? oldList.scrollTop : 0;
-  box.textContent = '';
-
-  var titleEl = el('span', { className: 'title', text: p.name === '' ? '(No name)' : p.name });
-  box.appendChild(el('div', { className: 'lib-bar' }, [
-    el('button', { className: 'link-btn', text: 'Library', onclick: closeProfile }),
-    el('span', { className: 'dim', text: '/' }),
-    titleEl,
-    el('div', { className: 'spacer' }, [
-      // Everything is saved as you type; Done only goes back to the Library.
-      el('span', { className: 'hint', text: 'Changes are saved automatically' }),
-      el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteAthlete(p, closeProfile); } }),
-      el('button', { className: 'primary', text: 'Done', onclick: closeProfile })
-    ])
-  ]));
+// The details panel for an athlete: the profile, edited in place. Every change is saved at once.
+function renderAthletePanel(p) {
+  var progs = programsOfAthlete(p);
+  var titleEl = el('b', { text: p.name === '' ? '(No name)' : p.name });
+  var menu = menuButton('More actions for ' + (p.name || 'this athlete'), function () {
+    return [
+      { text: 'Duplicate', onClick: function () { duplicateAthlete(p); } },
+      { text: 'Delete', cls: 'danger-text', onClick: function () { deleteAthlete(p); } }
+    ];
+  });
 
   // Name and notes
   var nameInput = textInput(p.name, { maxlength: '200', 'aria-label': 'Athlete name' });
   nameInput.addEventListener('input', function () {
     p.name = nameInput.value;
-    titleEl.textContent = p.name === '' ? '(No name)' : p.name;
+    var shown = p.name === '' ? '(No name)' : p.name;
+    titleEl.textContent = shown;
+    var rowName = document.querySelector('#library .lib-row[data-ath="' + p.id + '"] b');
+    if (rowName) rowName.textContent = shown;   // the list shows the new name without a redraw
     profileTouched(p);
   });
   var notes = el('textarea', { maxlength: '2000', 'aria-label': 'Notes', placeholder: 'Notes about this athlete' });
@@ -4406,28 +4479,33 @@ function renderProfile() {
     profileTouched(p);
   });
 
-  var left = el('div', { className: 'pf-left' }, [
-    el('div', { className: 'ps-head' }, [el('b', { text: 'Athlete' })]),
-    panelRow('Name', [nameInput]),
-    panelRow('Notes', [notes]),
+  return el('div', { className: 'lib-det-in' }, [
+    el('div', { className: 'det-head' }, [
+      el('div', { className: 't' }, [titleEl, el('span', { text: 'Athlete · ' + plural(progs.length, 'program') + ' · changes are saved automatically' })]),
+      menu
+    ]),
+    el('div', { className: 'det-acts' }, [
+      el('button', { className: 'primary', text: 'Program from template', title: 'Make a program for this athlete from a template', onclick: function () { openGenerateDialog({ profile: p }); } })
+    ]),
+    el('div', { className: 'ps' }, [
+      panelRow('Name', [nameInput]),
+      panelRow('Notes', [notes])
+    ]),
     el('div', { className: 'ps' }, [
       el('div', { className: 'ps-head' }, [
         el('b', { text: 'Lifts and maxes' }),
         el('span', { className: 'hint', text: 'kg · percentages use the value marked "Use"' }),
         el('button', {
           className: 'link-btn acc', text: 'Add lift',
-          onclick: function () { p.lifts.push(newLift('')); profileTouched(p); renderProfile(); }
+          onclick: function () { p.lifts.push(newLift('')); profileTouched(p); render(); }
         })
       ]),
       liftTable,
       datalist,
       panelRow('Round loads to', [roundInput, el('span', { className: 'unit', text: 'kg (the smallest step your plates allow)' })])
-    ])
+    ]),
+    renderUnavailableColumn(p)
   ]);
-  box.appendChild(el('div', { className: 'pf-body' }, [left, renderUnavailableColumn(p)]));
-  left.scrollTop = leftScroll;
-  var newList = box.querySelector('.pf-list');
-  if (newList) newList.scrollTop = listScroll;
 }
 
 /* ==========================================================================
