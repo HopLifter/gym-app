@@ -5,75 +5,131 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GymLog Program Builder</title>
 <style>
+  /* ---- Design tokens. Every colour, font size, space and radius on the page comes from this list. ---- */
   :root {
+    color-scheme: dark;                   /* native checkboxes, select menus and scroll bars are dark too */
+    /* colour */
     --bg: #0B0D0C;
-    --surface: #161917;
-    --line: #2A2F2B;
+    --surface: #161917;                   /* dialogs and menus */
+    --raised: #1E2220;                    /* hover */
+    --line: #2A2F2B;                      /* divider lines only */
+    --hair: #1F2421;                      /* faint divider inside the grid */
+    --control: #626A63;                   /* edges of inputs and buttons (3:1 on the background) */
     --text: #EDEEEA;
     --text-dim: #8C948C;
-    --accent: #C6FF3D;
+    --accent: #C6FF3D;                    /* the primary action, selection, the superset bar */
+    --accent-tint: #232A1A;               /* background of the selected item */
+    --accent-line: #3B4A1C;
     --danger: #E05C4E;
-    --rpe: #8FC7FF;
-    --selected-bg: #232A1A;
-    --hair: #1F2421;                      /* faint divider inside the grid */
-    --accent-soft: rgba(198, 255, 61, 0.45); /* light accent for the week header underline */
+    --warn: #E8B04A;
+    --warn-tint: #1D1810;
+    --warn-line: #5A4720;
+    --info: #8FC7FF;
+    /* type: 5 sizes, weights 400 and 600 */
+    --f-xs: 12px; --f-sm: 13px; --f-md: 14px; --f-lg: 16px; --f-xl: 20px;
+    /* space */
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    /* radius */
+    --r1: 4px; --r2: 8px; --r3: 12px;
   }
-  * { box-sizing: border-box; }
-  /* Thin, dark scroll bars everywhere (the default light ones look out of place on this dark page). */
-  * { scrollbar-width: thin; scrollbar-color: #3A413B transparent; }
+  * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--control) transparent; }
   html { height: 100%; }
   body {
     height: 100%;
-    display: flex; flex-direction: column; /* header on top, the grid scrolls in the middle, the table at the bottom */
+    display: flex; flex-direction: column; /* header on top, the grid scrolls in the middle */
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 14px;
+    font: 400 var(--f-md)/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-variant-numeric: tabular-nums;
     min-width: 1024px;
   }
-  button, input {
-    font: inherit;
-    color: var(--text);
-  }
+  b { font-weight: 600; }
+  [hidden] { display: none !important; }
+
+  /* ---- Controls: one look for every button, text box, list and text area ---- */
+  button, input, select, textarea { font: inherit; color: var(--text); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 0; }
   button {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 7px 12px;
-    cursor: pointer;
-    white-space: nowrap;
+    min-height: 32px; padding: 0 var(--s3);
+    background: transparent; border: 1px solid var(--control); border-radius: var(--r2);
+    cursor: pointer; white-space: nowrap;
   }
-  button:hover:not(:disabled) { border-color: var(--text-dim); }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
-  button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
-  button.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
-  input[type="text"] {
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 7px 10px;
+  button:hover:not(:disabled) { background: var(--raised); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+  button.danger { background: var(--danger); border-color: var(--danger); color: var(--bg); font-weight: 600; }
+  button.danger:hover:not(:disabled) { background: var(--danger); filter: brightness(1.08); }
+  input[type="text"], select, textarea {
+    background: var(--bg); border: 1px solid var(--control); border-radius: var(--r2);
   }
-  input[type="text"]:focus { outline: none; border-color: var(--accent); }
+  input[type="text"], select { height: 32px; padding: 0 var(--s2); }
+  textarea { width: 100%; min-height: 56px; padding: var(--s2); resize: vertical; }
+  ::placeholder { color: var(--text-dim); opacity: 1; }
+  input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); margin: 0; }
+  /* A button that looks like a text link. `acc` marks the links that add or open something. */
+  .link-btn {
+    min-height: 24px; padding: 0; background: none; border: none; border-radius: var(--r1);
+    color: var(--text-dim); font-size: var(--f-sm);
+  }
+  .link-btn:hover:not(:disabled) { background: none; color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+  .link-btn.acc { color: var(--text); text-align: left; }
+  .link-btn.danger-link { color: var(--danger); }
+  /* A button that is only an icon. */
+  .icon-btn {
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+    width: 28px; min-height: 28px; padding: 0; background: none; border: none; border-radius: var(--r2); color: var(--text-dim);
+  }
+  .icon-btn:hover:not(:disabled) { color: var(--text); }
+  .ico { display: block; flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+  .ico.dots { stroke-width: 2.5; }
+  /* A quiet button without an edge (the "Library" link in the editor header). */
+  .ghost-btn { display: inline-flex; align-items: center; gap: var(--s1); padding: 0 var(--s2) 0 var(--s1); border-color: transparent; color: var(--text-dim); }
+  .ghost-btn:hover:not(:disabled) { color: var(--text); }
+  .link-btn.warn-link { color: var(--warn); }
+  /* A row of buttons where one is chosen. */
+  .segmented { display: inline-flex; }
+  .segmented button { min-height: 28px; padding: 0 var(--s2); border-radius: 0; margin-left: -1px; font-size: var(--f-xs); color: var(--text-dim); }
+  .segmented button:first-child { border-radius: var(--r2) 0 0 var(--r2); margin-left: 0; }
+  .segmented button:last-child { border-radius: 0 var(--r2) var(--r2) 0; }
+  .segmented button.on { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; position: relative; }
+  /* Small text helpers */
+  .dim, .meta-text, .unit { color: var(--text-dim); }
+  .hint { color: var(--text-dim); font-size: var(--f-xs); }
+  .warn-text { color: var(--warn); font-size: var(--f-xs); }
+  .ok-text { color: var(--accent); font-size: var(--f-xs); margin: var(--s2) 0; }
+  .danger-text { color: var(--danger); }
+  .tag-template, .tag-now, .tag-warn {
+    font-size: var(--f-xs); padding: 0 var(--s2); border-radius: var(--r3); border: 1px solid var(--line); color: var(--text-dim); white-space: nowrap;
+  }
+  .tag-now { border-color: var(--accent-line); color: var(--accent); }
+  .tag-warn { border-color: var(--warn-line); color: var(--warn); }
 
   /* ---- Header ---- */
+  .header, #save-warning, .detail, .lib-bar, .lib-foot { flex: none; }
   .header {
-    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-    padding: 14px 20px;
+    display: flex; align-items: center; gap: var(--s3); flex-wrap: wrap;
+    padding: var(--s2) var(--s4);
     border-bottom: 1px solid var(--line);
-    background: var(--surface);
   }
-  .field { display: flex; align-items: center; gap: 8px; }
-  .field label { color: var(--text-dim); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
-  #name-input { width: 260px; font-size: 16px; font-weight: 600; }
+  #name-input { width: clamp(260px, 30vw, 480px); font-size: var(--f-lg); font-weight: 600; }
+  .header-buttons { display: flex; gap: var(--s2); margin-left: auto; flex-wrap: wrap; }
+  .field { display: flex; align-items: center; gap: var(--s2); }
+  .field label { color: var(--text-dim); font-size: var(--f-xs); }
   .stepper { display: flex; align-items: center; }
-  .stepper button { width: 32px; padding: 7px 0; font-size: 16px; line-height: 1; }
+  .stepper button { width: 32px; padding: 0; font-size: var(--f-lg); line-height: 1; }
   .stepper .value { min-width: 36px; text-align: center; font-weight: 600; }
-  .header-buttons { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .size-row { display: flex; gap: var(--s5); margin-bottom: var(--s4); }
+  #save-warning, #profile-changed { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s4); }
+  #save-warning { color: var(--danger); }
+  #profile-changed { flex: none; color: var(--warn); background: var(--warn-tint); border-bottom: 1px solid var(--warn-line); }
+  #save-warning button, #profile-changed button { min-height: 26px; padding: 0 var(--s2); font-size: var(--f-xs); }
 
   /* ---- Grid (flat: thin lines and spacing, no boxes) ---- */
-  .main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; padding: 0 20px 20px; }
+  #workspace { flex: 1 1 auto; min-height: 0; display: flex; }
+  .main { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; padding: 0 var(--s4) var(--s4); }
   /* Week columns are 200 to 260 px wide: they fill the window up to 260 px each, shrink to 200 px,
      and the grid scrolls sideways below that. --n (the number of weeks) is set on the table. */
   table.grid {
@@ -83,308 +139,231 @@
   /* The week header row stays visible while the grid scrolls (.main is the scroll container). */
   table.grid th {
     position: sticky; top: 0; z-index: 5; background: var(--bg);
-    padding: 10px 14px; text-align: left;
-    color: var(--accent); font-weight: 600; font-size: 12px;
-    text-transform: uppercase; letter-spacing: 0.04em;
-    border-bottom: 2px solid var(--accent-soft);
+    padding: var(--s2) var(--s3); text-align: left;
+    color: var(--text-dim); font-weight: 600; font-size: var(--f-xs);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--line);
   }
+  /* Week heading: the title on the left, the flag at the right. */
+  .th-in { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+  .flag-btn {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 24px; min-height: 24px; padding: 0;
+    background: none; border: none; border-radius: var(--r1);
+    color: var(--text-dim); font-weight: 400; letter-spacing: 0; text-transform: none;
+  }
+  .flag-btn:hover:not(:disabled) { background: none; color: var(--text); }
+  .flag-name { font-size: var(--f-xs); font-weight: 600; }
+  .flag-btn.flag-deload, .menu-item.flag-deload { color: var(--warn); }
+  .flag-btn.flag-test, .menu-item.flag-test { color: var(--info); }
+  .flag-btn.flag-comp, .menu-item.flag-comp { color: var(--accent); }
+  /* A small menu that opens below a button or a text box. */
+  .menu {
+    position: fixed; z-index: 150; min-width: 130px; display: flex; flex-direction: column; padding: var(--s1);
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r2); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+  .menu-item { flex: none; min-height: 28px; padding: 0 var(--s2); background: none; border: none; border-radius: var(--r1); text-align: left; }
+  .menu-item:hover:not(:disabled) { background: var(--raised); }
+  .menu-item.on { font-weight: 600; }
+  .menu-item.danger-text { color: var(--danger); }
+  .add-menu { overflow: auto; }
+  .add-item { color: var(--text); }
+  .add-item.on { background: var(--raised); box-shadow: inset 2px 0 0 var(--accent); }
   /* One full-width row per workout: its title and a one-sentence description. */
   tr.band-row td { padding: 0; border-top: 1px solid var(--line); }
   .band {
-    position: sticky; left: 0; max-width: var(--mainw, calc(100vw - 40px));
-    display: flex; align-items: baseline; gap: 10px; padding: 22px 14px 7px;
+    position: sticky; left: 0; max-width: var(--mainw, calc(100vw - 32px));
+    display: flex; align-items: baseline; gap: var(--s2); padding: var(--s5) var(--s3) var(--s2);
   }
-  /* Week heading: the title on the left, the flag icon at the right. */
-  .th-in { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .flag-btn {
-    display: inline-flex; align-items: center; gap: 6px; background: none; border: none; padding: 0 2px;
-    color: var(--text-dim); font-size: 15px; line-height: 1; font-weight: 400; letter-spacing: 0; text-transform: none;
-  }
-  .flag-btn:hover:not(:disabled) { color: var(--text); }
-  .flag-name { font-size: 12px; font-weight: 600; }
-  .flag-btn.flag-deload, .flag-item.flag-deload { color: #E8B04A; }
-  .flag-btn.flag-test, .flag-item.flag-test { color: var(--rpe); }
-  .flag-btn.flag-comp, .flag-item.flag-comp { color: var(--accent); }
-  .flag-menu {
-    position: fixed; z-index: 150; min-width: 130px; display: flex; flex-direction: column; padding: 4px;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  }
-  .flag-item { background: none; border: none; text-align: left; padding: 6px 10px; border-radius: 6px; color: var(--text-dim); }
-  .flag-item:hover { background: var(--bg); }
-  .flag-item.on { font-weight: 600; }
-  .band .t { font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .band .t { font-weight: 600; white-space: nowrap; }
   .band input.workout-desc {
-    flex: 1; min-width: 0; background: transparent; color: var(--text-dim);
-    border: 1px solid transparent; border-radius: 6px; padding: 2px 6px;
+    flex: 1; min-width: 0; height: 24px; padding: 0 var(--s1);
+    background: transparent; color: var(--text-dim); border-color: transparent; border-radius: var(--r1);
   }
   .band input.workout-desc:hover { border-color: var(--line); }
-  .band input.workout-desc:focus { border-color: var(--accent); color: var(--text); outline: none; }
-  .band input.workout-desc::placeholder { font-style: italic; opacity: 0.7; }
+  .band input.workout-desc:focus { color: var(--text); }
   /* One table row per exercise (a "slot"), the same in every week, so exercises line up across weeks. */
-  table.grid td.cell { vertical-align: top; padding: 7px 14px; border-left: 1px solid var(--hair); }
+  table.grid td.cell { vertical-align: top; padding: var(--s2) var(--s3); border-left: 1px solid var(--hair); }
   table.grid td.cell.c0 { border-left: none; }
   tr.slot td.cell { border-top: 1px solid var(--hair); }
   tr.slot.first td.cell { border-top: none; }
-  tr.foot-row td.cell { padding: 4px 14px 14px; }
-  td.cell.sel { background: var(--selected-bg); }
+  tr.foot-row td.cell { padding: var(--s1) var(--s3) var(--s3); }
+  td.cell.sel { background: var(--accent-tint); }
   td.cell.sel .ex.selected { background: none; box-shadow: none; }
-  .ex-top { display: flex; gap: 6px; align-items: baseline; }
+  .ex { border-radius: var(--r1); }
+  .ex.clickable { cursor: pointer; }
+  .ex.selected { background: var(--accent-tint); box-shadow: -12px 0 0 var(--accent-tint), 12px 0 0 var(--accent-tint); }
+  .ex.clickable:hover:not(.selected) { background: var(--surface); box-shadow: -12px 0 0 var(--surface), 12px 0 0 var(--surface); }
+  .ex-top { display: flex; gap: var(--s2); align-items: baseline; }
   .ex-name { font-weight: 600; word-break: break-word; }
-  .ex-scheme { color: var(--text-dim); }
-  .ex-load { font-weight: 600; }
-  /* The superset label (A1, A2) sits at the right end of the prescription line. */
-  .ex-label { color: var(--accent); font-weight: 700; }
-  /* All load types use the accent colour; the text itself names the type (kg, %, RPE). */
-  .load-kg, .load-pct, .load-rpe, .load-rir { color: var(--accent); }
-  .load-blank { color: var(--text-dim); font-style: italic; font-weight: 400; }
-  .ex-more { color: var(--text-dim); font-size: 12px; margin-top: 2px; }
-  .ex-edited { color: var(--text-dim); font-size: 12px; margin-left: auto; white-space: nowrap; }
+  .ex-edited { color: var(--text-dim); font-size: var(--f-xs); margin-left: auto; white-space: nowrap; }
   /* A set group line: the prescription on the left (it can wrap), the superset label at the right. */
-  .ex-group { display: grid; grid-template-columns: 1fr auto; column-gap: 8px; align-items: start; margin-top: 2px; }
-  .ex-rx { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; min-width: 0; }
-  .ex-group + .ex-group { border-top: 1px dashed var(--line); margin-top: 6px; padding-top: 6px; }
+  .ex-group { display: grid; grid-template-columns: 1fr auto; column-gap: var(--s2); align-items: start; }
+  .ex-group + .ex-group { border-top: 1px dashed var(--line); margin-top: var(--s1); padding-top: var(--s1); }
+  .ex-rx { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: var(--s2); min-width: 0; }
+  .ex-scheme { color: var(--text-dim); }
+  /* Loads are plain bold text. The text itself names the type (kg, %, RPE, RIR). */
+  .ex-load { font-weight: 600; }
+  .load-blank { color: var(--text-dim); font-weight: 400; }
+  .ex-label { color: var(--text-dim); font-weight: 600; }
+  .ex-sub { grid-column: 1 / -1; font-size: var(--f-xs); color: var(--text-dim); }
   .set-badge {
-    font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; align-self: center;
-    padding: 0 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--text-dim);
+    align-self: center; padding: 0 var(--s1); border: 1px solid var(--line); border-radius: var(--r1);
+    font-size: var(--f-xs); line-height: 16px; font-weight: 600; white-space: nowrap; color: var(--text-dim);
   }
-  .set-badge.strong { border-color: #3B4A1C; color: var(--accent); }
-  .ex-sub { grid-column: 1 / -1; font-size: 12px; color: var(--text-dim); }
-  .ss-block { border-left: 2px solid var(--accent); padding-left: 8px; margin-left: -10px; }
-  .ss-block .ex { padding: 3px 0; }
+  .set-badge.strong { border-color: var(--control); color: var(--text); }
+  /* The green bar marks the two exercises of a superset. */
+  .ss-block { border-left: 2px solid var(--accent); padding-left: var(--s2); margin-left: -10px; }
+  .ss-block .ex { padding: var(--s1) 0; }
   .ss-block .ex + .ex { border-top: 1px solid var(--hair); }
-  .ex.selected { background: var(--selected-bg); box-shadow: -14px 0 0 var(--selected-bg), 14px 0 0 var(--selected-bg); }
-  .ex.clickable:hover:not(.selected) { background: var(--surface); box-shadow: -14px 0 0 var(--surface), 14px 0 0 var(--surface); }
-  .cell-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; }
-  .cell-foot input.add-input { width: 100%; padding: 4px 8px; border-radius: 6px; }
-  .cell-foot input.add-input::placeholder { color: var(--text-dim); }
-  .add-menu { overflow: auto; }
-  .add-item { color: var(--text); flex: none; }
-  .add-item.on { background: var(--bg); box-shadow: inset 2px 0 0 var(--accent); }
-  .link-btn { background: none; border: none; padding: 0; color: var(--text-dim); font-size: 13px; }
-  .link-btn:hover:not(:disabled) { color: var(--accent); }
-  .gone { color: var(--text-dim); font-style: italic; padding: 6px 0 2px; }
-  .gone .link-btn { color: var(--accent); font-style: normal; margin-left: 8px; }
+  .cell-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s1) var(--s3); }
+  .cell-foot input.add-input { width: 100%; height: 28px; }
+  .gone { color: var(--text-dim); padding: var(--s2) 0 var(--s1); }
+  .gone .link-btn { color: var(--text); margin-left: var(--s2); }
 
   /* ---- Exercise settings panel (docked right of the grid; flat, no boxes) ---- */
-  #workspace { flex: 1 1 auto; min-height: 0; display: flex; }
-  #workspace[hidden] { display: none; }
-  .detail { width: 380px; flex: none; overflow: auto; border-left: 1px solid var(--line); padding: 14px 18px 18px; }
-  .detail[hidden] { display: none; }
-  .ph { display: flex; align-items: flex-start; gap: 10px; }
-  .ph .t { flex: 1; min-width: 0; }
-  .ph .t b { display: block; font-size: 16px; word-break: break-word; }
-  .ph .t span { color: var(--text-dim); font-size: 12px; }
-  .ph .x { background: none; border: none; color: var(--text-dim); font-size: 22px; line-height: 1; padding: 0 4px; }
-  .ph .x:hover { color: var(--text); }
-  .ps { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
-  .ph-acts { display: flex; gap: 8px; margin-left: auto; }
+  .detail { width: 380px; overflow: auto; border-left: 1px solid var(--line); padding: var(--s3) var(--s4) var(--s4); font-size: var(--f-sm); }
+  .detail input[type="text"], .detail select { height: 28px; }
+  .ph { display: flex; align-items: flex-start; gap: var(--s1); }
+  .ph .t { flex: 1; min-width: 0; margin-right: var(--s1); }
+  .ph .t b { display: block; font-size: var(--f-lg); word-break: break-word; }
+  .ph .t span { color: var(--text-dim); font-size: var(--f-xs); }
+  .ph-acts { display: flex; }
+  .ps { border-top: 1px solid var(--line); margin-top: var(--s3); padding-top: var(--s3); }
+  .ps-head { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+  .ps-head .link-btn { margin-left: auto; }
+  /* A folded set group: one summary line that opens the group. */
+  .ps-fold { display: flex; align-items: center; gap: var(--s2); width: 100%; min-height: 24px; padding: 0; background: none; border: none; border-radius: var(--r1); text-align: left; }
+  .ps-fold:hover:not(:disabled) { background: none; }
+  .ps-fold .sum { margin-left: auto; color: var(--text-dim); font-size: var(--f-xs); overflow: hidden; text-overflow: ellipsis; }
+  .ps-fold .ico { color: var(--text-dim); }
+  .ps-fold:hover .sum, .ps-fold:hover .ico { color: var(--text); }
+  /* A labelled row: label on the left, a control on the right. */
+  .pr { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); min-height: 28px; }
+  .pr > label { width: 84px; flex: none; color: var(--text-dim); font-size: var(--f-xs); }
+  .rest-input { width: 48px; text-align: center; }
+  .tempo-input { width: 112px; }
+  .tgt { display: flex; align-items: center; gap: var(--s2); }
+  .tgt input[type="text"] { width: 56px; flex: none; }
+  .opt-add { display: flex; gap: var(--s3); padding: var(--s1) 0; }
+  .panel-acts { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin-top: var(--s4); }
   /* "In weeks": one small on/off button per week. */
-  .in-weeks { display: flex; flex-wrap: wrap; gap: 4px; }
-  .in-weeks button { min-width: 26px; height: 26px; padding: 0 4px; font-size: 12px; color: var(--text-dim); background: none; }
-  .in-weeks button.on { color: var(--text); border-color: var(--text-dim); font-weight: 600; }
+  .in-weeks { display: flex; flex-wrap: wrap; gap: var(--s1); }
+  .in-weeks button { min-width: 26px; min-height: 26px; padding: 0 var(--s1); font-size: var(--f-xs); color: var(--text-dim); border-color: var(--line); }
+  .in-weeks button.on { color: var(--text); border-color: var(--control); font-weight: 600; }
   /* The week table of a set group: a row per week with sets × reps, the load and the kg. */
-  .wk { width: 100%; border-collapse: collapse; margin: 4px 0 8px; font-size: 13px; }
-  .wk th { text-align: left; color: var(--text-dim); font-size: 12px; font-weight: 600; padding: 2px 8px 4px 0; white-space: nowrap; }
-  .wk td { padding: 2px 8px 2px 0; vertical-align: middle; white-space: nowrap; }
-  .wk th:last-child, .wk td:last-child { padding-right: 0; }
-  .wk .k { color: var(--text-dim); }
-  .wk .kg { color: var(--text-dim); text-align: right; }
-  .wk .flag { color: #E8B04A; font-size: 12px; margin-left: 4px; }
-  .wk .unit { color: var(--text-dim); margin-left: 4px; }
-  .wk input[type="text"] { height: 26px; padding: 0 6px; text-align: right; border-radius: 6px; }
+  .wk { width: 100%; border-collapse: collapse; margin: var(--s1) 0 var(--s2); }
+  .wk th { text-align: left; color: var(--text-dim); font-size: var(--f-xs); font-weight: 600; padding: 0 var(--s2) var(--s1) 0; white-space: nowrap; }
+  .wk td { padding: 2px var(--s2) 2px 0; vertical-align: middle; white-space: nowrap; }
+  .wk .k, .wk .kg { color: var(--text-dim); }
+  .wk .kg { text-align: right; }
+  .wk .flag { color: var(--warn); font-size: var(--f-xs); margin-left: var(--s1); }
+  .wk .unit { margin-left: var(--s1); }
+  .wk input[type="text"] { padding: 0 var(--s1); text-align: right; }
   .wk input.w-sets { width: 34px; }
   .wk input.w-reps { width: 54px; }
   .wk input.w-load { width: 58px; }
-  .wk input.over { border-color: var(--accent); }
-  .wk .sr-btn { background: none; border: 1px solid transparent; border-radius: 6px; height: 26px; padding: 0 6px; color: var(--text-dim); font-size: 13px; }
-  .wk .sr-btn:hover { border-color: var(--line); color: var(--text); }
+  .wk input.over { border-color: var(--accent); }   /* a value typed by hand for this week only */
+  .wk .sr-btn { min-height: 28px; padding: 0 var(--s1); border-color: transparent; color: var(--text-dim); }
+  .wk .sr-btn:hover:not(:disabled) { background: none; border-color: var(--control); color: var(--text); }
   /* The last column always keeps the width of the reset button, so the table does not move when the button comes. */
-  .wk th:last-child, .wk td:last-child { width: 24px; min-width: 24px; }
-  .wk .reset-btn { background: none; border: none; padding: 0; width: 24px; height: 26px; color: var(--text-dim); font-size: 14px; }
-  .wk .reset-btn:hover { color: var(--accent); }
-  .opt-add { display: flex; gap: 12px; padding: 4px 0; }
-  .ps-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .ps-head b { font-size: 13px; }
-  .ps-head .link-btn { margin-left: auto; }
-  /* A folded set group: one summary line that opens the group. */
-  .ps-fold { display: flex; align-items: center; gap: 8px; width: 100%; background: none; border: none; padding: 0; text-align: left; }
-  .ps-fold b { font-size: 13px; }
-  .ps-fold .sum { margin-left: auto; color: var(--text-dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
-  .ps-fold:hover .sum { color: var(--text); }
-  .hint { color: var(--text-dim); font-size: 12px; }
-  .pr { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; min-height: 30px; }
-  .pr > label { width: 84px; flex: none; color: var(--text-dim); font-size: 12px; }
-  .pr .unit { color: var(--text-dim); }
-  .link-btn.acc { color: var(--accent); text-align: left; }
-  .link-btn.danger-link { color: var(--danger); }
-  .link-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  table.prog { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 4px; }
-  table.prog th { text-align: left; color: var(--text-dim); font-size: 11px; font-weight: 600; padding: 2px 8px 2px 0; }
-  table.prog td { padding: 3px 8px 3px 0; vertical-align: baseline; }
-  table.prog td.k { color: var(--text-dim); }
-  table.prog td.v { color: var(--accent); font-weight: 600; cursor: pointer; }
-  table.prog td.v.blank { color: var(--text-dim); font-style: italic; font-weight: 400; }
-  table.prog td.v.edited { text-decoration: underline dashed; text-underline-offset: 3px; }
-  table.prog td.v:hover { background: var(--surface); }
-  .panel-acts { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 16px; }
-  .detail textarea {
-    width: 100%; background: var(--bg); color: var(--text); font: inherit; resize: vertical; min-height: 48px;
-    border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
-  }
-  .detail textarea:focus { outline: none; border-color: var(--accent); }
-  .detail select { background: var(--bg); color: var(--text); font: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; }
-  .detail select:focus { outline: none; border-color: var(--accent); }
-  /* ---- Athletes in the Library, and the profile screen (two columns) ---- */
+  .wk th:last-child, .wk td:last-child { width: 28px; min-width: 28px; padding-right: 0; }
+
+  /* ---- Library screen. Flat: dividers and spacing, no boxes around items. ---- */
+  #library, #profile { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .lib-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
+  .lib-bar { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); }
+  .lib-bar .title { font-size: var(--f-xl); font-weight: 600; }
+  .lib-bar .spacer { margin-left: auto; display: flex; gap: var(--s2); }
+  .lib-sect { display: flex; align-items: center; gap: var(--s2); padding: var(--s4) var(--s4) var(--s2); font-weight: 600; cursor: pointer; }
   .lib-sect.static { cursor: default; }
-  .lib-sect button + button { margin-left: 8px; }
-  .lib-sect .expand-all { padding: 4px 10px; }
-  .ath-head { cursor: pointer; padding-left: 20px; gap: 10px; }
-  .ath-head .car { width: 14px; color: var(--text-dim); flex: none; }
+  .lib-sect .car, .ath-head .car { width: 16px; flex: none; color: var(--text-dim); }
+  .lib-sect .count { color: var(--text-dim); font-weight: 400; font-size: var(--f-xs); }
+  .lib-sect button { margin-left: auto; min-height: 28px; padding: 0 var(--s2); }
+  .lib-sect button + button { margin-left: var(--s2); }
+  .lib-row { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s4) var(--s2) 40px; border-top: 1px solid var(--line); }
+  .lib-row:hover { background: var(--surface); }
+  .lib-row.current { background: var(--accent-tint); box-shadow: inset 2px 0 0 var(--accent); }
   .lib-row.nested, .lib-row.sub-row { padding-left: 64px; }
-  #profile-changed { flex: none; display: flex; align-items: center; gap: 12px; padding: 8px 20px; color: #E8B04A; background: #1D1810; border-bottom: 1px solid #5A4720; }
-  #profile-changed[hidden] { display: none; }
-  #profile-changed button { padding: 3px 10px; font-size: 12px; }
-  .gen-extra { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
-  .gen-extra > div:first-child { flex: 1; min-width: 0; }
-  .modal .gen-extra input.num-input { width: 80px; text-align: right; }
-  .ok-text { color: var(--accent); font-size: 12px; margin: 6px 0; }
-  /* Export for GymLog preview (flat: divider lines, no boxes) */
-  .gl-preview { max-height: 340px; overflow: auto; border-top: 1px solid var(--line); margin-bottom: 12px; }
-  .gl-title { padding: 8px 0; border-bottom: 1px solid var(--line); }
-  .gl-line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; border-bottom: 1px solid var(--hair); }
-  .gl-notes { flex-basis: 100%; font-size: 12px; color: var(--text-dim); }
-  .dim { color: var(--text-dim); }
-  .tag-template { font-size: 11px; padding: 1px 8px; border-radius: 9px; border: 1px solid #3B4A1C; color: var(--accent); }
-  .tag-warn { font-size: 11px; padding: 1px 8px; border-radius: 9px; border: 1px solid #5A4720; color: #E8B04A; white-space: nowrap; }
-  .warn-text { color: #E8B04A; font-size: 12px; }
+  .lib-row .t { flex: 1; min-width: 0; }
   .lib-row .t.dim { color: var(--text-dim); }
-  #profile { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-  #profile[hidden] { display: none; }
-  .lib-bar .dim { color: var(--text-dim); }
+  /* The name of a program is a button that opens it. */
+  .lib-row button.row-open { display: block; min-height: 0; padding: 0; background: none; border: none; border-radius: var(--r1); text-align: left; }
+  .lib-row button.row-open:hover b { text-decoration: underline; text-underline-offset: 3px; }
+  .lib-row .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .lib-row .t span { color: var(--text-dim); font-size: var(--f-xs); }
+  .lib-row .when { color: var(--text-dim); }
+  .lib-row .acts { display: flex; gap: var(--s2); }
+  .lib-row .acts button { min-height: 28px; padding: 0 var(--s2); font-size: var(--f-xs); }
+  .ath-head { cursor: pointer; padding-left: var(--s4); gap: var(--s2); }
+  .lib-foot { display: flex; align-items: center; gap: var(--s4); padding: var(--s2) var(--s4); border-top: 1px solid var(--line); color: var(--text-dim); font-size: var(--f-xs); }
+  .lib-foot .grow { flex: 1; }
+  .lib-foot .stale { color: var(--warn); }
+  .meter { width: 120px; height: 4px; background: var(--line); border-radius: var(--r1); overflow: hidden; display: inline-block; vertical-align: middle; margin-left: var(--s2); }
+  .meter i { display: block; height: 100%; background: var(--accent); }
+  .meter.warn i { background: var(--danger); }
+
+  /* ---- Athlete profile screen (two columns) ---- */
   .pf-body { flex: 1 1 auto; min-height: 0; display: flex; }
-  .pf-left { flex: 0 0 600px; max-width: 60%; overflow: auto; padding: 16px 20px 24px; }
-  .pf-right { flex: 1 1 auto; min-width: 0; overflow: auto; border-left: 1px solid var(--line); padding: 16px 24px 24px; display: flex; flex-direction: column; }
-  .pf-left .pr > label { width: 110px; }
+  .pf-left { flex: 0 0 600px; max-width: 60%; overflow: auto; padding: var(--s4) var(--s4) var(--s5); }
+  .pf-right { flex: 1 1 auto; min-width: 0; overflow: auto; border-left: 1px solid var(--line); padding: var(--s4) var(--s5) var(--s5); display: flex; flex-direction: column; }
+  .pf-left .pr > label { width: 112px; }
   .pf-left .pr input[type="text"] { width: 300px; }
-  .pf-left .pr input.num-input { width: 70px; text-align: right; }
-  .pf-left textarea, .pf-right textarea {
-    width: 100%; background: var(--bg); color: var(--text); font: inherit; resize: vertical; min-height: 48px;
-    border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px;
-  }
-  .pf-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-  .pf-table th { text-align: left; color: var(--text-dim); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 10px 6px 0; }
-  .pf-table td { padding: 5px 10px 5px 0; border-top: 1px solid var(--hair); vertical-align: middle; }
-  .pf-table input[type="text"] { width: 100%; }
-  .pf-table input.num-input { width: 74px; text-align: right; }
-  .pf-table .segmented button { padding: 4px 10px; font-size: 12px; }
+  .pf-left .pr input.num-input { width: 72px; text-align: right; }
   .pf-right .pr input[type="text"] { width: 100%; }
-  .pf-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 24px; margin-top: 8px; align-content: start; }
-  .pf-check { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; }
-  .pf-check input { accent-color: var(--danger); margin: 0; }
+  .pf-table { width: 100%; border-collapse: collapse; margin-bottom: var(--s2); }
+  .pf-table th { text-align: left; color: var(--text-dim); font-size: var(--f-xs); font-weight: 600; padding: 0 var(--s2) var(--s2) 0; }
+  .pf-table td { padding: var(--s1) var(--s2) var(--s1) 0; border-top: 1px solid var(--hair); vertical-align: middle; }
+  .pf-table input[type="text"] { width: 100%; }
+  .pf-table input.num-input { width: 72px; text-align: right; }
+  .pf-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--s5); margin-top: var(--s2); align-content: start; }
+  .pf-check { display: flex; align-items: center; gap: var(--s2); min-height: 24px; cursor: pointer; }
+  .pf-check input { accent-color: var(--danger); }
   .pf-check.no { color: var(--danger); }
-  .tempo-input { width: 110px; }
-  .pr .tgt input[type="text"] { width: 54px; flex: none; }
-  .pr .segmented button { padding: 4px 9px; font-size: 12px; }
-  .danger-text { color: var(--danger); }
-  .segmented { display: inline-flex; }
-  .segmented button { border-radius: 0; margin-left: -1px; padding: 5px 12px; }
-  .segmented button:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
-  .segmented button:last-child { border-radius: 0 8px 8px 0; }
-  .segmented button.on { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; position: relative; }
-  .pattern-btn { display: block; max-width: 190px; white-space: normal; text-align: left; margin-bottom: 4px; }
-  .pattern-group { display: block; color: var(--text-dim); font-size: 12px; }
-  .pattern-group:empty { display: none; }
-  .rest-line { margin-top: 4px; color: var(--text-dim); font-size: 12px; }
-  .rest-input { width: 48px; padding: 3px 6px; text-align: center; }
-  .ex.clickable { cursor: pointer; }
-  .ex.clickable:hover { border-color: var(--text-dim); }
-  .ex.clickable:focus-visible { outline: 2px solid var(--accent); }
 
-  /* ---- Forms inside modals ---- */
-  .modal.wide { width: 800px; }
-  .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
-  .form-row label { color: var(--text-dim); font-size: 12px; }
-  .form-cols { display: flex; gap: 12px; }
-  .form-cols .form-row { flex: 1; }
-  .modal input[type="text"], .modal select, .modal textarea {
-    width: 100%; background: var(--bg); color: var(--text);
-    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; font: inherit;
-  }
-  .modal textarea { resize: vertical; min-height: 56px; }
-  .modal textarea.prompt-box { height: 340px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
-  .modal select:focus, .modal textarea:focus { outline: none; border-color: var(--accent); }
-  .form-warning { color: var(--rpe); font-size: 12px; margin-top: -6px; margin-bottom: 12px; }
-  .form-error { color: var(--danger); margin-bottom: 12px; }
-  .modal .sub { margin: -4px 0 14px; color: var(--text-dim); }
-  .tgt { display: flex; align-items: center; gap: 6px; }
-  .tgt input[type="text"] { width: 54px; flex: none; }
-  .tgt .segmented button { padding: 5px 7px; font-size: 12px; }
-  .opt { display: flex; align-items: baseline; gap: 8px; padding: 5px 0; cursor: pointer; }
-  .opt input { width: auto; margin: 0; accent-color: var(--accent); }
-  .opt-label { font-weight: 600; }
-  .opt-desc { color: var(--text-dim); font-size: 12px; }
-  .pv-title { display: block; color: var(--text-dim); font-size: 12px; margin-bottom: 6px; }
-  .modal .actions .left { margin-right: auto; display: flex; gap: 8px; }
-
-  /* ---- Modal and notice ---- */
+  /* ---- Dialogs and the notice ---- */
   .overlay {
     position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6);
     display: flex; align-items: center; justify-content: center; z-index: 100;
   }
   .modal {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    padding: 20px; width: 420px; max-width: 90vw;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r3);
+    padding: var(--s5); width: 420px; max-width: 90vw;
   }
-  .modal h2 { margin: 0 0 8px; font-size: 18px; }
-  .modal p { margin: 0 0 18px; color: var(--text-dim); }
-  .modal .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .modal.wide { width: 800px; }
+  .modal h2 { margin: 0 0 var(--s2); font-size: var(--f-lg); font-weight: 600; }
+  .modal p { margin: 0 0 var(--s4); color: var(--text-dim); }
+  .modal .sub { margin: 0 0 var(--s4); color: var(--text-dim); }
+  .modal .actions { display: flex; justify-content: flex-end; gap: var(--s2); margin-top: var(--s4); }
+  .modal .actions .left { margin-right: auto; display: flex; gap: var(--s2); }
+  .modal input[type="text"], .modal select, .modal textarea { width: 100%; }
+  .modal textarea.prompt-box { height: 340px; font-family: ui-monospace, Consolas, monospace; font-size: var(--f-xs); }
+  .form-row { display: flex; flex-direction: column; gap: var(--s1); margin-bottom: var(--s3); }
+  .form-row label, .pv-title { color: var(--text-dim); font-size: var(--f-xs); }
+  .pv-title { display: block; margin-bottom: var(--s2); }
+  .form-warning { color: var(--info); font-size: var(--f-xs); margin-bottom: var(--s3); }
+  .form-error { color: var(--danger); margin-bottom: var(--s3); }
+  .opt { display: flex; align-items: baseline; gap: var(--s2); padding: var(--s1) 0; cursor: pointer; }
+  .opt input { width: auto; }
+  .opt-label { font-weight: 600; }
+  .opt-desc { color: var(--text-dim); font-size: var(--f-xs); }
+  .gen-extra { display: flex; align-items: center; gap: var(--s2); margin: var(--s2) 0; }
+  .gen-extra > div:first-child { flex: 1; min-width: 0; }
+  .modal .gen-extra input.num-input { width: 80px; text-align: right; }
+  /* Export for GymLog preview (flat: divider lines, no boxes) */
+  .gl-preview { max-height: 340px; overflow: auto; border-top: 1px solid var(--line); margin-bottom: var(--s3); }
+  .gl-title { padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+  .gl-line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--hair); }
+  .gl-notes { flex-basis: 100%; font-size: var(--f-xs); color: var(--text-dim); }
   .notice {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: var(--surface); border: 1px solid var(--accent); color: var(--text);
-    padding: 10px 18px; border-radius: 8px; z-index: 200;
+    position: fixed; bottom: var(--s5); left: 50%; transform: translateX(-50%);
+    background: var(--surface); border: 1px solid var(--control); color: var(--text);
+    padding: var(--s2) var(--s4); border-radius: var(--r2); z-index: 200;
   }
-  #save-warning { color: var(--danger); padding: 8px 20px 0; display: flex; align-items: center; gap: 12px; }
-  #save-warning[hidden] { display: none; }
-  #save-warning button { padding: 3px 10px; font-size: 12px; }
-
-  /* ---- Library screen (Phase 2 spec 1.1). Flat: dividers and spacing, no boxes around items. ---- */
-  .header, #save-warning, .detail { flex: none; }
-  #library { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-  .lib-body { flex: 1 1 auto; min-height: 0; overflow: auto; }
-  .lib-bar, .lib-foot { flex: none; }
-  .meta-text { color: var(--text-dim); }
-  .icon-btn { background: none; border: none; padding: 2px 6px; font-size: 17px; line-height: 1; color: var(--text-dim); }
-  .icon-btn:hover:not(:disabled) { color: var(--accent); border-color: transparent; }
-  .size-row { display: flex; gap: 28px; margin-bottom: 14px; }
-  .header[hidden], #library[hidden] { display: none; }
-  .lib-bar { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
-  .lib-bar .title { font-size: 16px; font-weight: 600; }
-  .lib-bar .spacer { margin-left: auto; display: flex; gap: 8px; }
-  .lib-sect { display: flex; align-items: center; gap: 10px; padding: 14px 20px 8px; font-weight: 600; cursor: pointer; }
-  .lib-sect .car { width: 14px; color: var(--text-dim); }
-  .lib-sect .count { color: var(--text-dim); font-weight: 400; font-size: 12px; }
-  .lib-sect button { margin-left: auto; padding: 4px 10px; }
-  .lib-row { display: flex; align-items: center; gap: 12px; padding: 9px 20px 9px 44px; border-top: 1px solid var(--line); }
-  .lib-row:hover { background: var(--surface); }
-  .lib-row.current { background: var(--selected-bg); box-shadow: inset 3px 0 0 var(--accent); }
-  .lib-row .t { flex: 1; min-width: 0; }
-  .lib-row .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .lib-row .t span { color: var(--text-dim); font-size: 12px; }
-  .lib-row .when { color: var(--text-dim); }
-  .lib-row .acts { display: flex; gap: 6px; }
-  .lib-row .acts button { padding: 3px 9px; font-size: 12px; }
-  .tag-now { font-size: 11px; padding: 1px 7px; border-radius: 9px; border: 1px solid #3b4a1c; color: var(--accent); white-space: nowrap; }
-  .lib-foot { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-top: 1px solid var(--line); color: var(--text-dim); font-size: 12px; }
-  .lib-foot .grow { flex: 1; }
-  .lib-foot .stale { color: #E8B04A; }
-  .meter { width: 120px; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
-  .meter i { display: block; height: 100%; background: var(--accent); }
-  .meter.warn i { background: var(--danger); }
 </style>
 </head>
 <body>
   <div class="header" id="header"></div>
-  <div id="save-warning" hidden><span>This browser could not save your last change. It will be lost when the page closes.</span><button id="warn-export">Export everything</button></div>
+  <div id="save-warning" hidden><span>This browser could not save your last change. It will be lost when the page closes.</span><button id="warn-export">Back up everything</button></div>
   <div id="profile-changed" hidden></div>
   <div id="library" hidden></div>
   <div id="profile" hidden></div>
@@ -1554,6 +1533,37 @@ function el(tag, props, children) {
   return node;
 }
 
+// The icons of the page: small line drawings (16 x 16) made here, so they look the same in every
+// font. An icon takes the text colour of its button.
+var ICONS = {
+  close: 'M4 4l8 8M12 4l-8 8',
+  right: 'M6 3l5 5-5 5',
+  down: 'M3 6l5 5 5-5',
+  'arrow-up': 'M8 13V3M4 7l4-4 4 4',
+  'arrow-down': 'M8 3v10M4 9l4 4 4-4',
+  left: 'M10 3L5 8l5 5',
+  more: 'M3 8h.01M8 8h.01M13 8h.01',
+  flag: 'M4 14V2.5M4 3h8l-2 3 2 3H4',
+  reset: 'M3.5 6.5h6a3 3 0 0 1 0 6H7M3.5 6.5l3-3M3.5 6.5l3 3'
+};
+
+function icon(name) {
+  var NS = 'http://www.w3.org/2000/svg';
+  var svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', name === 'more' ? 'ico dots' : 'ico');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('aria-hidden', 'true');
+  var path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', ICONS[name]);
+  svg.appendChild(path);
+  return svg;
+}
+
+// A button that shows only an icon. `label` is its tooltip and its name for screen readers.
+function iconButton(name, label, onClick) {
+  return el('button', { className: 'icon-btn', title: label, 'aria-label': label, onclick: onClick }, [icon(name)]);
+}
+
 var openModalCleanup = null;
 
 function closeModal() {
@@ -1754,7 +1764,7 @@ function exportEverything() {
 
 // Import everything (spec 1.5): checks the file, then asks how to bring it in.
 function importEverything() {
-  function cannotOpen() { showMessage('Import everything', "This file can't be opened."); }
+  function cannotOpen() { showMessage('Restore backup', "This file can't be opened."); }
   pickTextFile(MAX_LIBRARY_FILE_BYTES, function (text) {
     var data = parseLibraryFile(text);
     if (!data) { cannotOpen(); return; }
@@ -1790,7 +1800,7 @@ function askImportMode(data) {
     }
   }
   openModal({
-    title: 'Import everything',
+    title: 'Restore backup',
     body: el('div', null, [
       el('p', { text: summary }),
       radio('add', 'Add as copies', 'Keeps everything you have and adds the programs from the file.'),
@@ -1848,7 +1858,7 @@ function applyImport(data, mode) {
   if (!findEntry(currentId)) setCurrent(mostRecentEntry());
   var savedPrograms = saveLibrary();
   var savedProfiles = saveProfiles();
-  if (!savedPrograms || !savedProfiles) showMessage('Import everything', 'The imported items could not be saved in this browser. They are in memory only until the page closes.');
+  if (!savedPrograms || !savedProfiles) showMessage('Restore backup', 'The imported items could not be saved in this browser. They are in memory only until the page closes.');
   render();
   showNotice('Imported ' + plural(data.entries.length, 'program') + (data.profiles.length ? ' and ' + plural(data.profiles.length, 'athlete') : '') + '.');
 }
@@ -1856,7 +1866,7 @@ function applyImport(data, mode) {
 // Import program (Library page): reads and checks a program file and adds it to the library as a
 // new program. Nothing is replaced and the Library stays open. An invalid file changes nothing.
 function importProgramFile() {
-  function cannotOpen() { showMessage('Import program', "This file can't be opened."); }
+  function cannotOpen() { showMessage('Import program file', "This file can't be opened."); }
   pickTextFile(MAX_PROGRAM_FILE_BYTES, function (text) {
     var data = parseProgramFile(text);
     if (!data) { cannotOpen(); return; }
@@ -1870,14 +1880,14 @@ function importProgramFile() {
 // Load Exercise List: reads a GymLog backup file, keeps only the Exercise List (it replaces any
 // list saved before) and nothing else from the backup.
 function loadExerciseListFile() {
-  function noList() { showMessage('Load Exercise List', "This file doesn't contain an Exercise List."); }
+  function noList() { showMessage('Import exercise list', "This file doesn't contain an Exercise List."); }
   pickTextFile(MAX_BACKUP_FILE_BYTES, function (text) {
     var names = parseExerciseListFromBackup(text);
     if (!names) { noList(); return; }
     try {
       localStorage.setItem(EXERCISE_LIST_KEY, JSON.stringify(names));
     } catch (err) {
-      showMessage('Load Exercise List', 'The Exercise List could not be saved in this browser.');
+      showMessage('Import exercise list', 'The Exercise List could not be saved in this browser.');
       return;
     }
     showNotice(names.length + (names.length === 1 ? ' exercise loaded.' : ' exercises loaded.'));
@@ -2214,24 +2224,41 @@ function renderHeader() {
     changedQuietly();
   });
 
-  header.appendChild(nameInput);
   var openEntry = findEntry(currentId);
-  if (openEntry && openEntry.kind === 'template') header.appendChild(el('span', { className: 'tag-template', text: 'Template' }));
+  var isTemplate = !!openEntry && openEntry.kind === 'template';
+  header.appendChild(el('button', { className: 'ghost-btn', title: 'Go to the Library', onclick: openLibrary }, [icon('left'), el('span', { text: 'Library' })]));
+  header.appendChild(nameInput);
+  if (isTemplate) header.appendChild(el('span', { className: 'tag-template', text: 'Template' }));
   var forAthlete = program.source ? findProfile(program.source.profileId) : null;
-  if (forAthlete) header.appendChild(el('span', { className: 'tag-template', text: 'for ' + (forAthlete.name || 'athlete') }));
   header.appendChild(el('span', {
     className: 'meta-text',
-    text: plural(program.weeks, 'week') + ' · ' + plural(program.workoutsPerWeek, 'workout') + ' per week'
+    text: (forAthlete ? 'for ' + (forAthlete.name || 'athlete') + ' · ' : '') + plural(program.weeks, 'week') + ' · ' + plural(program.workoutsPerWeek, 'workout') + ' per week'
   }));
-  header.appendChild(el('button', {
-    className: 'icon-btn', text: '✎', title: 'Edit weeks and workouts per week',
-    'aria-label': 'Edit weeks and workouts per week', onclick: openProgramSettings
+
+  // The right side: a reminder when the backup is old, the one main action, and a menu for the rest.
+  var right = [];
+  var last = lastExportInfo();
+  if (last.stale) {
+    right.push(el('button', {
+      className: 'link-btn warn-link', text: 'Last backup: ' + last.text, title: 'Back up everything now (templates, athletes and programs in one file)',
+      onclick: exportEverything
+    }));
+  }
+  // A template has no athlete, so there is nothing to send to GymLog: its main action is to use it.
+  right.push(isTemplate
+    ? el('button', { className: 'primary', text: 'Use for athlete', onclick: function () { openGenerateDialog({ template: openEntry }); } })
+    : el('button', { className: 'primary', text: 'Export for GymLog', onclick: exportForGymLog }));
+  right.push(menuButton('More actions for this program', function () {
+    var items = [
+      { text: 'Weeks and workouts…', onClick: openProgramSettings },
+      { text: 'Copy AI prompt', onClick: copyAiPrompt },
+      { text: 'Export program file', onClick: function () { downloadProgram(program); } }
+    ];
+    if (openEntry && !isTemplate) items.push({ text: 'Save as template', onClick: function () { saveAsTemplate(openEntry); } });
+    items.push({ text: 'Back up everything', onClick: exportEverything });
+    return items;
   }));
-  var headerButtons = [el('button', { text: 'Library', onclick: openLibrary })];
-  // A template has no kg values, so there is nothing to send to GymLog.
-  if (!(openEntry && openEntry.kind === 'template')) headerButtons.push(el('button', { text: 'Export for GymLog', onclick: exportForGymLog }));
-  headerButtons.push(el('button', { text: 'Copy AI prompt', onclick: copyAiPrompt }));
-  header.appendChild(el('div', { className: 'header-buttons' }, headerButtons));
+  header.appendChild(el('div', { className: 'header-buttons' }, right));
 }
 
 // One block per set group, so every group is visible in the grid (see PROJECT_SUMMARY: this
@@ -2769,7 +2796,7 @@ function supersetRow(workout, wi, ex, r) {
   }
   var none = freeGroupsOf(workout, ex).length === 0;
   var btn = el('button', {
-    className: 'link-btn acc', text: 'Superset with… ▸',
+    className: 'link-btn acc', text: 'Superset with…',
     title: none ? 'No other exercise in this workout has a free set group' : 'Pair this set group with a set group of another exercise',
     onclick: function () { openSupersetPicker(wi, ex, r); }
   });
@@ -2872,15 +2899,12 @@ function optionalUsed(ex, r, name, g) {
   return !!shownOptional[optionalKey(ex, r, name)] || (name === 'pause' ? g.pause !== null : !!g[name]);
 }
 
-// The row of one optional field, with a × that clears and hides it.
+// The row of one optional field, with a cross that clears and hides it.
 function optionalRow(ex, r, name, control) {
-  var remove = el('button', {
-    className: 'link-btn', text: '×', title: 'Remove ' + OPTIONAL_LABELS[name], 'aria-label': 'Remove ' + OPTIONAL_LABELS[name],
-    onclick: function () {
-      delete shownOptional[optionalKey(ex, r, name)];
-      var patch = {}; patch[name] = null;
-      setGroupFields(ex, r, patch);
-    }
+  var remove = iconButton('close', 'Remove ' + OPTIONAL_LABELS[name], function () {
+    delete shownOptional[optionalKey(ex, r, name)];
+    var patch = {}; patch[name] = null;
+    setGroupFields(ex, r, patch);
   });
   return panelRow(OPTIONAL_LABELS[name], [control, remove]);
 }
@@ -3039,11 +3063,11 @@ function renderWeekTable(workout, ex, k) {
     if (showKg) row.appendChild(el('td', { className: 'kg', text: grp.kg === null ? '' : formatNum(grp.kg) }));
     var last = el('td');
     if (entry.edited && w > 0) {
-      last.appendChild(el('button', {
-        className: 'reset-btn', text: '↺', title: 'Use the Week 1 and progression values again for Week ' + (w + 1),
-        'aria-label': 'Use the Week 1 and progression values again for Week ' + (w + 1),
-        onclick: function () { entry.edited = false; panelOpenReps = null; ex.weeks = generateWeeks(ex, program.weeks); changed(); }
-      }));
+      var reset = iconButton('reset', 'Use the Week 1 and progression values again for Week ' + (w + 1), function () {
+        entry.edited = false; panelOpenReps = null; ex.weeks = generateWeeks(ex, program.weeks); changed();
+      });
+      reset.className += ' reset-btn';
+      last.appendChild(reset);
     }
     row.appendChild(last);
     body.appendChild(row);
@@ -3073,7 +3097,7 @@ function renderSetGroupSection(workout, wi, ex, r, isLast) {
     parts = [el('button', {
       className: 'ps-fold', title: 'Show set group ' + (r + 1), 'aria-expanded': 'false',
       onclick: function () { panelOpenGroup = r; panelOpenReps = null; render(); }
-    }, [el('b', { text: 'Set group ' + (r + 1) }), setBadge(g), el('span', { className: 'sum', text: groupSummary(ex, r) }), el('span', { className: 'dim', text: '▾' })].filter(Boolean))];
+    }, [el('b', { text: 'Set group ' + (r + 1) }), setBadge(g), el('span', { className: 'sum', text: groupSummary(ex, r) }), icon('down')].filter(Boolean))];
   } else {
     var head = [el('b', { text: 'Set group ' + (r + 1) }), setBadge(g)];
     if (count > 1) {
@@ -3145,17 +3169,17 @@ function renderDetail() {
   box.hidden = false;
   box.textContent = '';
 
-  var up = el('button', { className: 'link-btn', text: 'Move up', onclick: function () { moveExercise(workout, ex, -1); } });
-  var down = el('button', { className: 'link-btn', text: 'Move down', onclick: function () { moveExercise(workout, ex, 1); } });
-  if (!canMove(workout, ex, -1)) { up.disabled = true; up.title = 'Already first'; }
-  if (!canMove(workout, ex, 1)) { down.disabled = true; down.title = 'Already last'; }
+  var up = iconButton('arrow-up', 'Move up in the workout', function () { moveExercise(workout, ex, -1); });
+  var down = iconButton('arrow-down', 'Move down in the workout', function () { moveExercise(workout, ex, 1); });
+  if (!canMove(workout, ex, -1)) { up.disabled = true; up.title = 'Already first in the workout'; }
+  if (!canMove(workout, ex, 1)) { down.disabled = true; down.title = 'Already last in the workout'; }
   box.appendChild(el('div', { className: 'ph' }, [
     el('div', { className: 't' }, [
       el('b', { text: ex.name }),
       el('span', { text: 'Workout ' + (wi + 1) + (workout.description ? ' · ' + workout.description : '') })
     ]),
     el('div', { className: 'ph-acts' }, [up, down]),
-    el('button', { className: 'x', text: '×', title: 'Close', 'aria-label': 'Close the exercise settings', onclick: closeDetail })
+    iconButton('close', 'Close the exercise settings', closeDetail)
   ]));
   box.appendChild(el('div', { className: 'ps' }, [inWeeksRow(workout, ex)]));
 
@@ -3227,47 +3251,89 @@ function weekFlagButton(week) {
   // A flagged week shows just its name (in the flag's colour); the grey flag icon is only for unflagged weeks.
   var children = [current
     ? el('span', { className: 'flag-name', text: label })
-    : el('span', { className: 'flag-ico', text: '⚑' })];
+    : icon('flag')];
   var btn = el('button', {
     className: 'flag-btn' + (current ? ' flag-' + current : ''),
     title: 'Flag this week (now: ' + label + ')', 'aria-label': 'Flag for Week ' + (week + 1) + ': ' + label,
     'aria-haspopup': 'menu'
   }, children);
-  btn.addEventListener('click', function () { openFlagMenu(btn, week); });
+  btn.addEventListener('click', function () {
+    var items = [[null, 'None']].concat(WEEK_FLAGS.map(function (f) { return [f, WEEK_FLAG_LABELS[f]]; }));
+    openMenu(btn, items.map(function (item) {
+      return {
+        text: item[1], cls: item[0] ? 'flag-' + item[0] : '', on: item[0] === current,
+        onClick: function () { program.weekFlags[week] = item[0]; changed(); }
+      };
+    }));
+  });
   return btn;
 }
 
-var flagMenuCleanup = null;
+/* ---- Menus: a small list of actions that opens below a button ---- */
 
-function closeFlagMenu() {
-  var menu = document.getElementById('flag-menu');
+var menuCleanup = null;
+
+function closeMenu() {
+  var menu = document.getElementById('menu');
   if (menu) menu.remove();
-  if (flagMenuCleanup) { flagMenuCleanup(); flagMenuCleanup = null; }
+  if (menuCleanup) { menuCleanup(); menuCleanup = null; }
 }
 
-function openFlagMenu(anchor, week) {
-  closeFlagMenu();
-  var current = program.weekFlags[week];
-  var items = [[null, 'None']].concat(WEEK_FLAGS.map(function (f) { return [f, WEEK_FLAG_LABELS[f]]; }));
-  var menu = el('div', { id: 'flag-menu', className: 'flag-menu', role: 'menu' }, items.map(function (item) {
+// Opens a menu below `anchor` (above it when there is no room below), with its right edge under the
+// anchor. `items`: [{ text, onClick, cls (optional class), on (optional: the current choice) }].
+// The arrow keys move through the items, Escape closes the menu, a click outside closes it too.
+function openMenu(anchor, items) {
+  closeMenu();
+  var menu = el('div', { id: 'menu', className: 'menu', role: 'menu' }, items.map(function (item) {
     return el('button', {
-      className: 'flag-item' + (item[0] ? ' flag-' + item[0] : '') + (item[0] === current ? ' on' : ''),
-      role: 'menuitem', text: item[1],
-      onclick: function () { closeFlagMenu(); program.weekFlags[week] = item[0]; changed(); }
+      className: 'menu-item' + (item.cls ? ' ' + item.cls : '') + (item.on ? ' on' : ''),
+      role: 'menuitem', text: item.text,
+      onclick: function () { closeMenu(); item.onClick(); }
     });
   }));
   document.body.appendChild(menu);
   var box = anchor.getBoundingClientRect();
-  menu.style.top = (box.bottom + 4) + 'px';
-  menu.style.left = Math.max(8, box.right - menu.offsetWidth) + 'px';   // right edge under the icon
-  function onDown(e) { if (!menu.contains(e.target) && !anchor.contains(e.target)) closeFlagMenu(); }
-  function onKey(e) { if (e.key === 'Escape') closeFlagMenu(); }
+  var top = box.bottom + 4;
+  if (top + menu.offsetHeight > window.innerHeight - 8) top = Math.max(8, box.top - 4 - menu.offsetHeight);
+  menu.style.top = top + 'px';
+  menu.style.left = Math.max(8, box.right - menu.offsetWidth) + 'px';
+  menu.firstChild.focus();
+  function onDown(e) { if (!menu.contains(e.target) && !anchor.contains(e.target)) closeMenu(); }
+  function onKey(e) {
+    if (e.key === 'Escape') { closeMenu(); anchor.focus(); return; }
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    var list = Array.prototype.slice.call(menu.children);
+    var at = list.indexOf(document.activeElement) + (e.key === 'ArrowDown' ? 1 : -1);
+    list[(at + list.length) % list.length].focus();
+  }
   document.addEventListener('mousedown', onDown, true);
   document.addEventListener('keydown', onKey);
-  flagMenuCleanup = function () {
+  menuCleanup = function () {
     document.removeEventListener('mousedown', onDown, true);
     document.removeEventListener('keydown', onKey);
   };
+}
+
+// A "more actions" button (three dots) that opens a menu. `getItems` is called when it opens.
+function menuButton(label, getItems) {
+  var btn = iconButton('more', label, function (e) {
+    e.stopPropagation();   // a row that opens on a click must not open
+    if (document.getElementById('menu')) { closeMenu(); return; }
+    openMenu(btn, getItems());
+  });
+  btn.setAttribute('aria-haspopup', 'menu');
+  return btn;
+}
+
+// Makes a row that is not a real button work as one with the keyboard: Enter or Space clicks it.
+function keyClick(node) {
+  node.addEventListener('keydown', function (e) {
+    if (e.target !== node || (e.key !== 'Enter' && e.key !== ' ')) return;
+    e.preventDefault();
+    node.click();
+  });
+  return node;
 }
 
 // One cell of the grid: what one slot looks like in one week. It is left blank where the exercise
@@ -3337,7 +3403,7 @@ function addExerciseBox(workout, wi) {
   function highlight() {
     var menu = document.getElementById('add-menu');
     if (!menu) return;
-    Array.prototype.forEach.call(menu.children, function (b, i) { b.className = 'flag-item add-item' + (i === active ? ' on' : ''); });
+    Array.prototype.forEach.call(menu.children, function (b, i) { b.className = 'menu-item add-item' + (i === active ? ' on' : ''); });
     if (active >= 0) menu.children[active].scrollIntoView({ block: 'nearest' });
   }
 
@@ -3350,7 +3416,7 @@ function addExerciseBox(workout, wi) {
     if (query !== '' && !exact) items.push({ name: query, create: true });
     active = query === '' ? -1 : 0;
     if (items.length === 0) return;
-    var menu = el('div', { id: 'add-menu', className: 'flag-menu add-menu', role: 'listbox' }, items.map(function (item) {
+    var menu = el('div', { id: 'add-menu', className: 'menu add-menu', role: 'listbox' }, items.map(function (item) {
       return el('button', {
         role: 'option', tabindex: '-1', text: item.create ? 'Create "' + item.name + '"' : item.name,
         onclick: function () { add(item); }
@@ -3489,6 +3555,7 @@ function renderGrid() {
 }
 
 function render() {
+  closeMenu();
   var header = document.getElementById('header');
   var workspace = document.getElementById('workspace');
   var lib = document.getElementById('library');
@@ -3638,20 +3705,28 @@ function deleteProgram(entry) {
 function renderProgramRow(entry, nested) {
   var p = entry.program;
   var isCurrent = entry.id === currentId;
-  var acts = [];
-  // A template is used for an athlete: that is the main thing to do with it.
-  if (entry.kind === 'template') acts.push(el('button', { className: 'primary', text: 'Use for athlete', onclick: function () { openGenerateDialog({ template: entry }); } }));
-  acts.push(el('button', { text: 'Open', onclick: function () { openFromLibrary(entry); } }));
-  acts.push(el('button', { text: 'Duplicate', onclick: function () { duplicateProgram(entry); } }));
-  if (entry.kind !== 'template') acts.push(el('button', { text: 'Save as template', onclick: function () { saveAsTemplate(entry); } }));
-  acts.push(el('button', { text: 'Rename', onclick: function () { renameProgram(entry); } }));
-  acts.push(el('button', { text: 'Export', onclick: function () { downloadProgram(p); } }));
-  acts.push(el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteProgram(entry); } }));
+  var isTemplate = entry.kind === 'template';
+  var open = function () { openFromLibrary(entry); };
+  // One visible action for each row: a template is used for an athlete, a program is opened. A click
+  // on the name opens the item too. The other actions are in the menu.
+  var acts = [isTemplate
+    ? el('button', { text: 'Use for athlete', onclick: function () { openGenerateDialog({ template: entry }); } })
+    : el('button', { text: 'Open', onclick: open })];
+  acts.push(menuButton('More actions for ' + (entry.name || 'this item'), function () {
+    var items = [];
+    if (isTemplate) items.push({ text: 'Open', onClick: open });
+    items.push({ text: 'Rename', onClick: function () { renameProgram(entry); } });
+    items.push({ text: 'Duplicate', onClick: function () { duplicateProgram(entry); } });
+    if (!isTemplate) items.push({ text: 'Save as template', onClick: function () { saveAsTemplate(entry); } });
+    items.push({ text: 'Export program file', onClick: function () { downloadProgram(p); } });
+    items.push({ text: 'Delete', cls: 'danger-text', onClick: function () { deleteProgram(entry); } });
+    return items;
+  }));
   var detail = plural(p.weeks, 'week') + ' × ' + plural(p.workoutsPerWeek, 'workout');
   if (p.source && p.source.templateName) detail += ' · from ' + p.source.templateName;
   if (entry.note) detail += ' · ' + entry.note;
   return el('div', { className: 'lib-row' + (isCurrent ? ' current' : '') + (nested ? ' nested' : '') }, [
-    el('div', { className: 't' }, [
+    el('button', { className: 't row-open', title: 'Open in the editor', onclick: open }, [
       el('b', { text: entry.name === '' ? '(No name)' : entry.name }),
       el('span', { text: detail })
     ]),
@@ -3669,10 +3744,13 @@ function renderTemplatesSection() {
   wrap.appendChild(el('div', { className: 'lib-sect static' }, [
     el('span', { text: 'Templates' }),
     el('span', { className: 'count', text: String(sorted.length) }),
-    el('button', { className: 'primary', text: 'New Template', onclick: function () { openNewProgramDialog('template'); } })
+    el('button', { text: 'New template', onclick: function () { openNewProgramDialog('template'); } })
   ]));
   if (sorted.length === 0) {
-    wrap.appendChild(el('div', { className: 'lib-row' }, [el('div', { className: 't dim', text: 'No templates yet. A template is a program you reuse for different athletes. Create one, or use Save as template on a program below.' })]));
+    wrap.appendChild(el('div', { className: 'lib-row' }, [
+      el('div', { className: 't dim', text: 'No templates yet. A template is a program that you use again for different athletes. You can also use "Save as template" in the menu of a program.' }),
+      el('div', { className: 'acts' }, [el('button', { text: 'New template', onclick: function () { openNewProgramDialog('template'); } })])
+    ]));
   }
   sorted.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry)); });
   return wrap;
@@ -3683,15 +3761,17 @@ function renderUnlinkedSection() {
   var wrap = el('div');
   var sorted = library.filter(function (e) { return e.kind !== 'template' && !isLinkedProgram(e); })
     .sort(function (a, b) { return a.modified < b.modified ? 1 : a.modified > b.modified ? -1 : 0; });
-  wrap.appendChild(el('div', {
+  wrap.appendChild(keyClick(el('div', {
     className: 'lib-sect', role: 'button', tabindex: '0', 'aria-expanded': unlinkedOpen ? 'true' : 'false',
     onclick: function () { unlinkedOpen = !unlinkedOpen; render(); }
   }, [
-    el('span', { className: 'car', text: unlinkedOpen ? '▼' : '▶' }),
+    el('span', { className: 'car' }, [icon(unlinkedOpen ? 'down' : 'right')]),
     el('span', { text: 'Not linked to an athlete' }),
-    el('span', { className: 'count', text: plural(sorted.length, 'program') }),
-    el('button', { className: 'primary', text: 'New Program', onclick: function (e) { e.stopPropagation(); openNewProgramDialog(); } })
-  ]));
+    el('span', { className: 'count', text: plural(sorted.length, 'program') })
+  ])));
+  if (unlinkedOpen && sorted.length === 0) {
+    wrap.appendChild(el('div', { className: 'lib-row' }, [el('div', { className: 't dim', text: 'No programs here. "New program" at the top of the page makes a blank program.' })]));
+  }
   if (unlinkedOpen) sorted.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry)); });
   return wrap;
 }
@@ -3713,7 +3793,7 @@ function renderLibraryFooter() {
   var last = lastExportInfo();
   return el('div', { className: 'lib-foot' }, [
     el('span', null, [
-      el('span', { text: 'Last exported: ' }),
+      el('span', { text: 'Last backup: ' }),
       el('span', { className: last.stale ? 'stale' : null, text: last.text })
     ]),
     el('span', { className: 'grow' }),
@@ -3729,13 +3809,21 @@ function renderLibrary() {
   var oldBody = box.querySelector('.lib-body');
   var scrollTop = oldBody ? oldBody.scrollTop : 0;
   box.textContent = '';
+  // "Import" opens a menu with the three kinds of file that the builder can read.
+  var importBtn = el('button', { text: 'Import', 'aria-haspopup': 'menu' });
+  importBtn.addEventListener('click', function () {
+    openMenu(importBtn, [
+      { text: 'Import program file', onClick: importProgramFile },
+      { text: 'Import exercise list', onClick: loadExerciseListFile },
+      { text: 'Restore backup', onClick: importEverything }
+    ]);
+  });
   box.appendChild(el('div', { className: 'lib-bar' }, [
     el('span', { className: 'title', text: 'Library' }),
     el('div', { className: 'spacer' }, [
-      el('button', { text: 'Import program', onclick: importProgramFile }),
-      el('button', { text: 'Load Exercise List', onclick: loadExerciseListFile }),
-      el('button', { text: 'Import everything', onclick: importEverything }),
-      el('button', { text: 'Export everything', onclick: exportEverything })
+      importBtn,
+      el('button', { text: 'Back up everything', title: 'Save templates, athletes and programs in one file', onclick: exportEverything }),
+      el('button', { className: 'primary', text: 'New program', title: 'Make a blank program', onclick: function () { openNewProgramDialog(); } })
     ])
   ]));
   var body = el('div', { className: 'lib-body' }, [renderTemplatesSection(), renderAthletesSection(), renderUnlinkedSection()]);
@@ -3865,11 +3953,12 @@ function renderAthleteBlock(p) {
   if (p.unavailable.length > 0) tags.push(el('span', { className: 'tag-warn', text: plural(p.unavailable.length, 'exercise') + ' unavailable' }));
   tags.push(el('span', { className: 'tag', text: plural(progs.length, 'program') }));
   function stop(fn) { return function (e) { e.stopPropagation(); fn(); }; }
-  var head = el('div', {
+  var fromTemplate = function () { openGenerateDialog({ profile: p }); };
+  var head = keyClick(el('div', {
     className: 'lib-row ath-head', role: 'button', tabindex: '0', 'aria-expanded': open ? 'true' : 'false',
     onclick: function () { athleteOpenState[p.id] = !open; render(); }
   }, [
-    el('span', { className: 'car', text: open ? '▼' : '▶' }),
+    el('span', { className: 'car' }, [icon(open ? 'down' : 'right')]),
     el('div', { className: 't' }, [
       el('b', { text: p.name === '' ? '(No name)' : p.name }),
       el('span', { text: liftsSummary(p) })
@@ -3877,14 +3966,23 @@ function renderAthleteBlock(p) {
   ].concat(tags, [
     el('div', { className: 'acts' }, [
       el('button', { text: 'Edit profile', onclick: stop(function () { openProfile(p.id); }) }),
-      el('button', { text: 'Duplicate', onclick: stop(function () { duplicateAthlete(p); }) }),
-      el('button', { className: 'danger-text', text: 'Delete', onclick: stop(function () { deleteAthlete(p); }) }),
-      el('button', { className: 'primary', text: 'New Program', onclick: stop(function () { openGenerateDialog({ profile: p }); }) })
+      el('button', { text: 'Program from template', title: 'Make a program for this athlete from a template', onclick: stop(fromTemplate) }),
+      menuButton('More actions for ' + (p.name || 'this athlete'), function () {
+        return [
+          { text: 'Duplicate', onClick: function () { duplicateAthlete(p); } },
+          { text: 'Delete', cls: 'danger-text', onClick: function () { deleteAthlete(p); } }
+        ];
+      })
     ])
-  ]));
-  var wrap = el('div', { className: 'ath-block' }, [head]);
+  ])));
+  var wrap = el('div', null, [head]);
   if (open) {
-    if (progs.length === 0) wrap.appendChild(el('div', { className: 'lib-row sub-row' }, [el('div', { className: 't dim', text: 'No programs yet. Use New Program to make one from a template.' })]));
+    if (progs.length === 0) {
+      wrap.appendChild(el('div', { className: 'lib-row sub-row' }, [
+        el('div', { className: 't dim', text: 'No programs yet for this athlete.' }),
+        el('div', { className: 'acts' }, [el('button', { text: 'Program from template', onclick: fromTemplate })])
+      ]));
+    }
     progs.forEach(function (entry) { wrap.appendChild(renderProgramRow(entry, true)); });
   }
   return wrap;
@@ -3905,10 +4003,13 @@ function renderAthletesSection() {
       onclick: function () { sorted.forEach(function (p) { athleteOpenState[p.id] = anyClosed; }); render(); }
     }));
   }
-  head.push(el('button', { className: 'primary' + (sorted.length > 0 ? '' : ' first-btn'), text: 'New Athlete', onclick: addAthlete }));
+  head.push(el('button', { text: 'New athlete', onclick: addAthlete }));
   wrap.appendChild(el('div', { className: 'lib-sect static' }, head));
   if (sorted.length === 0) {
-    wrap.appendChild(el('div', { className: 'lib-row' }, [el('div', { className: 't dim', text: 'No athletes yet. Add one to keep their maxes and the exercises their gym does not have.' })]));
+    wrap.appendChild(el('div', { className: 'lib-row' }, [
+      el('div', { className: 't dim', text: 'No athletes yet. An athlete keeps the maxes and the exercises that the gym does not have.' }),
+      el('div', { className: 'acts' }, [el('button', { text: 'New athlete', onclick: addAthlete })])
+    ]));
   }
   sorted.forEach(function (p) { wrap.appendChild(renderAthleteBlock(p)); });
   return wrap;
@@ -3938,7 +4039,7 @@ function openGenerateDialog(opts) {
   if (templates.length === 0 || profiles.length === 0) {
     showMessage('New program for an athlete',
       templates.length === 0 && profiles.length === 0 ? 'You need a template and an athlete first.' :
-      templates.length === 0 ? 'You need a template first. Create one, or use Save as template on a program.' : 'You need an athlete first. Use New Athlete.');
+      templates.length === 0 ? 'You need a template first. Create one, or use Save as template on a program.' : 'You need an athlete first. Use New athlete in the Library.');
     return;
   }
   var state = { tpl: opts.template || templates[0], prof: opts.profile || profiles[0], name: '', nameEdited: false, extras: {} };
@@ -4110,12 +4211,9 @@ function renderLiftRow(p, l, index) {
     el('td', null, [maxInput('trainingMax', 'Training max')]),
     el('td', null, [el('div', { className: 'segmented' }, [baseButton('1rm', '1RM'), baseButton('tm', 'TM')])]),
     el('td', null, [note]),
-    el('td', null, [el('button', {
-      className: 'link-btn', text: '✕', 'aria-label': 'Remove ' + (l.name || 'lift'),
-      onclick: function () {
+    el('td', null, [iconButton('close', 'Remove ' + (l.name || 'lift'), function () {
         if (!hasValues) { remove(); return; }
         showConfirm({ title: 'Remove ' + (l.name || 'this lift') + '?', text: 'Its maxes will be deleted.', confirmLabel: 'Remove', onConfirm: remove });
-      }
     })])
   ]);
 }
@@ -4149,7 +4247,7 @@ function renderUnavailableColumn(p) {
     countLine.textContent = p.unavailable.length + ' ticked of ' + all.length;
     listBox.textContent = '';
     if (base.length === 0) {
-      listBox.appendChild(el('div', { className: 'hint', text: 'Load your Exercise List (Library > Load Exercise List) to choose from it. You can still add names by typing them.' }));
+      listBox.appendChild(el('div', { className: 'hint', text: 'Import your Exercise List (Library > Import > Import exercise list) to choose from it. You can still add names by typing them.' }));
     }
     shown.forEach(function (x) {
       var box = el('input', { type: 'checkbox', 'aria-label': x.name });
@@ -4206,9 +4304,10 @@ function renderProfile() {
     el('span', { className: 'dim', text: '/' }),
     titleEl,
     el('div', { className: 'spacer' }, [
-      // Everything is saved as you type; Save makes it explicit and goes back to the Library.
-      el('button', { className: 'primary', text: 'Save', onclick: function () { saveProfiles(); showNotice('Saved.'); closeProfile(); } }),
-      el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteAthlete(p, closeProfile); } })
+      // Everything is saved as you type; Done only goes back to the Library.
+      el('span', { className: 'hint', text: 'Changes are saved automatically' }),
+      el('button', { className: 'danger-text', text: 'Delete', onclick: function () { deleteAthlete(p, closeProfile); } }),
+      el('button', { className: 'primary', text: 'Done', onclick: closeProfile })
     ])
   ]));
 
