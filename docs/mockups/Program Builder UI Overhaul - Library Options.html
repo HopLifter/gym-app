@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Builder UI Overhaul - Library Options</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0B0D0C; --surface: #161917; --raised: #1E2220;
+    --line: #2A2F2B; --hair: #1F2421; --control: #626A63;
+    --text: #EDEEEA; --dim: #8C948C;
+    --accent: #C6FF3D; --accent-tint: #232A1A;
+    --danger: #E05C4E; --warn: #E8B04A; --warn-line: #5A4720; --info: #8FC7FF;
+    --f-xs: 12px; --f-sm: 13px; --f-md: 14px; --f-lg: 16px; --f-xl: 20px;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --r1: 4px; --r2: 8px; --r3: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #050605; color: var(--text); font: 400 var(--f-md)/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-variant-numeric: tabular-nums; }
+  .page { max-width: 1280px; margin: 0 auto; padding: var(--s5) var(--s4) 64px; }
+  h1 { font-size: var(--f-xl); margin: 0 0 var(--s1); }
+  h2 { font-size: var(--f-lg); margin: 48px 0 var(--s1); }
+  .lead { color: var(--dim); margin: 0 0 var(--s3); max-width: 920px; }
+  .pros { color: var(--dim); font-size: var(--f-sm); margin: var(--s3) 0 0; padding-left: 18px; max-width: 920px; }
+  .pros b { color: var(--text); font-weight: 600; }
+  b { font-weight: 600; }
+  .dim { color: var(--dim); }
+  .xs { font-size: var(--f-xs); }
+
+  button, input, textarea { font: inherit; color: var(--text); }
+  .btn { height: 32px; padding: 0 var(--s3); border-radius: var(--r2); border: 1px solid var(--control); background: transparent; white-space: nowrap; }
+  .btn.sm { height: 28px; padding: 0 var(--s2); font-size: var(--f-xs); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+  .btn.icon { width: 32px; padding: 0; border-color: transparent; color: var(--dim); }
+  .in { height: 28px; padding: 0 var(--s2); border-radius: var(--r2); border: 1px solid var(--control); background: var(--bg); }
+  .in.num { width: 64px; text-align: right; }
+  .seg { display: inline-flex; border: 1px solid var(--control); border-radius: var(--r2); overflow: hidden; font-size: var(--f-xs); }
+  .seg span { padding: 0 var(--s2); height: 26px; line-height: 26px; color: var(--dim); }
+  .seg span.on { background: var(--accent); color: var(--bg); font-weight: 600; }
+  .tag { font-size: var(--f-xs); padding: 0 var(--s2); border-radius: var(--r3); border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+  .tag.warn { border-color: var(--warn-line); color: var(--warn); }
+  .warn { color: var(--warn); }
+
+  /* the Library frame */
+  .frame { border: 1px solid var(--line); background: var(--bg); margin-top: var(--s3); display: flex; flex-direction: column; height: 640px; }
+  .bar { display: flex; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); }
+  .bar .title { font-size: var(--f-xl); font-weight: 600; }
+  .bar .sp { margin-left: auto; display: flex; gap: var(--s2); }
+  .cols { flex: 1; min-height: 0; display: flex; }
+  .list { width: 400px; flex: none; overflow: hidden; border-right: 1px solid var(--line); }
+  .tabs { display: flex; gap: var(--s4); padding: 0 var(--s4); border-bottom: 1px solid var(--line); }
+  .tabs span { padding: var(--s3) 0 var(--s2); color: var(--dim); font-weight: 600; border-bottom: 2px solid transparent; }
+  .tabs span.on { color: var(--text); border-bottom-color: var(--accent); }
+  .tabs .new { margin-left: auto; align-self: center; }
+  .sect { display: flex; align-items: center; gap: var(--s2); padding: var(--s4) var(--s4) var(--s2); font-weight: 600; }
+  .sect .n { color: var(--dim); font-weight: 400; font-size: var(--f-xs); }
+  .sect .btn { margin-left: auto; }
+  .row { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s4); border-top: 1px solid var(--line); }
+  .row.sub { padding-left: 40px; }
+  .row.sel { background: var(--accent-tint); box-shadow: inset 2px 0 0 var(--accent); }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .t span { color: var(--dim); font-size: var(--f-xs); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .car { width: 16px; color: var(--dim); flex: none; }
+  .empty { padding: var(--s2) var(--s4) var(--s3); color: var(--dim); font-size: var(--f-sm); border-top: 1px solid var(--line); }
+  .foot { display: flex; gap: var(--s4); padding: var(--s2) var(--s4); border-top: 1px solid var(--line); color: var(--dim); font-size: var(--f-xs); }
+  .foot .g { flex: 1; }
+
+  /* the details panel */
+  .det { flex: 1; min-width: 0; overflow: hidden; padding: var(--s4) var(--s5); }
+  .det-in { max-width: 640px; }
+  .dh { display: flex; align-items: flex-start; gap: var(--s2); }
+  .dh .t { flex: 1; min-width: 0; }
+  .dh .t b { display: block; font-size: var(--f-xl); }
+  .dh .t span { color: var(--dim); font-size: var(--f-sm); }
+  .acts { display: flex; gap: var(--s2); margin: var(--s3) 0 0; }
+  .ds { border-top: 1px solid var(--line); margin-top: var(--s4); padding-top: var(--s3); }
+  .ds h3 { margin: 0 0 var(--s2); font-size: var(--f-sm); font-weight: 600; display: flex; gap: var(--s2); align-items: baseline; }
+  .ds h3 span { color: var(--dim); font-weight: 400; font-size: var(--f-xs); }
+  .kv { display: grid; grid-template-columns: 112px 1fr; gap: var(--s1) var(--s3); font-size: var(--f-sm); }
+  .kv > span:nth-child(odd) { color: var(--dim); font-size: var(--f-xs); padding-top: 2px; }
+  .wo { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s4); font-size: var(--f-sm); }
+  .wo b { display: block; margin-bottom: var(--s1); }
+  .wo div div { display: flex; justify-content: space-between; gap: var(--s2); padding: 2px 0; border-top: 1px solid var(--hair); }
+  .wo div div span:last-child { color: var(--dim); white-space: nowrap; }
+  table.lifts { border-collapse: collapse; width: 100%; font-size: var(--f-sm); }
+  table.lifts th { text-align: left; color: var(--dim); font-size: var(--f-xs); font-weight: 600; padding: 0 var(--s2) var(--s1) 0; }
+  table.lifts td { padding: 3px var(--s2) 3px 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s2); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Program Builder UI overhaul: Library with a details panel</h1>
+  <p class="lead">Two options for the left side of the Library, one below the other. In the two options, one click selects an item and the right panel shows its details. The athlete profile is in the panel, and you edit it there. There is no "Not linked to an athlete" section and no green "New program" button. Each section has one "New" button only. Test data: Strength Block A (8 weeks), Sam Lee and Maria Okafor.</p>
+
+  <!-- ================= OPTION A ================= -->
+  <h2>Option A: one list (templates, then athletes with their programs)</h2>
+  <p class="lead">The left side is one list with two sections. The programs of an athlete are below the athlete. This example shows a program selected.</p>
+  <div class="frame">
+    <div class="bar"><span class="title">Library</span><div class="sp"><button class="btn">Import ▾</button><button class="btn">Back up everything</button></div></div>
+    <div class="cols">
+      <div class="list">
+        <div class="sect">Templates <span class="n">2</span><button class="btn sm">New template</button></div>
+        <div class="row"><div class="t"><b>Strength Block A (8 wk)</b><span>8 weeks × 3 workouts · 14/11/2026</span></div></div>
+        <div class="row"><div class="t"><b>Upper/Lower 4 wk</b><span>4 weeks × 2 workouts · 15/11/2026</span></div></div>
+        <div class="sect">Athletes <span class="n">2</span><button class="btn sm">New athlete</button></div>
+        <div class="row"><span class="car">›</span><div class="t"><b>Maria Okafor</b><span>Squat 120 · Bench 65 · Deadlift 150</span></div><span class="dim xs">0 programs</span></div>
+        <div class="row"><span class="car">⌄</span><div class="t"><b>Sam Lee</b><span>Squat 200 · Bench 120 TM · Deadlift 240 · OHP 80</span></div><span class="dim xs">2 programs</span></div>
+        <div class="row sub sel"><div class="t"><b>Strength Block A (8 wk) - Sam Lee</b><span>8 weeks × 3 workouts · 15/11/2026</span></div></div>
+        <div class="row sub"><div class="t"><b>Upper/Lower 4 wk - Sam Lee</b><span>4 weeks × 2 workouts · 02/11/2026</span></div></div>
+      </div>
+      <div class="det"><div class="det-in">
+        <div class="dh"><div class="t"><b>Strength Block A (8 wk) - Sam Lee</b><span>Program for Sam Lee · from the template Strength Block A (8 wk)</span></div><button class="btn icon" title="Rename, Duplicate, Save as template, Export program file, Delete">⋯</button></div>
+        <div class="acts"><button class="btn primary">Open</button><button class="btn">Export for GymLog</button></div>
+        <div class="ds"><div class="kv">
+          <span>Size</span><span>8 weeks × 3 workouts · 15 exercises</span>
+          <span>Week flags</span><span><span class="warn">Deload</span> Week 4 · <span style="color:var(--info)">Test</span> Week 8</span>
+          <span>Last change</span><span>15/11/2026</span>
+          <span>Check</span><span class="warn">Sam Lee can't do: Pull-Up, Leg Press</span>
+        </div></div>
+        <div class="ds"><h3>Workouts <span>Week 1</span></h3>
+          <div class="wo">
+            <div><b>1 · Squat focus, heavy</b><div><span>Back Squat</span><span>1 × 3 · 160 kg</span></div><div><span>Back Squat</span><span>4 × 5 · 140 kg</span></div><div><span>Pause Squat</span><span>3 × 4 · 105 kg</span></div><div><span>Romanian Deadlift</span><span>3 × 8–10 · 100 kg</span></div><div><span>Leg Curl</span><span>3 × 12 · RIR 3</span></div><div><span>Plank</span><span>3 × 45</span></div></div>
+            <div><b>2 · Bench focus + upper back</b><div><span>Bench Press</span><span>5 × 5 · 87.5 kg</span></div><div><span>Barbell Row</span><span>5 × 8 · 80 kg</span></div><div><span>Overhead Press</span><span>3 × 6 · RPE 7</span></div><div><span>Pull-Up</span><span>3 × 8</span></div><div><span>Lateral Raise</span><span>3 × 15 · 10 kg</span></div></div>
+            <div><b>3 · Deadlift focus</b><div><span>Deadlift</span><span>3 × 3 · 192.5 kg</span></div><div><span>Leg Press</span><span>3 × 10 · 180 kg</span></div><div><span>Walking Lunge</span><span>3 × 12 · 20 kg</span></div><div><span>Hanging Leg Raise</span><span>3 × 12</span></div></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <div class="foot"><span>Last backup: <span class="warn">never</span></span><span class="g"></span><span>Browser storage: &lt;0.1 MB of about 5 MB</span></div>
+  </div>
+  <ul class="pros">
+    <li><b>For:</b> you see templates and athletes together. It is the same structure as now, thus nothing moves to a new place.</li>
+    <li><b>Against:</b> with many athletes and programs the list becomes long, and the templates go out of view when you scroll.</li>
+  </ul>
+
+  <!-- ================= OPTION B ================= -->
+  <h2>Option B: two tabs (Athletes | Templates)</h2>
+  <p class="lead">The left side shows one kind of item at a time. The "New" button is for the open tab. This example shows an athlete selected: the panel is the profile, and you edit it there.</p>
+  <div class="frame">
+    <div class="bar"><span class="title">Library</span><div class="sp"><button class="btn">Import ▾</button><button class="btn">Back up everything</button></div></div>
+    <div class="cols">
+      <div class="list">
+        <div class="tabs"><span class="on">Athletes 2</span><span>Templates 2</span><button class="btn sm new">New athlete</button></div>
+        <div class="row"><span class="car">›</span><div class="t"><b>Maria Okafor</b><span>Squat 120 · Bench 65 · Deadlift 150</span></div><span class="dim xs">0 programs</span></div>
+        <div class="row sel"><span class="car">⌄</span><div class="t"><b>Sam Lee</b><span>Squat 200 · Bench 120 TM · Deadlift 240 · OHP 80</span></div><span class="dim xs">2 programs</span></div>
+        <div class="row sub"><div class="t"><b>Strength Block A (8 wk) - Sam Lee</b><span>8 weeks × 3 workouts · 15/11/2026</span></div></div>
+        <div class="row sub"><div class="t"><b>Upper/Lower 4 wk - Sam Lee</b><span>4 weeks × 2 workouts · 02/11/2026</span></div></div>
+      </div>
+      <div class="det"><div class="det-in">
+        <div class="dh"><div class="t"><b>Sam Lee</b><span>Athlete · 2 programs · changes are saved automatically</span></div><button class="btn icon" title="Duplicate, Delete">⋯</button></div>
+        <div class="acts"><button class="btn primary">Program from template</button></div>
+        <div class="ds"><div class="kv" style="align-items:center">
+          <span>Name</span><span><input class="in" style="width:260px" value="Sam Lee"></span>
+          <span>Notes</span><span><input class="in" style="width:100%" value="Home gym, no cable stack."></span>
+        </div></div>
+        <div class="ds"><h3>Lifts and maxes <span>kg · percentages use the value marked "Use"</span></h3>
+          <table class="lifts">
+            <tr><th>Lift</th><th>1RM</th><th>Training max</th><th>Use</th></tr>
+            <tr><td><input class="in" style="width:200px" value="Back Squat"></td><td><input class="in num" value="200"></td><td><input class="in num" value=""></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td></tr>
+            <tr><td><input class="in" style="width:200px" value="Bench Press"></td><td><input class="in num" value="130"></td><td><input class="in num" value="120"></td><td><span class="seg"><span>1RM</span><span class="on">TM</span></span></td></tr>
+            <tr><td><input class="in" style="width:200px" value="Deadlift"></td><td><input class="in num" value="240"></td><td><input class="in num" value=""></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td></tr>
+            <tr><td><input class="in" style="width:200px" value="Overhead Press"></td><td><input class="in num" value="80"></td><td><input class="in num" value=""></td><td><span class="seg"><span class="on">1RM</span><span>TM</span></span></td></tr>
+          </table>
+          <div class="kv" style="margin-top:8px;align-items:center"><span>Round loads to</span><span><input class="in num" value="2.5"> <span class="dim">kg</span> &nbsp; <span class="dim xs">+ Add lift</span></span></div>
+        </div>
+        <div class="ds"><h3>Exercises Sam Lee can't do <span>2 of 21 · Change…</span></h3>
+          <div class="chips"><span class="tag warn">Pull-Up</span><span class="tag warn">Leg Press</span></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="foot"><span>Last backup: <span class="warn">never</span></span><span class="g"></span><span>Browser storage: &lt;0.1 MB of about 5 MB</span></div>
+  </div>
+  <ul class="pros">
+    <li><b>For:</b> the list is short and easy to read. One "New" button is on the screen at a time.</li>
+    <li><b>Against:</b> one more click to go from athletes to templates. You do not see the two kinds together.</li>
+  </ul>
+
+  <!-- ================= TEMPLATE PANEL ================= -->
+  <h2>The panel for a template (the same in the two options)</h2>
+  <p class="lead">This example uses the Option A list. It also shows an empty section: the text has no second "New" button.</p>
+  <div class="frame" style="height:520px">
+    <div class="bar"><span class="title">Library</span><div class="sp"><button class="btn">Import ▾</button><button class="btn">Back up everything</button></div></div>
+    <div class="cols">
+      <div class="list">
+        <div class="sect">Templates <span class="n">2</span><button class="btn sm">New template</button></div>
+        <div class="row sel"><div class="t"><b>Strength Block A (8 wk)</b><span>8 weeks × 3 workouts · 14/11/2026</span></div></div>
+        <div class="row"><div class="t"><b>Upper/Lower 4 wk</b><span>4 weeks × 2 workouts · 15/11/2026</span></div></div>
+        <div class="sect">Athletes <span class="n">0</span><button class="btn sm">New athlete</button></div>
+        <div class="empty">No athletes yet. An athlete keeps the maxes and the exercises that the gym does not have.</div>
+      </div>
+      <div class="det"><div class="det-in">
+        <div class="dh"><div class="t"><b>Strength Block A (8 wk)</b><span>Template</span></div><button class="btn icon" title="Rename, Duplicate, Export program file, Delete">⋯</button></div>
+        <div class="acts"><button class="btn primary">Use for athlete</button><button class="btn">Open</button></div>
+        <div class="ds"><div class="kv">
+          <span>Size</span><span>8 weeks × 3 workouts · 15 exercises</span>
+          <span>Week flags</span><span><span class="warn">Deload</span> Week 4 · <span style="color:var(--info)">Test</span> Week 8</span>
+          <span>Last change</span><span>14/11/2026</span>
+          <span>Used for</span><span>Sam Lee (1 program)</span>
+        </div></div>
+        <div class="ds"><h3>Workouts <span>Week 1</span></h3>
+          <div class="wo">
+            <div><b>1 · Squat focus, heavy</b><div><span>Back Squat</span><span>1 × 3 · 80%</span></div><div><span>Back Squat</span><span>4 × 5 · 70%</span></div><div><span>Pause Squat</span><span>3 × 4 · 65%</span></div><div><span>Romanian Deadlift</span><span>3 × 8–10 · 100 kg</span></div><div><span>Leg Curl</span><span>3 × 12 · RIR 3</span></div></div>
+            <div><b>2 · Bench focus + upper back</b><div><span>Bench Press</span><span>5 × 5 · 72.5%</span></div><div><span>Barbell Row</span><span>5 × 8 · 80 kg</span></div><div><span>Overhead Press</span><span>3 × 6 · RPE 7</span></div><div><span>Pull-Up</span><span>3 × 8</span></div></div>
+            <div><b>3 · Deadlift focus</b><div><span>Deadlift</span><span>3 × 3 · 80%</span></div><div><span>Leg Press</span><span>3 × 10 · 180 kg</span></div><div><span>Walking Lunge</span><span>3 × 12 · 20 kg</span></div></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+    <div class="foot"><span>Last backup: <span class="warn">never</span></span><span class="g"></span><span>Browser storage: &lt;0.1 MB of about 5 MB</span></div>
+  </div>
+</div>
+</body>
+</html>

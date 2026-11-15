@@ -330,6 +330,7 @@
     padding: var(--s5); width: 420px; max-width: 90vw;
   }
   .modal.wide { width: 800px; }
+  .modal:focus { outline: none; }
   .modal h2 { margin: 0 0 var(--s2); font-size: var(--f-lg); font-weight: 600; }
   .modal p { margin: 0 0 var(--s4); color: var(--text-dim); }
   .modal .sub { margin: 0 0 var(--s4); color: var(--text-dim); }
@@ -1574,7 +1575,6 @@ function closeModal() {
 
 // Custom confirm dialog (native confirm() is not allowed in this project).
 function showConfirm(opts) {
-  closeModal();
   var cancelBtn = el('button', {
     text: 'Cancel',
     onclick: function () { closeModal(); if (opts.onCancel) opts.onCancel(); }
@@ -1584,17 +1584,7 @@ function showConfirm(opts) {
     text: opts.confirmLabel,
     onclick: function () { closeModal(); opts.onConfirm(); }
   });
-  var overlay = el('div', { className: 'overlay', id: 'modal-overlay' }, [
-    el('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true' }, [
-      el('h2', { text: opts.title }),
-      el('p', { text: opts.text }),
-      el('div', { className: 'actions' }, [cancelBtn, okBtn])
-    ])
-  ]);
-  document.body.appendChild(overlay);
-  function onKey(e) { if (e.key === 'Escape') closeModal(); }
-  document.addEventListener('keydown', onKey);
-  openModalCleanup = function () { document.removeEventListener('keydown', onKey); };
+  openModal({ title: opts.title, body: el('p', { text: opts.text }), actions: [cancelBtn, okBtn] });
   cancelBtn.focus();
 }
 
@@ -1920,30 +1910,100 @@ function gymlogWeight(g) {
   return g.kg;   // a % load (calculated for an athlete) or an RPE / RIR load (filled in by the AI), may be null
 }
 
-// % set groups in included weeks that have a load but no kg yet: [{ name, week, load }].
+// Exercises with % loads that have no kg value yet, counted in included weeks only:
+// [{ name, count (how many loads), weeks (how many weeks) }]. Two exercises with the same name
+// (capital letters do not matter) are one line, because one max serves both.
 function missingKgList(prog) {
   var list = [];
+  var byName = {};
   prog.workouts.forEach(function (w) {
     w.exercises.forEach(function (ex) {
-      ex.weeks.forEach(function (week, wk) {
+      var key = ex.name.trim().toLowerCase();
+      ex.weeks.forEach(function (week) {
         if (!week.included) return;
-        week.groups.forEach(function (g) {
-          if (g.loadType === 'pct' && g.load !== null && g.kg === null) list.push({ name: ex.name, week: wk + 1, load: g.load });
-        });
+        var n = week.groups.filter(function (g) { return g.loadType === 'pct' && g.load !== null && g.kg === null; }).length;
+        if (n === 0) return;
+        if (!byName[key]) { byName[key] = { name: ex.name, count: 0, weeks: 0 }; list.push(byName[key]); }
+        byName[key].count += n;
+        byName[key].weeks++;
       });
     });
   });
   return list;
 }
 
-function gymlogExerciseEntry(ex, g, letter) {
+// Shown in place of the export while % loads have no kg value. A program made for an athlete can
+// take a max for each exercise here; the max is kept in the program (as Generate does for an
+// exercise that is not a lift of the athlete). Any other program gets the correct advice.
+function openMissingKgDialog(missing) {
+  var owner = program.source ? findProfile(program.source.profileId) : null;
+  var who = owner && owner.name ? owner.name : 'the athlete';
+  function countText(m) { return plural(m.count, 'percentage load') + ' in ' + plural(m.weeks, 'week') + (m.count === 1 ? ' has' : ' have') + ' no kg value'; }
+  var intro = el('p', { text: 'GymLog needs a kg value for each percentage load. ' + plural(missing.length, 'exercise') + (missing.length === 1 ? ' has' : ' have') + ' no max:' });
+
+  if (!program.profileUsed) {
+    openModal({
+      title: "Can't export yet",
+      body: el('div', null, [intro].concat(
+        missing.map(function (m) { return el('div', { className: 'warn-text', text: '• ' + m.name + ': ' + countText(m) }); }),
+        [el('p', { className: 'hint', text: 'This program is not made for an athlete, so the builder has no maxes for it. Use "Save as template" and then "Use for athlete", or get the kg values with "Copy AI prompt".' })]
+      )),
+      actions: [el('button', { className: 'primary', text: 'Close', onclick: closeModal })]
+    });
+    return;
+  }
+
+  var typed = {};
+  var error = el('div', { className: 'form-error' });
+  var rows = missing.map(function (m) {
+    var input = textInput('', { inputmode: 'decimal', placeholder: '–', 'aria-label': 'Max in kg for ' + m.name });
+    input.className = 'num-input';
+    input.addEventListener('input', function () { typed[m.name] = input.value; });
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') apply(); });
+    return el('div', { className: 'gen-extra' }, [
+      el('div', null, [el('b', { text: m.name }), el('div', { className: 'hint', text: countText(m) })]),
+      input, el('span', { className: 'unit', text: 'kg' })
+    ]);
+  });
+
+  function apply() {
+    var extras = [];
+    for (var i = 0; i < missing.length; i++) {
+      var n = readMax(typed[missing[i].name] || '', 2000);
+      if (n === undefined) { error.textContent = 'A max must be a number from 0 to 2000 kg.'; return; }
+      if (n !== null) extras.push({ name: missing[i].name, value: n, extra: true });
+    }
+    if (extras.length === 0) { error.textContent = 'Enter a max for one exercise or more.'; return; }
+    closeModal();
+    program.profileUsed.lifts = program.profileUsed.lifts.concat(extras);
+    changed();           // calculates the kg values again and saves
+    exportForGymLog();   // goes on to the export, or shows what is still missing
+  }
+
+  openModal({
+    title: "Can't export yet",
+    wide: true,
+    body: el('div', null, [intro].concat(rows, [
+      el('p', { className: 'hint', text: 'Enter the max of each exercise. It is kept in this program only. To keep it for all programs of ' + who + ', add the lift to the profile.' }),
+      error
+    ])),
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', { className: 'primary', text: 'Calculate kg', onclick: apply })
+    ]
+  });
+}
+
+// `withNotes` is false for the second and later set groups of an exercise in a workout: the coach's
+// own notes go on the first entry only (the coaching fields of each set group are always written).
+function gymlogExerciseEntry(ex, g, letter, withNotes) {
   var o = { name: ex.name, sets: g.sets, reps: g.reps };
   var weight = gymlogWeight(g);
   if (weight !== null) o.weight = weight;
   var rpe = g.loadType === 'rpe' ? g.load : g.rpe;   // RIR never goes in the rpe field
   if (rpe !== null) o.rpe = rpe;
   o.rest = g.rest;
-  var notes = coachingNotes(g, ex.notes);
+  var notes = coachingNotes(g, withNotes ? ex.notes : '');
   if (notes !== '') o.notes = notes;
   if (letter) o.superset = letter;
   return o;
@@ -1958,11 +2018,13 @@ function buildGymLogFile(prog) {
       if (workout.exercises.length === 0 || workoutRemovedInWeek(workout, week)) return;
       var labels = supersetLabels(workout, week);
       var exercises = [];
+      var noted = {};   // exercise id -> true once its notes are written in this workout
       function addGroup(ex, k) {
         var entry = ex.weeks[week];
         if (!entry.included || !entry.groups[k]) return;
         var label = labels[ex.id + ':' + k];
-        exercises.push(gymlogExerciseEntry(ex, entry.groups[k], label ? label.charAt(0) : null));
+        exercises.push(gymlogExerciseEntry(ex, entry.groups[k], label ? label.charAt(0) : null, !noted[ex.id]));
+        noted[ex.id] = true;
       }
       // The same row order as the grid: a paired set group is followed straight away by its partner.
       workoutSlots(workout).forEach(function (slot) {
@@ -2007,20 +2069,7 @@ function exportForGymLog() {
   var entry = findEntry(currentId);
   if (entry && entry.kind === 'template') return;   // a template has no kg to export
   var missing = missingKgList(program);
-  if (missing.length > 0) {
-    var shown = missing.slice(0, 10).map(function (m) { return m.name + ' (Week ' + m.week + '): ' + formatNum(m.load) + '% has no kg value'; });
-    if (missing.length > 10) shown.push('and ' + (missing.length - 10) + ' more');
-    openModal({
-      title: "Can't export yet",
-      body: el('div', null, [
-        el('p', { text: 'Every percentage load needs a kg value before the file can go to GymLog.' })
-      ].concat(shown.map(function (t) { return el('div', { className: 'warn-text', text: '• ' + t }); }), [
-        el('p', { className: 'hint', text: 'Make the program for an athlete from a template (Use for athlete), which calculates the kg values, or add them with Copy AI prompt.' })
-      ])),
-      actions: [el('button', { className: 'primary', text: 'Close', onclick: closeModal })]
-    });
-    return;
-  }
+  if (missing.length > 0) { openMissingKgDialog(missing); return; }
   var file = buildGymLogFile(program);
   if (file.workouts.length === 0) { showMessage('Export for GymLog', 'There is nothing to export yet. Add some exercises first.'); return; }
   var cannot = unavailableInProgram(program);
@@ -2123,7 +2172,7 @@ var AI_PROMPT_LINES = [
   '- Use a period for decimals.',
   '- "rpe" is the target RPE, or the load if the load type is "rpe". Leave it out if there is neither. Never use "rpe" for RIR.',
   '- "reps" is the lower number of a rep range.',
-  '- Put these in "notes", in this order, separated by " · ", before any notes I wrote: the set type (Warm-up, Top set, Back-off, AMRAP or Drop set), "RIR n" (the RIR target, or the load if the load type is "rir"), "a–b reps" for a rep range, "Tempo t" and "n s pause". Leave out anything that is not set.',
+  '- Put these in "notes", in this order, separated by " · ", before any notes I wrote: the set type (Warm-up, Top set, Back-off, AMRAP or Drop set), "RIR n" (the RIR target, or the load if the load type is "rir"), "a–b reps" for a rep range, "Tempo t" and "n s pause". Leave out anything that is not set. If an exercise has more than one set group in a workout, put the notes I wrote on its first entry only.',
   '- For two set groups with the same value in their exercises\' "supersets" list (the same pair id), give both entries the same "superset" letter if both exercises are included that week and both have that set group. Each pair gets its own letter. Letters restart in each workout. Put the two entries next to each other, at the position of the earlier one. An exercise with several paired set groups therefore appears several times.',
   '- Leave "superset" out for all other entries, including a paired set group when its partner isn\'t included that week.',
   '',
@@ -4048,7 +4097,9 @@ function openGenerateDialog(opts) {
   var tplSelect = selectBox(templates.map(function (e) { return [e.id, e.name]; }), state.tpl.id);
   var profSelect = selectBox(profiles.map(function (p) { return [p.id, p.name || '(No name)']; }), state.prof.id);
   var nameInput = textInput('', { maxlength: '200', 'aria-label': 'Name for the new program' });
-  var info = el('div');
+  var countLine = el('div');   // "12 of 16 percentage loads will get a kg value."
+  var rowsBox = el('div');     // one box per exercise that has no lift of the same name
+  var info = el('div', null, [countLine, rowsBox]);
   var error = el('div', { className: 'form-error' });
 
   function defaultName() { return state.tpl.program.name + ' - ' + (state.prof.name || 'athlete'); }
@@ -4063,26 +4114,33 @@ function openGenerateDialog(opts) {
     return !bad;
   }
 
-  function draw() {
-    if (!state.nameEdited) nameInput.value = defaultName();
+  // The count line and the error. Called for each key typed in a max box: it changes text only, so
+  // the boxes keep their place and the cursor, and a click on "Create program" is not lost.
+  function updateCount() {
     var ok = readExtras();
     var a = analyseGenerate(state.tpl.program, state.prof, state.extras);
-    info.textContent = '';
-    if (a.total === 0) {
-      info.appendChild(el('div', { className: 'hint', text: 'This template has no percentage loads, so no kg values will be calculated.' }));
-    } else {
-      info.appendChild(el('div', { className: a.resolved === a.total ? 'ok-text' : 'hint', text: a.resolved + ' of ' + a.total + ' percentage loads will get a kg value.' }));
-    }
-    // Exercises with no lift of that name: ask for a max of their own.
+    countLine.className = a.total > 0 && a.resolved === a.total ? 'ok-text' : 'hint';
+    countLine.textContent = a.total === 0
+      ? 'This template has no percentage loads, so no kg values will be calculated.'
+      : a.resolved + ' of ' + a.total + ' percentage loads will get a kg value.';
+    error.textContent = ok ? '' : 'A max must be a number from 0 to 2000 kg.';
+  }
+
+  // Draws the max boxes. Called when the dialog opens and when the template or the athlete changes.
+  function draw() {
+    if (!state.nameEdited) nameInput.value = defaultName();
+    rowsBox.textContent = '';
+    // Exercises with no lift of that name: ask for a max of their own. The list does not depend on
+    // what is typed, so a box stays in view after it is filled in.
+    var a = analyseGenerate(state.tpl.program, state.prof, {});
     a.unmatched.forEach(function (name) {
-      var input = textInput(extrasText[name] || '', { inputmode: 'decimal', placeholder: 'kg', 'aria-label': 'Max for ' + name });
+      var input = textInput(extrasText[name] || '', { inputmode: 'decimal', placeholder: '–', 'aria-label': 'Max in kg for ' + name });
       input.className = 'num-input';
-      input.addEventListener('input', function () { extrasText[name] = input.value; });
-      input.addEventListener('change', draw);
-      info.appendChild(el('div', { className: 'gen-extra' }, [
+      input.addEventListener('input', function () { extrasText[name] = input.value; updateCount(); });
+      rowsBox.appendChild(el('div', { className: 'gen-extra' }, [
         el('div', null, [
           el('b', { text: name }),
-          el('div', { className: 'hint', text: state.prof.name + ' has no lift called "' + name + '". Enter a max for it, or leave blank and fill in kg later.' })
+          el('div', { className: 'hint', text: (state.prof.name || 'The athlete') + ' has no lift called "' + name + '". Enter a max for it, or leave blank and fill in kg later.' })
         ]),
         input, el('span', { className: 'unit', text: 'kg' })
       ]));
@@ -4091,21 +4149,22 @@ function openGenerateDialog(opts) {
     a.noValue.forEach(function (n) { problems.push(n + ': no max entered in ' + state.prof.name + "'s profile"); });
     a.unavailable.forEach(function (n) { problems.push(n + ': not available for ' + state.prof.name); });
     if (problems.length > 0) {
-      info.appendChild(el('div', { className: 'warn-text', text: 'These are still created, but need a look:' }));
-      problems.forEach(function (t) { info.appendChild(el('div', { className: 'warn-text', text: '• ' + t })); });
+      rowsBox.appendChild(el('div', { className: 'warn-text', text: 'These are still created, but need a look:' }));
+      problems.forEach(function (t) { rowsBox.appendChild(el('div', { className: 'warn-text', text: '• ' + t })); });
     }
-    error.textContent = ok ? '' : 'A max must be a number from 0 to 2000 kg.';
+    updateCount();
   }
 
   tplSelect.addEventListener('change', function () {
     state.tpl = library.filter(function (e) { return e.id === tplSelect.value; })[0];
+    extrasText = {};
     draw();
   });
   profSelect.addEventListener('change', function () { state.prof = findProfile(profSelect.value); extrasText = {}; draw(); });
   nameInput.addEventListener('input', function () { state.nameEdited = true; });
 
   function create() {
-    if (!readExtras()) { draw(); return; }
+    if (!readExtras()) { updateCount(); return; }
     var name = nameInput.value.trim();
     if (name === '') { error.textContent = 'Enter a name.'; return; }
     closeModal();
@@ -4570,19 +4629,37 @@ function createExercise(workout, fields, weekIndex) {
    ========================================================================== */
 
 // A general dialog. `opts`: title, body (node), actions (array of buttons), wide.
+// The keyboard focus stays inside the dialog: Tab goes from the last control back to the first.
+// Escape closes the dialog. When it closes, the focus goes back to where it was before.
 function openModal(opts) {
   closeModal();
-  var overlay = el('div', { className: 'overlay', id: 'modal-overlay' }, [
-    el('div', { className: 'modal' + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true' }, [
-      el('h2', { text: opts.title }),
-      opts.body,
-      el('div', { className: 'actions' }, opts.actions)
-    ])
+  var before = document.activeElement;
+  var modal = el('div', { className: 'modal' + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true', tabindex: '-1' }, [
+    el('h2', { text: opts.title }),
+    opts.body,
+    el('div', { className: 'actions' }, opts.actions)
   ]);
-  document.body.appendChild(overlay);
-  function onKey(e) { if (e.key === 'Escape') closeModal(); }
+  document.body.appendChild(el('div', { className: 'overlay', id: 'modal-overlay' }, [modal]));
+  function onKey(e) {
+    if (e.key === 'Escape') { closeModal(); return; }
+    if (e.key !== 'Tab') return;
+    var list = Array.prototype.filter.call(modal.querySelectorAll('button, input, select, textarea'), function (n) {
+      return !n.disabled && n.offsetParent !== null;
+    });
+    if (list.length === 0) { e.preventDefault(); return; }
+    var first = list[0];
+    var last = list[list.length - 1];
+    var at = document.activeElement;
+    if (!modal.contains(at) || at === modal) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+    else if (e.shiftKey && at === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && at === last) { e.preventDefault(); first.focus(); }
+  }
   document.addEventListener('keydown', onKey);
-  openModalCleanup = function () { document.removeEventListener('keydown', onKey); };
+  openModalCleanup = function () {
+    document.removeEventListener('keydown', onKey);
+    if (before && before !== document.body && document.body.contains(before)) before.focus();
+  };
+  modal.focus();   // a dialog can then put the cursor in a box of its own
 }
 
 function formRow(labelText, control) {
