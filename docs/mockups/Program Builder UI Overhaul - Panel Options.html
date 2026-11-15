@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Program Builder UI Overhaul - Panel Options</title>
+<style>
+  :root {
+    color-scheme: dark;
+    /* colour */
+    --bg: #0B0D0C; --surface: #161917; --raised: #1E2220;
+    --line: #2A2F2B; --control: #626A63;
+    --text: #EDEEEA; --dim: #8C948C;
+    --accent: #C6FF3D; --accent-tint: #232A1A;
+    --danger: #E05C4E; --warn: #E8B04A; --info: #8FC7FF;
+    /* type */
+    --f-xs: 12px; --f-sm: 13px; --f-md: 14px; --f-lg: 16px; --f-xl: 20px;
+    /* space */
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    /* radius */
+    --r1: 4px; --r2: 8px; --r3: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #050605; color: var(--text); font: 400 var(--f-md)/1.4 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-variant-numeric: tabular-nums; }
+  .page { max-width: 1280px; margin: 0 auto; padding: var(--s5) var(--s4) 64px; }
+  h1 { font-size: var(--f-xl); margin: 0 0 var(--s1); }
+  h2 { font-size: var(--f-lg); margin: 48px 0 var(--s1); }
+  .lead { color: var(--dim); margin: 0 0 var(--s4); max-width: 900px; }
+  .pros { color: var(--dim); font-size: var(--f-sm); margin: var(--s3) 0 0; padding-left: 18px; }
+  .pros b { color: var(--text); font-weight: 600; }
+
+  /* token sheet */
+  .tokens { display: flex; flex-wrap: wrap; gap: var(--s5) 48px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: var(--s4) 0; }
+  .tokens h3 { font-size: var(--f-xs); color: var(--dim); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 var(--s2); font-weight: 600; }
+  .sw { display: flex; align-items: center; gap: var(--s2); font-size: var(--f-xs); margin-bottom: var(--s1); }
+  .sw i { width: 28px; height: 16px; border-radius: var(--r1); border: 1px solid var(--line); }
+  .btns { display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap; }
+
+  /* controls */
+  button, input, select { font: inherit; color: var(--text); }
+  .btn { height: 32px; padding: 0 var(--s3); border-radius: var(--r2); border: 1px solid var(--control); background: transparent; cursor: pointer; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 600; }
+  .btn.danger { background: var(--danger); border-color: var(--danger); color: var(--bg); font-weight: 600; }
+  .btn.ghost { border-color: transparent; color: var(--dim); }
+  .btn.icon { width: 32px; padding: 0; }
+  .in { height: 28px; width: 52px; padding: 0 var(--s2); border-radius: var(--r2); border: 1px solid var(--control); background: var(--bg); text-align: right; }
+  .in.w { width: 64px; }
+  .in.over { border-color: var(--accent); }
+  select.in { width: auto; text-align: left; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .seg { display: inline-flex; border: 1px solid var(--control); border-radius: var(--r2); overflow: hidden; }
+  .seg span { padding: 0 10px; height: 26px; line-height: 26px; font-size: var(--f-sm); color: var(--dim); }
+  .seg span.on { background: var(--accent); color: var(--bg); font-weight: 600; }
+  .link { color: var(--accent); font-size: var(--f-sm); background: none; border: 0; padding: var(--s1) 0; cursor: pointer; }
+  .link.dim { color: var(--dim); }
+  .dim { color: var(--dim); }
+  .badge { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); }
+
+  /* editor frame */
+  .frame { border: 1px solid var(--line); background: var(--bg); margin-top: var(--s3); }
+  .hdr { display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s4); border-bottom: 1px solid var(--line); }
+  .hdr .name { font-size: var(--f-lg); font-weight: 600; }
+  .hdr .sp { margin-left: auto; display: flex; gap: var(--s2); align-items: center; }
+  .work { display: flex; }
+  .grid { flex: 1; min-width: 0; padding: 0 var(--s4) var(--s4); }
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; }
+  th { text-align: left; font-size: var(--f-xs); font-weight: 600; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; padding: var(--s3) var(--s3) var(--s2) 0; border-bottom: 1px solid var(--line); }
+  th .fl { float: right; color: var(--warn); text-transform: none; letter-spacing: 0; }
+  td { vertical-align: top; padding: var(--s2) var(--s3) var(--s2) 0; border-top: 1px solid var(--line); }
+  tr.band td { border-top: 0; padding-top: var(--s5); font-weight: 600; }
+  tr.band span { font-weight: 400; color: var(--dim); margin-left: var(--s2); }
+  tr.sel td { background: var(--accent-tint); box-shadow: inset 0 0 0 0 transparent; }
+  tr.sel td:first-child { box-shadow: inset 2px 0 0 var(--accent); padding-left: var(--s2); }
+  .n { font-weight: 600; }
+  .rx { display: flex; gap: var(--s2); }
+  .rx .l { font-weight: 600; }
+  .ss { border-left: 2px solid var(--accent); padding-left: var(--s2); }
+  .add { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) 0 0; color: var(--dim); font-size: var(--f-sm); }
+  .add .in { width: 240px; text-align: left; }
+
+  /* panel */
+  .panel { width: 380px; flex: none; border-left: 1px solid var(--line); padding: var(--s4); }
+  .ptop { display: flex; align-items: flex-start; gap: var(--s2); }
+  .ptop .t { flex: 1; }
+  .ptop b { display: block; font-size: var(--f-lg); }
+  .ptop small { color: var(--dim); font-size: var(--f-xs); }
+  .sg { border-top: 1px solid var(--line); margin-top: var(--s4); padding-top: var(--s3); }
+  .sgh { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
+  .sgh b { font-size: var(--f-sm); }
+  .row { display: flex; align-items: center; gap: var(--s2); margin-bottom: var(--s2); flex-wrap: wrap; }
+  .row > label { width: 78px; flex: none; color: var(--dim); font-size: var(--f-xs); }
+  .wk { width: 100%; table-layout: auto; }
+  .wk th { padding: var(--s1) var(--s2) var(--s1) 0; border: 0; white-space: nowrap; }
+  .wk td { padding: 3px var(--s2) 3px 0; border: 0; vertical-align: middle; font-size: var(--f-sm); white-space: nowrap; }
+  .wk td.k { color: var(--dim); }
+  .wk td.kg { color: var(--dim); text-align: right; width: 56px; }
+  .wk .in { height: 26px; }
+  .wk .tag { color: var(--warn); font-size: 11px; margin-left: var(--s1); }
+  .chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s2); margin-bottom: var(--s2); }
+  .chip { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--dim); }
+  .chip .in { width: 100%; }
+  .chip em { font-style: normal; text-align: right; }
+  .more { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Program Builder UI overhaul: settings panel options</h1>
+  <p class="lead">Two options for the exercise settings panel, stacked at full width, each shown inside the proposed flatter editor (new header, add-exercise search box, quieter grid). Both remove the week editor dialog, the progression dialog and the "Apply changes to" switch: every setting lives in one place. Same test data in both: Strength Block A (8 weeks) for Sam Lee, Back Squat selected.</p>
+
+  <div class="tokens">
+    <div><h3>Colour</h3>
+      <div class="sw"><i style="background:var(--bg)"></i>bg #0B0D0C</div>
+      <div class="sw"><i style="background:var(--surface)"></i>surface #161917 (dialogs)</div>
+      <div class="sw"><i style="background:var(--raised)"></i>raised #1E2220 (menus, hover)</div>
+      <div class="sw"><i style="background:var(--line)"></i>line #2A2F2B (dividers only)</div>
+      <div class="sw"><i style="background:var(--control)"></i>control #626A63 (input and button edges)</div>
+    </div>
+    <div><h3>&nbsp;</h3>
+      <div class="sw"><i style="background:var(--text)"></i>text #EDEEEA</div>
+      <div class="sw"><i style="background:var(--dim)"></i>dim #8C948C</div>
+      <div class="sw"><i style="background:var(--accent)"></i>accent #C6FF3D (primary action, selection)</div>
+      <div class="sw"><i style="background:var(--danger)"></i>danger #E05C4E</div>
+      <div class="sw"><i style="background:var(--warn)"></i>warn #E8B04A &nbsp;<i style="background:var(--info)"></i>info #8FC7FF</div>
+    </div>
+    <div><h3>Type (5 sizes, 2 weights)</h3>
+      <div style="font-size:20px;font-weight:600">20 Screen title</div>
+      <div style="font-size:16px;font-weight:600">16 Program and exercise name</div>
+      <div style="font-size:14px">14 Body, grid text</div>
+      <div style="font-size:13px">13 Panel controls</div>
+      <div style="font-size:12px" class="dim">12 Labels and hints</div>
+    </div>
+    <div><h3>Space 4 · 8 · 12 · 16 · 24 · 32 &nbsp; Radius 4 · 8 · 12</h3>
+      <div class="btns">
+        <button class="btn primary">Primary</button>
+        <button class="btn">Secondary</button>
+        <button class="btn ghost">Quiet</button>
+        <button class="btn danger">Delete</button>
+      </div>
+      <div class="btns" style="margin-top:8px">
+        <input class="in w" value="82.5"> <span class="seg"><span>kg</span><span class="on">%</span><span>RPE</span><span>RIR</span></span>
+      </div>
+      <p class="dim" style="font-size:12px;margin:8px 0 0">One green button per screen. Loads are plain bold text, not green.</p>
+    </div>
+  </div>
+
+  <!-- ================= OPTION A ================= -->
+  <h2>Option A: week table</h2>
+  <p class="lead">Each set group is one small table: a row per week with sets × reps, the load and the calculated kg. Week 1 and the progression fill the other weeks; type in any other week to override it (green edge, ↺ puts it back).</p>
+  <div class="frame">
+    <div class="hdr">
+      <button class="btn ghost">‹ Library</button>
+      <span class="name">Strength Block A (8 wk) - Sam Lee</span>
+      <span class="dim">for Sam Lee · 8 weeks · 3 workouts</span>
+      <div class="sp"><span class="dim" style="font-size:12px">Saved</span><button class="btn primary">Export for GymLog</button><button class="btn icon" title="Program settings, Copy AI prompt, Export file, Save as template">⋯</button></div>
+    </div>
+    <div class="work">
+      <div class="grid">
+        <table>
+          <tr><th>Week 1</th><th>Week 2</th><th>Week 3</th><th>Week 4 <span class="fl">Deload</span></th></tr>
+          <tr class="band"><td colspan="4">Workout 1<span>Squat focus, heavy</span></td></tr>
+          <tr class="sel">
+            <td><div class="n">Back Squat</div><div class="rx"><span class="dim">1 × 3</span><span class="l">80%</span><span class="dim">160 kg</span><span class="badge">Top</span></div><div class="rx"><span class="dim">4 × 5</span><span class="l">70%</span><span class="dim">140 kg</span></div></td>
+            <td><div class="n">Back Squat</div><div class="rx"><span class="dim">1 × 3</span><span class="l">82.5%</span><span class="dim">165 kg</span><span class="badge">Top</span></div><div class="rx"><span class="dim">4 × 5</span><span class="l">72.5%</span><span class="dim">145 kg</span></div></td>
+            <td><div class="n">Back Squat</div><div class="rx"><span class="dim">1 × 3</span><span class="l">85%</span><span class="dim">170 kg</span><span class="badge">Top</span></div><div class="rx"><span class="dim">4 × 5</span><span class="l">75%</span><span class="dim">150 kg</span></div></td>
+            <td><div class="n">Back Squat</div><div class="rx"><span class="dim">1 × 3</span><span class="l">75%</span><span class="dim">150 kg</span><span class="badge">Top</span></div><div class="rx"><span class="dim">2 × 5</span><span class="l">77.5%</span><span class="dim">155 kg</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="n">Romanian Deadlift</div><div class="rx"><span class="dim">3 × 8–10</span><span class="l">100 kg</span><span class="dim">RPE 7</span></div></td>
+            <td><div class="n">Romanian Deadlift</div><div class="rx"><span class="dim">3 × 8–10</span><span class="l">102.5 kg</span><span class="dim">RPE 7</span></div></td>
+            <td><div class="n">Romanian Deadlift</div><div class="rx"><span class="dim">3 × 8–10</span><span class="l">105 kg</span><span class="dim">RPE 7</span></div></td>
+            <td><div class="n">Romanian Deadlift</div><div class="rx"><span class="dim">3 × 8–10</span><span class="l">107.5 kg</span><span class="dim">RPE 7</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="ss"><div class="n">Lateral Raise</div><div class="rx"><span class="dim">3 × 15</span><span class="l">10 kg</span></div><div class="n">Triceps Pushdown</div><div class="rx"><span class="dim">3 × 12–15</span><span class="l">RIR 2</span></div></div></td>
+            <td><div class="ss"><div class="n">Lateral Raise</div><div class="rx"><span class="dim">3 × 15</span><span class="l">10 kg</span></div><div class="n">Triceps Pushdown</div><div class="rx"><span class="dim">3 × 12–15</span><span class="l">RIR 2</span></div></div></td>
+            <td><div class="ss"><div class="n">Lateral Raise</div><div class="rx"><span class="dim">3 × 15</span><span class="l">10 kg</span></div><div class="n">Triceps Pushdown</div><div class="rx"><span class="dim">3 × 12–15</span><span class="l">RIR 2</span></div></div></td>
+            <td><div class="ss"><div class="n">Lateral Raise</div><div class="rx"><span class="dim">3 × 15</span><span class="l">10 kg</span></div><div class="n">Triceps Pushdown</div><div class="rx"><span class="dim">3 × 12–15</span><span class="l">RIR 2</span></div></div></td>
+          </tr>
+        </table>
+        <div class="add">+ <input class="in" placeholder="Add exercise: type to search, Enter to add"> <span>goes into every week</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="ptop"><div class="t"><b>Back Squat</b><small>Workout 1 · Squat focus, heavy</small></div><button class="btn icon ghost" title="Move up, Move down, Delete exercise">⋯</button><button class="btn icon ghost" title="Close">✕</button></div>
+
+        <div class="sg">
+          <div class="sgh"><b>Set group 1</b><span class="badge">Top set</span></div>
+          <div class="row"><label>Load in</label><span class="seg"><span>kg</span><span class="on">%</span><span>RPE</span><span>RIR</span></span></div>
+          <div class="row"><label>Each week</label><select class="in"><option>add</option><option>same</option><option>add % of load</option></select><input class="in" value="2.5"><span class="dim">%</span></div>
+          <table class="wk">
+            <tr><th>Week</th><th>Sets × reps</th><th>Load</th><th style="text-align:right">kg</th><th></th></tr>
+            <tr><td class="k">1</td><td><input class="in" style="width:34px" value="1"> × <input class="in" style="width:34px" value="3"></td><td><input class="in" value="80"> %</td><td class="kg">160</td><td></td></tr>
+            <tr><td class="k">2</td><td class="dim">1 × 3</td><td><input class="in" value="82.5"> %</td><td class="kg">165</td><td></td></tr>
+            <tr><td class="k">3</td><td class="dim">1 × 3</td><td><input class="in" value="85"> %</td><td class="kg">170</td><td></td></tr>
+            <tr><td class="k">4<span class="tag">Deload</span></td><td class="dim">1 × 3</td><td><input class="in over" value="75"> %</td><td class="kg">150</td><td><button class="link dim" title="Use the progression value again">↺</button></td></tr>
+            <tr><td class="k">5</td><td class="dim">1 × 3</td><td><input class="in" value="90"> %</td><td class="kg">180</td><td></td></tr>
+            <tr><td class="k">6</td><td class="dim">1 × 3</td><td><input class="in" value="92.5"> %</td><td class="kg">185</td><td></td></tr>
+            <tr><td class="k">7</td><td class="dim">1 × 3</td><td><input class="in" value="95"> %</td><td class="kg">190</td><td></td></tr>
+            <tr><td class="k">8</td><td class="dim">1 × 3</td><td><input class="in" value="97.5"> %</td><td class="kg">195</td><td></td></tr>
+          </table>
+          <div class="row" style="margin-top:8px"><label>Rest</label><input class="in" value="4"><span class="dim">min</span></div>
+          <div class="more"><button class="link">+ Target</button><button class="link">+ Tempo</button><button class="link">+ Pause</button><button class="link">+ Superset</button></div>
+        </div>
+
+        <div class="sg">
+          <div class="sgh"><b>Set group 2</b><span class="badge">Back-off</span><span class="dim" style="font-size:12px;margin-left:auto">4 × 5 · 70% +2.5 each week</span><button class="link dim">▾</button></div>
+        </div>
+        <div class="sg"><button class="link">+ Add set group</button></div>
+      </div>
+    </div>
+  </div>
+  <ul class="pros">
+    <li><b>For:</b> sets, reps, load and kg for every week are visible and editable in one place; click a grey "1 × 3" in any week to override just that week. Nothing opens a dialog.</li>
+    <li><b>Against:</b> tall. One set group fills most of the panel at 800 px, so other set groups fold to one summary line (click to open).</li>
+  </ul>
+
+  <!-- ================= OPTION B ================= -->
+  <h2>Option B: compact week strip</h2>
+  <p class="lead">Each set group is three lines: the prescription, the progression, and the eight weekly loads in a 4 × 2 block with kg underneath. Sets and reps apply to all weeks; a week that needs different sets or reps is changed by clicking its week label.</p>
+  <div class="frame">
+    <div class="hdr">
+      <button class="btn ghost">‹ Library</button>
+      <span class="name">Strength Block A (8 wk) - Sam Lee</span>
+      <span class="dim">for Sam Lee · 8 weeks · 3 workouts</span>
+      <div class="sp"><span class="dim" style="font-size:12px">Saved</span><button class="btn primary">Export for GymLog</button><button class="btn icon">⋯</button></div>
+    </div>
+    <div class="work">
+      <div class="grid">
+        <table>
+          <tr><th>Week 1</th><th>Week 2</th><th>Week 3</th><th>Week 4 <span class="fl">Deload</span></th></tr>
+          <tr class="band"><td colspan="4">Workout 1<span>Squat focus, heavy</span></td></tr>
+          <tr class="sel">
+            <td><div class="n">Back Squat</div><div class="rx"><span class="dim">1 × 3</span><span class="l">80%</span><span class="dim">160 kg</span><span class="badge">Top</span></div><div class="rx"><span class="dim">4 × 5</span><span class="l">70%</span><span class="dim">140 kg</span></div></td>
+            <td><div class="n">Back Squat</div><div class="rx"><span class="dim">1 × 3</span><span class="l">82.5%</span><span class="dim">165 kg</span><span class="badge">Top</span></div><div class="rx"><span class="dim">4 × 5</span><span class="l">72.5%</span><span class="dim">145 kg</span></div></td>
+            <td><div class="n">Back Squat</div><div class="rx"><span class="dim">1 × 3</span><span class="l">85%</span><span class="dim">170 kg</span><span class="badge">Top</span></div><div class="rx"><span class="dim">4 × 5</span><span class="l">75%</span><span class="dim">150 kg</span></div></td>
+            <td><div class="n">Back Squat</div><div class="rx"><span class="dim">1 × 3</span><span class="l">75%</span><span class="dim">150 kg</span><span class="badge">Top</span></div><div class="rx"><span class="dim">2 × 5</span><span class="l">77.5%</span><span class="dim">155 kg</span></div></td>
+          </tr>
+          <tr>
+            <td><div class="n">Romanian Deadlift</div><div class="rx"><span class="dim">3 × 8–10</span><span class="l">100 kg</span><span class="dim">RPE 7</span></div></td>
+            <td><div class="n">Romanian Deadlift</div><div class="rx"><span class="dim">3 × 8–10</span><span class="l">102.5 kg</span><span class="dim">RPE 7</span></div></td>
+            <td><div class="n">Romanian Deadlift</div><div class="rx"><span class="dim">3 × 8–10</span><span class="l">105 kg</span><span class="dim">RPE 7</span></div></td>
+            <td><div class="n">Romanian Deadlift</div><div class="rx"><span class="dim">3 × 8–10</span><span class="l">107.5 kg</span><span class="dim">RPE 7</span></div></td>
+          </tr>
+        </table>
+        <div class="add">+ <input class="in" placeholder="Add exercise: type to search, Enter to add"> <span>goes into every week</span></div>
+      </div>
+
+      <div class="panel">
+        <div class="ptop"><div class="t"><b>Back Squat</b><small>Workout 1 · Squat focus, heavy</small></div><button class="btn icon ghost">⋯</button><button class="btn icon ghost">✕</button></div>
+
+        <div class="sg">
+          <div class="sgh"><b>Set group 1</b><span class="badge">Top set</span></div>
+          <div class="row"><input class="in" style="width:38px" value="1"> × <input class="in" style="width:38px" value="3"> <span class="dim">at</span> <span class="seg"><span>kg</span><span class="on">%</span><span>RPE</span><span>RIR</span></span></div>
+          <div class="row"><span class="dim" style="font-size:12px">Each week</span><select class="in"><option>add</option></select><input class="in" value="2.5"><span class="dim">%</span></div>
+          <div class="chips">
+            <label class="chip">W1<input class="in" value="80"><em>160 kg</em></label>
+            <label class="chip">W2<input class="in" value="82.5"><em>165 kg</em></label>
+            <label class="chip">W3<input class="in" value="85"><em>170 kg</em></label>
+            <label class="chip"><span>W4 <span style="color:var(--warn)">Deload</span></span><input class="in over" value="75"><em>150 kg</em></label>
+            <label class="chip">W5<input class="in" value="90"><em>180 kg</em></label>
+            <label class="chip">W6<input class="in" value="92.5"><em>185 kg</em></label>
+            <label class="chip">W7<input class="in" value="95"><em>190 kg</em></label>
+            <label class="chip">W8<input class="in" value="97.5"><em>195 kg</em></label>
+          </div>
+          <div class="row"><span class="dim" style="font-size:12px">Rest</span><input class="in" value="4"><span class="dim">min</span><span class="more" style="margin-left:8px"><button class="link">+ Target</button><button class="link">+ Tempo</button><button class="link">+ Pause</button><button class="link">+ Superset</button></span></div>
+        </div>
+
+        <div class="sg">
+          <div class="sgh"><b>Set group 2</b><span class="badge">Back-off</span></div>
+          <div class="row"><input class="in" style="width:38px" value="4"> × <input class="in" style="width:38px" value="5"> <span class="dim">at</span> <span class="seg"><span>kg</span><span class="on">%</span><span>RPE</span><span>RIR</span></span></div>
+          <div class="row"><span class="dim" style="font-size:12px">Each week</span><select class="in"><option>add</option></select><input class="in" value="2.5"><span class="dim">%</span></div>
+          <div class="chips">
+            <label class="chip">W1<input class="in" value="70"><em>140 kg</em></label>
+            <label class="chip">W2<input class="in" value="72.5"><em>145 kg</em></label>
+            <label class="chip">W3<input class="in" value="75"><em>150 kg</em></label>
+            <label class="chip"><span>W4 · <span style="color:var(--text)">2 × 5</span></span><input class="in over" value="77.5"><em>155 kg</em></label>
+            <label class="chip">W5<input class="in" value="80"><em>160 kg</em></label>
+            <label class="chip">W6<input class="in" value="82.5"><em>165 kg</em></label>
+            <label class="chip">W7<input class="in" value="85"><em>170 kg</em></label>
+            <label class="chip">W8<input class="in" value="87.5"><em>175 kg</em></label>
+          </div>
+          <div class="row"><span class="dim" style="font-size:12px">Rest</span><input class="in" value="3"><span class="dim">min</span><span class="more" style="margin-left:8px"><button class="link">+ Target</button><button class="link">+ Tempo</button><button class="link">+ Pause</button><button class="link">+ Superset</button></span></div>
+        </div>
+        <div class="sg"><button class="link">+ Add set group</button></div>
+      </div>
+    </div>
+  </div>
+  <ul class="pros">
+    <li><b>For:</b> two set groups fit without scrolling; the common job (sets × reps, a start load, a weekly step) is three short lines.</li>
+    <li><b>Against:</b> different sets or reps in one week is one extra click (the week label), and a 12-week program needs three rows of week boxes.</li>
+  </ul>
+</div>
+</body>
+</html>
