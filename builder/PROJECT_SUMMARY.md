@@ -10,7 +10,7 @@ Spec: `../docs/specs/Feature Spec 2.1 Program Builder Phase 1.md`. The GymLog ro
 **How to read this file:** the sections after "Key functions" are a log in the order the work happened. Steps 2 to 6 contain choices that later rounds changed (for example fixed `+2.5 kg` options, per-exercise `pattern`, `rest` and `supersetId`). The latest round wins; the Data model section below is current.
 
 ## Current status (15 November 2026): read this first
-Phase 1 (core builder) and Phase 2 steps 1 to 4 are built, tested by the user and committed. A UI/UX overhaul followed on 15 November 2026 (stops 1 to 5 and a new Library; see "UI overhaul" at the end of this file). Stop 6 of the overhaul (code cleanup with no visible change) is not started. Spec for Phase 2: `../docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`. The sections further down are a dated log; the LATEST section on a topic wins, and the code wins over both.
+Phase 1 (core builder) and Phase 2 steps 1 to 4 are built, tested by the user and committed. A UI/UX overhaul followed on 15 November 2026 (stops 1 to 5 and a new Library; see "UI overhaul" at the end of this file). Stop 6 of the overhaul (code cleanup) is built and waits for the user test. Spec for Phase 2: `../docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`. The sections further down are a dated log; the LATEST section on a topic wins, and the code wins over both.
 
 | Phase 2 step | Status |
 |---|---|
@@ -339,3 +339,8 @@ Mockups: `../docs/mockups/Program Builder UI Overhaul - Panel Options.html` (the
 **The Library** (`renderLibrary`, `renderLibraryList`, `renderEntryRow`, `renderAthleteRows`, `renderEntryPanel`, `renderAthletePanel`, `libSel`, `librarySelection`): see "Screens" and "A program always belongs to an athlete" at the top. Removed on purpose: Expand all / Collapse all, the "Open now" tag (the open program is selected when the Library opens), the green New program button.
 
 **Testing.** Checked in a real browser at 1280 px with a throwaway test library (an 8-week template, two athletes, one generated program). Not checked: 1920 px after stop 1, `Import program file` and `Restore backup` with real files, a phone import of the exported file.
+
+### UI overhaul, stop 6 and two changes (15 November 2026, awaiting user test)
+- **Cleanup, no visible change.** Removed dead code (`kgForPercent`, `currentIsTemplate`, `loadTypeChoices`, the unused `fields` and `weekIndex` of `createExercise`, two unused tag styles, two unused class names, stale comments). New shared helpers: `deepCopy`, `pad2`, `todayIso`, `findById`, `eachGroup`, `loadList`, `saveJson`, `radioOption`. `createExercise(workout, name)` now only adds a default exercise in every week.
+- **Add to all workouts** (settings panel, beside Delete exercise; `openAllWorkoutsDialog`, `putInAllWorkouts`): the exercise goes to the start or the end of every workout. Each other workout gets an independent copy (new id, no superset pair). A workout that already has an exercise of that name gets no copy; its own exercise moves to the same position. No change to the data model.
+- **Library details panel** for a template or a program: full panel width, and one table for each workout with the exercises down the side and all weeks across (`workoutRows`, `workoutTable`). A long program scrolls sideways and the exercise names stay in view. The athlete panel keeps its maximum width.

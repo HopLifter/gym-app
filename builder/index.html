@@ -101,11 +101,9 @@
   .warn-text { color: var(--warn); font-size: var(--f-xs); }
   .ok-text { color: var(--accent); font-size: var(--f-xs); margin: var(--s2) 0; }
   .danger-text { color: var(--danger); }
-  .tag-template, .tag-now, .tag-warn {
+  .tag-template {
     font-size: var(--f-xs); padding: 0 var(--s2); border-radius: var(--r3); border: 1px solid var(--line); color: var(--text-dim); white-space: nowrap;
   }
-  .tag-now { border-color: var(--accent-line); color: var(--accent); }
-  .tag-warn { border-color: var(--warn-line); color: var(--warn); }
 
   /* ---- Header ---- */
   .header, #save-warning, .detail, .lib-bar, .lib-foot { flex: none; }
@@ -309,12 +307,22 @@
   .kv .flag-deload { color: var(--warn); }
   .kv .flag-test { color: var(--info); }
   .kv .flag-comp { color: var(--accent); }
-  /* The workouts of a template or a program: one column for each workout. */
-  .wo { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--s4); font-size: var(--f-sm); }
-  .wo b { display: block; margin-bottom: var(--s1); }
-  .wo-line { display: flex; justify-content: space-between; gap: var(--s2); padding: 2px 0; border-top: 1px solid var(--hair); }
-  .wo-line span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .wo-line span:last-child { color: var(--text-dim); white-space: nowrap; }
+  .lib-det-in.wide { max-width: none; }   /* a template or a program uses the full panel width */
+  /* The workouts of a template or a program: one table for each workout, the weeks across. A long
+     program scrolls sideways; the exercise names stay in view. */
+  .wo-wrap { overflow-x: auto; }
+  .wo-table { border-collapse: collapse; font-size: var(--f-sm); }
+  .wo-table th { text-align: left; color: var(--text-dim); font-size: var(--f-xs); font-weight: 600; padding: 0 var(--s3) var(--s1) 0; white-space: nowrap; }
+  .wo-table td { padding: var(--s1) var(--s3) var(--s1) 0; vertical-align: top; white-space: nowrap; }
+  .wo-table tr.first td { border-top: 1px solid var(--hair); }
+  .wo-table th:first-child, .wo-table td:first-child {
+    position: sticky; left: 0; background: var(--bg); width: 180px; min-width: 180px; max-width: 180px;
+    overflow: hidden; text-overflow: ellipsis; font-weight: 600;
+  }
+  .wo-table .ld { margin-left: var(--s1); color: var(--text-dim); }   /* the load, on the line of sets × reps */
+  .wo-table .flag-deload { color: var(--warn); }
+  .wo-table .flag-test { color: var(--info); }
+  .wo-table .flag-comp { color: var(--accent); }
   /* The athlete profile in the details panel. */
   .lib-det .pr > label { width: 112px; }
   .lib-det .pr input[type="text"] { width: 300px; }
@@ -377,7 +385,7 @@
   <div id="profile-changed" hidden></div>
   <div id="library" hidden></div>
   <div id="workspace">
-    <div class="main" id="main"><div class="grid-wrap" id="grid"></div></div>
+    <div class="main" id="main"><div id="grid"></div></div>
     <div class="detail" id="detail" hidden></div>
   </div>
 
@@ -692,24 +700,38 @@ function cleanLibraryEntry(entry) {
   };
 }
 
-// Returns the saved programs. An entry that fails the checks is skipped, never half-used.
-function libraryLoadPrograms() {
+// Reads a saved list from the browser. `clean` checks one raw item and returns it, or null. An item
+// that fails the checks (or repeats an id) is skipped, never half-used.
+function loadList(key, clean) {
   try {
-    var data = JSON.parse(localStorage.getItem(PROGRAMS_KEY));
+    var data = JSON.parse(localStorage.getItem(key));
     if (!Array.isArray(data)) return [];
     var seen = {};
     var good = [];
     data.forEach(function (raw) {
-      var entry = cleanLibraryEntry(raw);
-      if (!entry || seen[entry.id]) return;
-      seen[entry.id] = true;
-      good.push(entry);
+      var item = clean(raw);
+      if (!item || seen[item.id]) return;
+      seen[item.id] = true;
+      good.push(item);
     });
     return good;
   } catch (err) {
     return [];
   }
 }
+
+// Writes a value to the browser. Returns true if the write worked (localStorage can fail: private
+// mode, full storage).
+function saveJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+function libraryLoadPrograms() { return loadList(PROGRAMS_KEY, cleanLibraryEntry); }
 
 /* --------------------------------------------------------------------------
    Athlete profiles (Phase 2 spec step 3). One object per athlete, all in one array under
@@ -734,7 +756,7 @@ function newLift(name) {
 function newProfile(name) {
   return {
     format: PROFILE_FORMAT, version: PROFILE_VERSION, id: newProfileId(), name: name,
-    modified: new Date().toISOString(), rounding: 2.5, notes: '', unavailable: [],
+    modified: todayIso(), rounding: 2.5, notes: '', unavailable: [],
     lifts: STANDARD_LIFTS.map(newLift)
   };
 }
@@ -762,32 +784,8 @@ function cleanProfile(p) {
   return p;
 }
 
-function profilesLoad() {
-  try {
-    var data = JSON.parse(localStorage.getItem(PROFILES_KEY));
-    if (!Array.isArray(data)) return [];
-    var seen = {};
-    var good = [];
-    data.forEach(function (raw) {
-      var p = cleanProfile(raw);
-      if (!p || seen[p.id]) return;
-      seen[p.id] = true;
-      good.push(p);
-    });
-    return good;
-  } catch (err) {
-    return [];
-  }
-}
-
-function profilesSave(list) {
-  try {
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
-    return true;
-  } catch (err) {
-    return false;
-  }
-}
+function profilesLoad() { return loadList(PROFILES_KEY, cleanProfile); }
+function profilesSave(list) { return saveJson(PROFILES_KEY, list); }
 
 // A lift of the profile by name (capital letters and spaces at the ends do not matter), or null.
 function findLift(profile, name) {
@@ -803,18 +801,6 @@ function findLift(profile, name) {
 function liftBaseValue(lift) {
   var v = lift.base === 'tm' ? lift.trainingMax : lift.oneRm;
   return v === undefined ? null : v;
-}
-
-// Spec 3.4: `percent` of the lift's base value, rounded to the profile's step. null when the lift is
-// missing, its value is blank, or the percent is blank. (Pure: no drawing, no storage.)
-function kgForPercent(percent, liftName, profile) {
-  if (percent === null || percent === undefined) return null;
-  var lift = findLift(profile, liftName);
-  if (!lift) return null;
-  var base = liftBaseValue(lift);
-  if (base === null) return null;
-  var step = profile.rounding;
-  return cleanNum(Math.round(percent / 100 * base / step) * step);
 }
 
 /* --------------------------------------------------------------------------
@@ -852,14 +838,8 @@ function kgFromSnapshot(percent, exerciseName, snap) {
 // Fills `kg` on every % set group of a generated program from its snapshot. Other groups are left alone.
 function recalcKg(prog) {
   if (!prog.profileUsed) return;
-  prog.workouts.forEach(function (w) {
-    w.exercises.forEach(function (ex) {
-      ex.weeks.forEach(function (week) {
-        week.groups.forEach(function (g) {
-          if (g.loadType === 'pct') g.kg = g.load === null ? null : kgFromSnapshot(g.load, ex.name, prog.profileUsed);
-        });
-      });
-    });
+  eachGroup(prog, function (g, ex) {
+    if (g.loadType === 'pct') g.kg = g.load === null ? null : kgFromSnapshot(g.load, ex.name, prog.profileUsed);
   });
 }
 
@@ -920,7 +900,7 @@ function buildLibraryFile(exportedOn) {
     exportedOn: exportedOn,
     programs: library.map(function (e) { return { id: e.id, name: e.name, kind: e.kind, note: e.note, modified: e.modified, program: e.program }; }),
     templates: [],
-    profiles: JSON.parse(JSON.stringify(profiles)),
+    profiles: deepCopy(profiles),
     versions: [],
     exerciseList: loadExerciseList()
   };
@@ -971,15 +951,7 @@ function parseLibraryFile(text) {
   return { entries: entries, profiles: profs, exerciseList: names };
 }
 
-// Returns true if the write worked (localStorage can fail: private mode, full storage).
-function librarySavePrograms(list) {
-  try {
-    localStorage.setItem(PROGRAMS_KEY, JSON.stringify(list));
-    return true;
-  } catch (err) {
-    return false;
-  }
-}
+function librarySavePrograms(list) { return saveJson(PROGRAMS_KEY, list); }
 
 function libraryReadOpenId() {
   try {
@@ -1010,8 +982,7 @@ function libraryStorageChars() {
 function formatDate(iso) {
   var d = new Date(iso);
   if (isNaN(d.getTime())) return '';
-  function two(n) { return (n < 10 ? '0' : '') + n; }
-  return two(d.getDate()) + '/' + two(d.getMonth() + 1) + '/' + d.getFullYear();
+  return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
 }
 
 // Returns a valid program, or null if there is no draft or it is damaged.
@@ -1032,6 +1003,28 @@ function loadDraft() {
 /* ==========================================================================
    CALCULATIONS (spec 5.9, 5.10). Pure functions: no drawing, no storage.
    ========================================================================== */
+
+// Small helpers used in many places.
+function deepCopy(value) { return JSON.parse(JSON.stringify(value)); }
+function pad2(n) { return (n < 10 ? '0' : '') + n; }
+function todayIso() { return new Date().toISOString(); }
+
+// The item of `list` with this id, or null.
+function findById(list, id) {
+  for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+  return null;
+}
+
+// Calls fn(group, exercise, weekEntry, weekIndex) for every set group of every week of a program.
+function eachGroup(prog, fn) {
+  prog.workouts.forEach(function (workout) {
+    workout.exercises.forEach(function (ex) {
+      ex.weeks.forEach(function (entry, weekIndex) {
+        entry.groups.forEach(function (g) { fn(g, ex, entry, weekIndex); });
+      });
+    });
+  });
+}
 
 // Removes tiny floating-point errors, e.g. 0.1 + 0.2 = 0.30000000000000004.
 function cleanNum(v) { return Math.round(v * 10000) / 10000; }
@@ -1236,7 +1229,7 @@ function replaceEditedGroup(ex, k) {
 // The weeks an exercise would have if no week was edited by hand: Week 1 and the patterns only.
 // The exercise itself is not changed.
 function patternWeeks(ex) {
-  var clone = JSON.parse(JSON.stringify(ex));
+  var clone = deepCopy(ex);
   clone.weeks.forEach(function (w) { w.edited = false; });
   return generateWeeks(clone, ex.weeks.length);
 }
@@ -1295,10 +1288,7 @@ var currentId = null;      // id of the library entry open in the editor
 var libraryOpen = false;   // true while the Library screen is showing instead of the editor
 var draftSaved = true;     // false if the last localStorage write failed (shows a warning)
 
-function findEntry(id) {
-  for (var i = 0; i < library.length; i++) if (library[i].id === id) return library[i];
-  return null;
-}
+function findEntry(id) { return findById(library, id); }
 
 // The entry edited most recently (used when nothing else says which program to open).
 function mostRecentEntry() {
@@ -1325,7 +1315,7 @@ function touchCurrent() {
   var entry = findEntry(currentId);
   if (!entry) return;
   entry.name = program.name;
-  entry.modified = new Date().toISOString();
+  entry.modified = todayIso();
 }
 
 // Call this after EVERY change that needs a redraw. The library saves itself: there is no
@@ -1347,7 +1337,7 @@ function changedQuietly() {
 // `kind` is 'program' (default) or 'template'. A template is a program meant to be reused for many
 // athletes (Phase 2 spec step 4); both live in the same list and open in the same editor.
 function addProgramEntry(p, kind) {
-  var entry = { id: newLibraryId(), name: p.name, kind: kind === 'template' ? 'template' : 'program', note: '', modified: new Date().toISOString(), program: p };
+  var entry = { id: newLibraryId(), name: p.name, kind: kind === 'template' ? 'template' : 'program', note: '', modified: todayIso(), program: p };
   library.push(entry);
   return entry;
 }
@@ -1436,13 +1426,7 @@ function openProgramSettings() {
   var note = el('div');
 
   function radio(value, label, desc) {
-    var input = el('input', { type: 'radio', name: 'new-weeks', value: value });
-    if (value === mode) input.checked = true;
-    input.addEventListener('change', function () { mode = value; });
-    return el('label', { className: 'opt' }, [input, el('span', null, [
-      el('span', { className: 'opt-label', text: label }),
-      el('span', { className: 'opt-desc', text: ' ' + desc })
-    ])]);
+    return radioOption('new-weeks', value, label, desc, value === mode, function () { mode = value; });
   }
   function drawNote() {
     note.textContent = '';
@@ -1751,8 +1735,7 @@ function downloadProgram(p) {
 // for the "Last exported" reminder.
 function exportEverything() {
   var now = new Date();
-  function two(n) { return (n < 10 ? '0' : '') + n; }
-  var stamp = now.getFullYear() + two(now.getMonth() + 1) + two(now.getDate());
+  var stamp = now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate());
   var name = 'GymLog-Builder-Library-' + stamp + '.json';
   downloadJson(name, buildLibraryFile(now.toISOString()));
   try { localStorage.setItem(LAST_EXPORT_KEY, now.toISOString()); } catch (err) { /* the reminder is a convenience */ }
@@ -1773,13 +1756,7 @@ function importEverything() {
 function askImportMode(data) {
   var mode = 'add';
   function radio(value, label, desc) {
-    var input = el('input', { type: 'radio', name: 'import-mode', value: value });
-    if (value === mode) input.checked = true;
-    input.addEventListener('change', function () { mode = value; });
-    return el('label', { className: 'opt' }, [input, el('span', null, [
-      el('span', { className: 'opt-label', text: label }),
-      el('span', { className: 'opt-desc', text: ' ' + desc })
-    ])]);
+    return radioOption('import-mode', value, label, desc, value === mode, function () { mode = value; });
   }
   var summary = 'This file holds ' + plural(data.entries.length, 'program') +
     (data.profiles.length ? ', ' + plural(data.profiles.length, 'athlete') : '') +
@@ -1822,7 +1799,7 @@ function applyImport(data, mode) {
     var entryIdMap = {};     // old library id -> new id, so imported programs still know their template
     profiles.forEach(function (p) { usedNames[p.name] = true; });
     data.profiles.forEach(function (p) {
-      var copy = JSON.parse(JSON.stringify(p));
+      var copy = deepCopy(p);
       copy.id = newProfileId();   // a new id, so nothing you have is replaced
       profileIdMap[p.id] = copy.id;
       if (usedNames[copy.name]) copy.name = (copy.name + ' (imported)').slice(0, 200);
@@ -2401,7 +2378,6 @@ function findSelected() {
   return null;
 }
 
-/* ---- Changes made from the table ---- */
 
 // Does set group k have any load, target RPE or kg value in any week?
 function groupHasLoadValues(ex, k) {
@@ -2454,10 +2430,7 @@ function setGroupLoadType(ex, k, type) {
   // Some weeks were edited by hand: ask whether they change too.
   var choice = 'keep';
   var radios = [['keep', 'Keep the edited weeks as they are'], ['replace', 'Clear the edited weeks too']].map(function (c) {
-    var radio = el('input', { type: 'radio', name: 'type-edited-choice', value: c[0] });
-    radio.checked = c[0] === choice;
-    radio.addEventListener('change', function () { choice = c[0]; });
-    return el('label', { className: 'opt' }, [radio, el('span', { text: c[1] })]);
+    return radioOption('type-edited-choice', c[0], c[1], '', c[0] === choice, function () { choice = c[0]; });
   });
   openModal({
     title: 'Change load type?',
@@ -2479,7 +2452,7 @@ function setGroupLoadType(ex, k, type) {
 function loadTypeControl(ex, k) {
   var current = ex.weeks[0].groups[k].loadType;
   var seg = el('div', { className: 'segmented', role: 'group', 'aria-label': 'Load type' });
-  loadTypeChoices(current).forEach(function (o) {
+  LOAD_TYPE_OPTIONS.forEach(function (o) {
     seg.appendChild(el('button', {
       text: o[1] === '% of 1RM' ? '%' : o[1],
       className: current === o[0] ? 'on' : '',
@@ -2516,7 +2489,6 @@ function confirmDeleteExercise(workout, ex) {
   });
 }
 
-/* ---- Drawing the table ---- */
 
 /* ==========================================================================
    PROGRESSION PATTERNS (spec 5.9)
@@ -2656,7 +2628,7 @@ function splitGroup(ex, k, firstSets) {
     }
     w.groups.splice(k + 1, 0, copy);
   });
-  ex.patterns.splice(k + 1, 0, JSON.parse(JSON.stringify(ex.patterns[k])));
+  ex.patterns.splice(k + 1, 0, deepCopy(ex.patterns[k]));
   ex.supersets.splice(k + 1, 0, null);
 }
 
@@ -3258,7 +3230,13 @@ function renderDetail() {
   });
   box.appendChild(el('div', { className: 'ps' }, [el('div', { className: 'ps-head' }, [el('b', { text: 'Notes' })]), notes]));
 
+  var toAll = el('button', {
+    className: 'link-btn acc', text: 'Add to all workouts…', title: 'Put this exercise at the start or at the end of every workout',
+    onclick: function () { openAllWorkoutsDialog(workout, ex); }
+  });
+  if (program.workouts.length < 2) { toAll.disabled = true; toAll.title = 'This program has one workout only'; }
   box.appendChild(el('div', { className: 'panel-acts' }, [
+    toAll,
     el('button', { className: 'link-btn danger-link', text: 'Delete exercise', onclick: function () { confirmDeleteExercise(workout, ex); } })
   ]));
   box.scrollTop = scrollTop;
@@ -3458,7 +3436,7 @@ function addExerciseBox(workout, wi) {
   function add(item) {
     closeAddMenu();
     addFocusWorkout = wi;
-    createExercise(workout, { name: item.create ? addToExerciseList(item.name) : item.name, groups: [newGroup()], notes: '' }, null);
+    createExercise(workout, item.create ? addToExerciseList(item.name) : item.name);
   }
 
   function highlight() {
@@ -3546,7 +3524,7 @@ function renderGrid() {
 
   var headRow = el('tr');
   for (var w = 0; w < program.weeks; w++) {
-    headRow.appendChild(el('th', { className: 'week-col' }, [
+    headRow.appendChild(el('th', null, [
       el('div', { className: 'th-in' }, [el('span', { text: 'Week ' + (w + 1) }), weekFlagButton(w)])
     ]));
   }
@@ -3673,7 +3651,7 @@ function plural(n, word) {
 }
 
 function duplicateProgram(entry) {
-  var copy = JSON.parse(JSON.stringify(entry.program));
+  var copy = deepCopy(entry.program);
   copy.name = (entry.program.name + ' copy').slice(0, 200);
   var added = addProgramEntry(copy, entry.kind);
   added.note = entry.note;
@@ -3688,11 +3666,7 @@ function duplicateProgram(entry) {
 function stripAthlete(prog) {
   prog.source = null;
   prog.profileUsed = null;
-  prog.workouts.forEach(function (w) {
-    w.exercises.forEach(function (ex) {
-      ex.weeks.forEach(function (week) { week.groups.forEach(function (g) { g.kg = null; }); });
-    });
-  });
+  eachGroup(prog, function (g) { g.kg = null; });
 }
 
 // Turns a library entry into a template.
@@ -3713,7 +3687,7 @@ function adoptProgramsWithoutAthlete() {
 
 // Saves a copy of a program as a template: same structure and prescriptions, for any athlete.
 function saveAsTemplate(entry) {
-  var copy = JSON.parse(JSON.stringify(entry.program));
+  var copy = deepCopy(entry.program);
   copy.name = (entry.program.name + ' (template)').slice(0, 200);
   stripAthlete(copy);
   var added = addProgramEntry(copy, 'template');
@@ -3731,7 +3705,7 @@ function renameProgram(entry) {
     if (name === '') { error.textContent = 'Enter a name.'; return; }
     entry.program.name = name;
     entry.name = name;
-    entry.modified = new Date().toISOString();
+    entry.modified = todayIso();
     closeModal();
     saveLibrary();
     render();
@@ -3861,18 +3835,44 @@ function renderLibraryList(sel) {
 
 /* ---- The details panel for a template or a program ---- */
 
-// The lines of one workout for the details panel: [{ name, text }], one for each set group, from
-// Week 1 (or from the first week that has the exercise).
-function workoutSummary(workout) {
-  var lines = [];
+// The rows of one workout for the table in the details panel: one row for each set group of each
+// exercise, [{ name ('' after the first set group), cells }]. `cells` has one item for each week:
+// { reps: "4 × 5", load: "70% · 140 kg" or '' }, or null where the week does not have that set group.
+function workoutRows(workout, weekCount) {
+  var rows = [];
   workout.exercises.forEach(function (ex) {
-    var week = ex.weeks.filter(function (w) { return w.included; })[0];
-    if (!week) return;
-    week.groups.forEach(function (g) {
-      lines.push({ name: ex.name, text: setsRepsText(g) + (g.load !== null ? ' · ' + describeLoad(g).text : '') });
-    });
+    var most = ex.weeks.reduce(function (n, w) { return w.included ? Math.max(n, w.groups.length) : n; }, 0);
+    for (var k = 0; k < most; k++) {
+      var cells = [];
+      for (var w = 0; w < weekCount; w++) {
+        var g = ex.weeks[w].included ? ex.weeks[w].groups[k] : null;
+        cells.push(g ? { reps: setsRepsText(g), load: g.load !== null ? describeLoad(g).text : '' } : null);
+      }
+      rows.push({ name: k === 0 ? ex.name : '', cells: cells });
+    }
   });
-  return lines;
+  return rows;
+}
+
+// The table of one workout in the details panel: the exercises down the side, the weeks across.
+function workoutTable(p, workout) {
+  var head = [el('th', { text: 'Exercise' })];
+  p.weekFlags.forEach(function (flag, w) {
+    var th = el('th', null, [el('span', { text: 'Week ' + (w + 1) })]);
+    if (flag) th.appendChild(el('span', { className: 'flag-' + flag, text: ' ' + (flag === 'comp' ? 'Comp' : WEEK_FLAG_LABELS[flag]) }));
+    head.push(th);
+  });
+  var body = el('tbody');
+  workoutRows(workout, p.weeks).forEach(function (row) {
+    var tr = el('tr', { className: row.name ? 'first' : null }, [el('td', { text: row.name, title: row.name || null })]);
+    row.cells.forEach(function (cell) {
+      tr.appendChild(cell
+        ? el('td', null, [el('span', { text: cell.reps }), el('span', { className: 'ld', text: cell.load })])
+        : el('td', { className: 'dim', text: '–' }));
+    });
+    body.appendChild(tr);
+  });
+  return el('div', { className: 'wo-wrap' }, [el('table', { className: 'wo-table' }, [el('thead', null, [el('tr', null, head)]), body])]);
 }
 
 // "Sam Lee (2 programs), Maria Okafor (1 program)": the athletes who have a program from this template.
@@ -3934,27 +3934,24 @@ function renderEntryPanel(entry) {
   var kv = el('div', { className: 'kv' });
   facts.forEach(function (f) { kv.appendChild(el('span', { className: 'k', text: f[0] })); kv.appendChild(el('span', null, f[1])); });
 
-  var workouts = el('div', { className: 'wo' });
-  p.workouts.forEach(function (workout, wi) {
-    var lines = workoutSummary(workout);
-    var col = el('div', null, [el('b', { text: (wi + 1) + (workout.description ? ' · ' + workout.description : '') })]);
-    if (lines.length === 0) col.appendChild(el('div', { className: 'dim', text: 'No exercises yet' }));
-    lines.forEach(function (line) { col.appendChild(el('div', { className: 'wo-line' }, [el('span', { text: line.name }), el('span', { text: line.text })])); });
-    workouts.appendChild(col);
+  // One table for each workout: the exercises down the side, all weeks across.
+  var workouts = p.workouts.map(function (workout, wi) {
+    var parts = [el('div', { className: 'ps-head' }, [
+      el('b', { text: 'Workout ' + (wi + 1) }),
+      el('span', { className: 'hint', text: workout.description || '' })
+    ])];
+    parts.push(workout.exercises.length === 0 ? el('div', { className: 'dim', text: 'No exercises yet' }) : workoutTable(p, workout));
+    return el('div', { className: 'ps' }, parts);
   });
 
-  return el('div', { className: 'lib-det-in' }, [
+  return el('div', { className: 'lib-det-in wide' }, [
     el('div', { className: 'det-head' }, [
       el('div', { className: 't' }, [el('b', { text: entry.name === '' ? '(No name)' : entry.name }), el('span', { text: subtitle })]),
       menu
     ]),
     el('div', { className: 'det-acts' }, acts),
-    el('div', { className: 'ps' }, [kv]),
-    el('div', { className: 'ps' }, [
-      el('div', { className: 'ps-head' }, [el('b', { text: 'Workouts' }), el('span', { className: 'hint', text: 'Week 1' })]),
-      workouts
-    ])
-  ]);
+    el('div', { className: 'ps' }, [kv])
+  ].concat(workouts));
 }
 
 // "never", or "dd/mm/yyyy (N days ago)", and whether to show it as a warning.
@@ -4030,20 +4027,15 @@ function renderLibrary() {
 
 var profileSearch = '';     // the search text above the "can't do" list
 
-function findProfile(id) {
-  for (var i = 0; i < profiles.length; i++) if (profiles[i].id === id) return profiles[i];
-  return null;
-}
+function findProfile(id) { return findById(profiles, id); }
 
 // Called after every edit to a profile: stamps the date and saves. It does not redraw, so typing
 // in a box keeps its cursor.
 function profileTouched(p) {
-  p.modified = new Date().toISOString();
+  p.modified = todayIso();
   saveProfiles();
   document.getElementById('save-warning').hidden = draftSaved;
 }
-
-function todayIso() { return new Date().toISOString(); }
 
 // A new athlete is selected in the Library, with the cursor in the name box.
 function addAthlete() {
@@ -4058,18 +4050,17 @@ function addAthlete() {
 }
 
 function duplicateAthlete(p) {
-  var copy = JSON.parse(JSON.stringify(p));
+  var copy = deepCopy(p);
   copy.id = newProfileId();
   copy.name = (p.name + ' copy').slice(0, 200);
-  copy.modified = new Date().toISOString();
+  copy.modified = todayIso();
   profiles.push(copy);
   saveProfiles();
   showNotice('Duplicated.');
   render();
 }
 
-// Programs made for this athlete. (Step 4 records the athlete in `program.source.profileId`; until
-// then no program is linked, so this is empty.)
+// Programs made for this athlete (the athlete is recorded in `program.source.profileId`).
 function programsOfAthlete(p) {
   return library.filter(function (e) { return e.kind !== 'template' && e.program.source && e.program.source.profileId === p.id; });
 }
@@ -4097,10 +4088,7 @@ function deleteAthlete(p) {
   var choice = 'keep';
   var n = plural(linked.length, 'program');
   var radios = [['keep', 'Keep the ' + n + ' as ' + (linked.length === 1 ? 'a template' : 'templates')], ['delete', 'Delete the ' + n + ' too']].map(function (c) {
-    var radio = el('input', { type: 'radio', name: 'athlete-programs', value: c[0] });
-    radio.checked = c[0] === choice;
-    radio.addEventListener('change', function () { choice = c[0]; });
-    return el('label', { className: 'opt' }, [radio, el('span', { text: c[1] })]);
+    return radioOption('athlete-programs', c[0], c[1], '', c[0] === choice, function () { choice = c[0]; });
   });
   openModal({
     title: 'Delete "' + who + '"?',
@@ -4148,10 +4136,10 @@ function isAthleteOpen(p) {
 
 // Makes the program and opens it. `extras` is { exerciseName: kg } for exercises with no matching lift.
 function generateProgram(tplEntry, profile, name, extras) {
-  var copy = JSON.parse(JSON.stringify(tplEntry.program));
+  var copy = deepCopy(tplEntry.program);
   copy.name = name.slice(0, 200);
   var extraList = Object.keys(extras).filter(function (k) { return extras[k] !== null; }).map(function (k) { return { name: k, value: extras[k] }; });
-  copy.source = { templateId: tplEntry.id, templateName: tplEntry.program.name, profileId: profile.id, profileName: profile.name, generatedOn: new Date().toISOString() };
+  copy.source = { templateId: tplEntry.id, templateName: tplEntry.program.name, profileId: profile.id, profileName: profile.name, generatedOn: todayIso() };
   copy.profileUsed = snapshotFromProfile(profile, extraList);
   recalcKg(copy);
   var entry = addProgramEntry(copy, 'program');
@@ -4509,8 +4497,8 @@ function renderAthletePanel(p) {
 }
 
 /* ==========================================================================
-   EXERCISE LIST (spec 5.12). Loading it from a backup file arrives in step 7;
-   for now we only read whatever is stored.
+   EXERCISE LIST (spec 5.12): the names loaded from a GymLog backup file, plus the names typed
+   in the Add exercise box.
    ========================================================================== */
 
 function loadExerciseList() {
@@ -4676,30 +4664,70 @@ function addToWeek(ex, weekIndex) {
   changed();
 }
 
-// Creates an exercise at the end of a workout (spec 5.6).
-// `fields`: name, groups (one or more set groups, each with its own load type and rest), notes.
-// `weekIndex` is null for "All weeks".
-function createExercise(workout, fields, weekIndex) {
-  var ex = newExercise(fields.name, program.weeks);
-  ex.notes = fields.notes;
-  ex.weeks[0].groups = fields.groups;
-  ex.patterns = fields.patterns || fields.groups.map(function (g) { return samePattern(g.loadType); });
-  ex.supersets = fields.groups.map(function () { return null; });
-  // Every week (even hidden ones) keeps a copy of the entered values.
-  ex.weeks = generateWeeks(ex, program.weeks);
-  if (weekIndex !== null) {
-    ex.weeks.forEach(function (w, i) {
-      w.included = (i === weekIndex);
-      // Week 1 is the source, so it is never marked as edited.
-      w.edited = (i === weekIndex && i > 0);
-    });
-  }
+// Adds a new exercise at the end of a workout, in every week, with the default settings (3 x 10, kg,
+// blank load, 90 s rest), and opens the settings panel on it.
+function createExercise(workout, name) {
+  var ex = newExercise(name, program.weeks);
   workout.exercises.push(ex);
-  // Open the settings panel on the new exercise, for per-week values and the rest.
   selected = { wi: program.workouts.indexOf(workout), exId: ex.id };
   panelOpenGroup = 0;
   panelOpenReps = null;
   changed();
+}
+
+// Puts an exercise at the start or at the end of EVERY workout: it moves there in its own workout,
+// and each other workout gets a copy (all weeks, set groups, progression and notes; no superset
+// pair). A workout that already has an exercise with the same name gets no copy: its own exercise
+// moves to the same place and keeps its settings. After that, each copy is a normal exercise of
+// its own. Returns how many copies were made.
+function putInAllWorkouts(prog, workout, ex, atStart) {
+  function place(target, item) {
+    target.exercises = target.exercises.filter(function (o) { return o !== item; });
+    if (atStart) target.exercises.unshift(item); else target.exercises.push(item);
+  }
+  var copies = 0;
+  prog.workouts.forEach(function (other) {
+    if (other === workout) { place(other, ex); return; }
+    var own = other.exercises.filter(function (o) { return sameName(o.name, ex.name); })[0];
+    if (own) { place(other, own); return; }
+    var copy = deepCopy(ex);
+    copy.id = makeId('ex');
+    copy.supersets = copy.supersets.map(function () { return null; });
+    place(other, copy);
+    copies++;
+  });
+  return copies;
+}
+
+// The dialog of "Add to all workouts" in the settings panel: start or end, then confirm.
+function openAllWorkoutsDialog(workout, ex) {
+  var atStart = true;
+  var has = [];
+  program.workouts.forEach(function (other, i) {
+    if (other !== workout && other.exercises.some(function (o) { return sameName(o.name, ex.name); })) has.push('Workout ' + (i + 1));
+  });
+  var body = el('div', null, [
+    el('p', { text: 'Each other workout gets a copy of ' + ex.name + ', with the same weeks, set groups, loads and notes. After that, you can change each copy separately.' }),
+    radioOption('all-workouts-place', 'start', 'At the start of each workout', 'for example a warm-up or a physio exercise', true, function () { atStart = true; }),
+    radioOption('all-workouts-place', 'end', 'At the end of each workout', 'for example a cool-down', false, function () { atStart = false; })
+  ]);
+  if (has.length > 0) body.appendChild(el('div', { className: 'form-warning', text: has.join(', ') + (has.length === 1 ? ' already has' : ' already have') + ' this exercise. ' + (has.length === 1 ? 'It keeps its' : 'They keep their') + ' own settings, and the exercise moves to the same position.' }));
+  openModal({
+    title: 'Add ' + ex.name + ' to all workouts',
+    body: body,
+    actions: [
+      el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', {
+        className: 'primary', text: 'Add to all workouts',
+        onclick: function () {
+          closeModal();
+          var copies = putInAllWorkouts(program, workout, ex, atStart);
+          changed();
+          showNotice(copies === 0 ? 'Moved in all workouts. No copy was necessary.' : 'Added to ' + plural(copies, 'workout') + '.');
+        }
+      })
+    ]
+  });
 }
 
 /* ==========================================================================
@@ -4740,6 +4768,18 @@ function openModal(opts) {
   modal.focus();   // a dialog can then put the cursor in a box of its own
 }
 
+// One choice of a group of radio buttons in a dialog: a bold label and (optional) a description.
+// `onChoose` runs when this choice is selected.
+function radioOption(name, value, label, desc, checked, onChoose) {
+  var input = el('input', { type: 'radio', name: name, value: value });
+  input.checked = checked;
+  input.addEventListener('change', onChoose);
+  var text = desc
+    ? el('span', null, [el('span', { className: 'opt-label', text: label }), el('span', { className: 'opt-desc', text: ' ' + desc })])
+    : el('span', { text: label });
+  return el('label', { className: 'opt' }, [input, text]);
+}
+
 function formRow(labelText, control) {
   return el('div', { className: 'form-row' }, [el('label', { text: labelText }), control]);
 }
@@ -4760,17 +4800,6 @@ function selectBox(options, value) {
 }
 
 var LOAD_TYPE_OPTIONS = [['kg', 'kg'], ['pct', '% of 1RM'], ['rpe', 'RPE'], ['rir', 'RIR']];
-
-function currentIsTemplate() {
-  var entry = findEntry(currentId);
-  return !!entry && entry.kind === 'template';
-}
-
-// The load types to offer. kg is offered everywhere, templates included (the user's main use case);
-// kg is first and is the default.
-function loadTypeChoices(currentType) {
-  return LOAD_TYPE_OPTIONS.slice();
-}
 
 // No "unsaved changes" warning on closing the tab: every edit is saved to the library at once.
 
