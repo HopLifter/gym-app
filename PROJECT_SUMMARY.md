@@ -1,5 +1,51 @@
 # GymLog — Project Summary
 
+## UI/UX overhaul, stop 1: Protect the data (v64, 16 November 2026)
+First stop of a 9-stop overhaul (assessment of UX, visual design, code and
+data safety done in the same session). Nothing looks different in this stop.
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v64`. No data model change;
+old backups and saved data load unchanged (tested with the baseline backup).
+
+- **Safe storage helpers.** All reads and writes of localStorage go through
+  `readKey()`, `writeKey()` and `loadArray()`. New code must use them and
+  never call `localStorage` directly (the only exceptions are the rescue
+  copy and `doImportAllData()`).
+- **A failed save shows a message.** `writeKey()` returns `true`/`false` and
+  shows "Could not save" once per failure streak. `saveQueue()` and
+  `saveHistory()` return the same value and flash the save icon only on
+  success.
+- **Unreadable data is never overwritten.** If a key holds text that is not a
+  JSON array, `loadArray()` copies the raw text to
+  `<key>_rescue_<timestamp>` and the app continues with empty data for that
+  key (the Exercise List falls back to the seed list). A notice names the
+  unreadable keys and points to Restore from Backup. If the rescue copy
+  cannot be saved, `storageLocked` blocks every write. An unreadable queue no
+  longer triggers the first-run "Push Day" seed. Rescue keys are not part of
+  Backup All Data.
+- **`cleanWorkouts()`** drops entries that are not objects and gives every
+  workout an `exercises` array at load time.
+- **Save order.** Finish Workout saves history first, then the queue; Restore
+  to Queue saves the queue first, then history. If the first save fails the
+  action is cancelled, so a workout can never be in neither place.
+- **Restore from Backup rolls back** if a write fails part-way.
+- **Escaping.** `escapeHtml()` now escapes `& < > " '` and accepts any value
+  (numbers included); `escapeAttr` is the same function. Sets, reps, weight,
+  RPE, ids and Recent Performance values are now escaped (an import file with
+  HTML in a number field could run code before).
+- **Ids.** `newId()` is the time in ms plus a 4-digit counter (was a random
+  number below 1000, which gave equal ids inside one import). Existing equal
+  ids in old data are harmless (lookups are per workout) and are left as-is.
+- **Dates.** `todayISO()` uses the local calendar date, not UTC.
+- **Testing limits:** desktop browser with the restored baseline: migration,
+  import of 40 exercises with HTML in every field (no code ran, ids unique),
+  Finish and Restore to Queue with a simulated failed save, Restore from
+  Backup rollback, unreadable queue and history (rescue keys, notice, no
+  seed). Not run on a phone. The service worker does not register in the
+  local test browser.
+- **Still planned (stop 7):** full backup file check, restore without
+  deleting missing keys, "before restore" undo copy, backup metadata and
+  reminder, `navigator.storage.persist()`, `storage` event reload.
+
 ## Docs-only build 20261108: Program Builder Phase 2 steps 1 to 4 built (Roadmap 2.1)
 `index.html` and `sw.js` (GymLog) are unchanged, so the cache version stays
 `gym-app-cache-v63`. The Program Builder (`builder/`) gained a browser library,
@@ -26,7 +72,7 @@ no subscriptions.
 - Section headings below that say "session" were written at different
   times. Use `git log` for the real dates.
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v63` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v64` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s

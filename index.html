@@ -1160,13 +1160,74 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v63";
+  const APP_VERSION = "gym-app-cache-v64";
 
   const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
   const PROGRAMS_KEY = "gymapp_programs_v1";
   const QUEUE_KEY = "gymapp_queue_v1";
   const HISTORY_KEY = "gymapp_history_v1";
   const EXERCISE_LIST_KEY = "gymapp_exercise_list_v1";
+
+  // ---- Safe storage (v64) ----
+  // All reads and writes of localStorage go through these helpers.
+  // - A write that fails (storage full or blocked) shows one message.
+  // - Saved data that cannot be read is copied to a rescue key before the
+  //   app continues, so it is never overwritten and lost. If the copy
+  //   cannot be made, all writes are blocked (storageLocked).
+  const KEY_LABELS = {
+    [PROGRAMS_KEY]: "Programs",
+    [QUEUE_KEY]: "Queue",
+    [HISTORY_KEY]: "History",
+    [EXERCISE_LIST_KEY]: "Exercise List"
+  };
+  const corruptKeys = [];
+  let storageLocked = false;
+  let saveFailed = false;
+
+  function readKey(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  // Returns true when the value was saved.
+  function writeKey(key, value) {
+    try {
+      if (storageLocked) throw new Error("storage locked");
+      localStorage.setItem(key, value);
+      saveFailed = false;
+      return true;
+    } catch (e) {
+      if (!saveFailed) {
+        saveFailed = true;
+        // Deferred: a write can fail during startup, before the dialog code is ready.
+        setTimeout(() => openNotice("Could not save", "Your last change was not saved on this phone. The storage is full or blocked. Make a backup in Settings, then close and open the app again."), 0);
+      }
+      return false;
+    }
+  }
+  // Returns the saved array, or null when the key is absent or unreadable
+  // (unreadable keys are listed in corruptKeys).
+  function loadArray(key) {
+    const raw = readKey(key);
+    if (raw === null) return null;
+    try {
+      const saved = JSON.parse(raw);
+      if (Array.isArray(saved)) return saved;
+    } catch (e) {}
+    corruptKeys.push(key);
+    try {
+      localStorage.setItem(key + "_rescue_" + Date.now(), raw);
+    } catch (e) {
+      storageLocked = true;
+    }
+    return null;
+  }
+  // Drops entries that are not workouts and makes sure each workout has an
+  // exercises array, so one bad entry cannot stop the app from opening.
+  function cleanWorkouts(list) {
+    return list.filter(w => w && typeof w === "object").map(w => {
+      w.exercises = Array.isArray(w.exercises) ? w.exercises.filter(e => e && typeof e === "object") : [];
+      return w;
+    });
+  }
 
   // ---- Exercise Name Standardization / Exercise List Management ----
   // The standardized exercise list now lives in localStorage (persisted,
@@ -1195,14 +1256,11 @@
   const CUSTOM_NAME_VALUE = "__custom__"; // sentinel <option> value meaning "not on the list"
 
   function loadExerciseList() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(EXERCISE_LIST_KEY));
-      if (Array.isArray(saved)) return saved;
-    } catch (e) {}
-    return null; // null = not yet migrated, distinct from []
+    const saved = loadArray(EXERCISE_LIST_KEY);
+    return saved ? saved.filter(n => typeof n === "string") : null; // null = not yet migrated, distinct from []
   }
   function saveExerciseList() {
-    localStorage.setItem(EXERCISE_LIST_KEY, JSON.stringify(exerciseList));
+    writeKey(EXERCISE_LIST_KEY, JSON.stringify(exerciseList));
   }
 
   // The exercise list is kept sorted alphabetically at all times (every
@@ -1266,48 +1324,42 @@
     { id: "ex5", name: "Lateral Raise",        sets: 3, reps: 15, weight: 15, rpe: 8, rest: 45, notes: "", supersetId: null }
   ];
 
+  // Local calendar date (not UTC), so a workout finished just after
+  // midnight gets the correct day.
   function todayISO() {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
   }
+  // Time in ms plus a counter: ids made in the same millisecond (a program
+  // import makes many) can no longer be equal.
+  let idSeq = 0;
   function newId(prefix) {
-    return prefix + Date.now() + Math.floor(Math.random() * 1000);
+    return prefix + Date.now() + String(idSeq++).padStart(4, "0");
   }
 
   function loadPrograms() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(PROGRAMS_KEY));
-      if (Array.isArray(saved)) return saved;
-    } catch (e) {}
-    return null; // null = not yet migrated, distinct from []
+    const saved = loadArray(PROGRAMS_KEY);
+    return saved ? saved.filter(p => p && typeof p === "object") : null; // null = not yet migrated, distinct from []
   }
   function loadLegacyProgram() {
     try {
-      const saved = JSON.parse(localStorage.getItem(PROGRAM_KEY));
+      const saved = JSON.parse(readKey(PROGRAM_KEY));
       if (saved && saved.id) return saved;
     } catch (e) {}
     return null;
   }
-  function loadQueue() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(QUEUE_KEY));
-      if (Array.isArray(saved)) return saved;
-    } catch (e) {}
-    return null; // null = not yet initialized, distinct from []
-  }
-  function loadHistory() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(HISTORY_KEY));
-      if (Array.isArray(saved)) return saved;
-    } catch (e) {}
-    return [];
-  }
 
   let programs = loadPrograms();
-  let queue = loadQueue();
-  let history = loadHistory();
+  let queue = loadArray(QUEUE_KEY);
+  let history = cleanWorkouts(loadArray(HISTORY_KEY) || []);
 
-  // First-ever run: seed one ad-hoc sample workout so the app isn't blank.
-  if (queue === null) {
+  if (queue !== null) {
+    queue = cleanWorkouts(queue);
+  } else if (corruptKeys.includes(QUEUE_KEY)) {
+    // The saved queue was unreadable (a rescue copy was kept): start empty.
+    queue = [];
+  } else {
+    // First-ever run: seed one ad-hoc sample workout so the app isn't blank.
     queue = [{
       id: newId("wk"),
       programId: null,
@@ -1317,7 +1369,7 @@
       order: 0,
       exercises: JSON.parse(JSON.stringify(defaultExercises))
     }];
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+    writeKey(QUEUE_KEY, JSON.stringify(queue));
   }
 
   // Program list migration (Spec 1.4): the old single `gymapp_program_v1`
@@ -1336,7 +1388,7 @@
       });
     }
   }
-  localStorage.removeItem(PROGRAM_KEY);
+  try { if (!storageLocked) localStorage.removeItem(PROGRAM_KEY); } catch (e) {}
   syncProgramState();
 
   let viewSource = "queue"; // "queue" | "history" | "empty"
@@ -1433,19 +1485,22 @@
     });
     return changed;
   }
-  if (clearStaleWorkoutTimers()) localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+  if (clearStaleWorkoutTimers()) writeKey(QUEUE_KEY, JSON.stringify(queue));
 
+  // saveQueue() and saveHistory() return true when the data was saved.
   function saveQueue() {
     clearStaleWorkoutTimers();
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
-    flashSaved();
+    const ok = writeKey(QUEUE_KEY, JSON.stringify(queue));
+    if (ok) flashSaved();
+    return ok;
   }
   function saveHistory() {
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-    flashSaved();
+    const ok = writeKey(HISTORY_KEY, JSON.stringify(history));
+    if (ok) flashSaved();
+    return ok;
   }
   function savePrograms() {
-    localStorage.setItem(PROGRAMS_KEY, JSON.stringify(programs));
+    writeKey(PROGRAMS_KEY, JSON.stringify(programs));
   }
   function currentProgram() { return programs.find(p => p.status === "current") || null; }
   function nextProgram() { return programs.find(p => p.status === "next") || null; }
@@ -1603,7 +1658,7 @@
     const dis = editable ? "" : "disabled";
     const isLastActive = lastActiveExerciseId === ex.id && !ex.supersetId;
     return `
-      <div class="exercise${selectable ? " selectable" : ""}${isLastActive ? " last-active" : ""}" data-id="${ex.id}">
+      <div class="exercise${selectable ? " selectable" : ""}${isLastActive ? " last-active" : ""}" data-id="${escapeAttr(ex.id)}">
         <div class="ex-header">
           ${editable ? nameFieldHTML(ex) : `<input class="name-input" data-field="name" value="${escapeAttr(ex.name)}" placeholder="Exercise name" disabled>`}
           <div class="header-right">
@@ -1622,10 +1677,10 @@
         </div>
         ${expandedHistoryIds.has(ex.id) ? recentPanelHTML(ex) : ""}
         <div class="stats-grid">
-          <div class="stat-field"><label>Sets</label><input type="number" inputmode="numeric" data-field="sets" value="${ex.sets}" ${dis}></div>
-          <div class="stat-field"><label>Reps</label><input type="number" inputmode="numeric" data-field="reps" value="${ex.reps}" ${dis}></div>
-          <div class="stat-field"><label>Weight</label><input type="text" inputmode="decimal" data-field="weight" value="${ex.weight}" ${dis}></div>
-          <div class="stat-field"><label>RPE</label><input type="text" inputmode="decimal" data-field="rpe" value="${ex.rpe}" ${dis}></div>
+          <div class="stat-field"><label>Sets</label><input type="number" inputmode="numeric" data-field="sets" value="${escapeAttr(ex.sets)}" ${dis}></div>
+          <div class="stat-field"><label>Reps</label><input type="number" inputmode="numeric" data-field="reps" value="${escapeAttr(ex.reps)}" ${dis}></div>
+          <div class="stat-field"><label>Weight</label><input type="text" inputmode="decimal" data-field="weight" value="${escapeAttr(ex.weight)}" ${dis}></div>
+          <div class="stat-field"><label>RPE</label><input type="text" inputmode="decimal" data-field="rpe" value="${escapeAttr(ex.rpe)}" ${dis}></div>
           <div class="stat-field"><label>Rest (min)</label><input type="text" inputmode="decimal" data-field="rest" value="${restSecondsToMinutes(ex.rest)}" ${dis}></div>
         </div>
         <div class="volume">Volume: <span class="volume-value">${calcVolume(ex)}</span></div>
@@ -1886,8 +1941,9 @@
   // the underlying exercise data/model is untouched — it's purely a
   // different presentation of the same `exercises` array.
   const DASH = "–";
+  // Returns HTML-safe text.
   function fmtOrDash(v) {
-    return (v === "" || v === null || v === undefined) ? DASH : v;
+    return (v === "" || v === null || v === undefined) ? DASH : escapeHtml(v);
   }
 
   function condensedRowHTML(ex) {
@@ -1908,7 +1964,7 @@
     // stat row — not a sibling div at the table level — so it's always
     // structurally tied to its own exercise and can never render as if
     // it belonged to the exercise above or below it.
-    if (ex.notes && ex.notes.trim()) {
+    if (typeof ex.notes === "string" && ex.notes.trim()) {
       inner += `<div class="condensed-note-row"><span class="condensed-note-text">"${escapeHtml(ex.notes.trim())}"</span></div>`;
     }
     return `<div class="condensed-entry">${inner}</div>`;
@@ -1983,7 +2039,7 @@
       return;
     }
     list.innerHTML = q.map((w, idx) => `
-      <div class="history-item${idx === 0 ? " next" : ""}" data-id="${w.id}">
+      <div class="history-item${idx === 0 ? " next" : ""}" data-id="${escapeAttr(w.id)}">
         <div class="history-name">${escapeHtml(w.label || "Workout")}${idx === 0 ? " · Next" : ""}</div>
         <div class="history-date">${escapeHtml((typeof w.description === "string" && w.description.trim()) || (w.programId ? "Program workout" : "Ad-hoc"))}</div>
         <button class="item-menu-btn" data-action="item-menu">⋮</button>
@@ -2004,7 +2060,7 @@
       return;
     }
     list.innerHTML = sorted.map(w => `
-      <div class="history-item" data-id="${w.id}">
+      <div class="history-item" data-id="${escapeAttr(w.id)}">
         <div class="history-name">${escapeHtml(w.label || "Workout")}</div>
         <div class="history-date">${formatDateDisplay(w.date)}</div>
         ${w.programId === null ? `<span class="history-tag">Ad-hoc</span>` : ""}
@@ -2077,7 +2133,7 @@
   // explicitly, rather than via toLocaleDateString(), which follows the
   // phone's region settings and can silently render mm/dd/yyyy instead.
   function formatDateDisplay(iso) {
-    if (!iso) return "";
+    if (!iso || typeof iso !== "string") return "";
     const [y, m, d] = iso.split("-").map(Number);
     const dt = new Date(y, m - 1, d);
     return `${WEEKDAY_ABBR[dt.getDay()]}, ${d} ${MONTH_ABBR[m - 1]} ${y}`;
@@ -2087,7 +2143,7 @@
   // Queued workouts have no stored date yet, so this falls back to
   // today's date without writing anything to the workout object.
   function formatDateBadge(iso) {
-    const dt = iso ? (() => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); })() : new Date();
+    const dt = (iso && typeof iso === "string") ? (() => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); })() : new Date();
     return isoToDMY(`${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`);
   }
 
@@ -2099,7 +2155,7 @@
   // point in the app reads dd/mm/yyyy consistently regardless of locale.
   // The underlying stored value is always the ISO "yyyy-mm-dd" string.
   function isoToDMY(iso) {
-    if (!iso) return "";
+    if (!iso || typeof iso !== "string") return "";
     const [y, m, d] = iso.split("-").map(Number);
     return `${pad2(d)}/${pad2(m)}/${y}`;
   }
@@ -2214,12 +2270,13 @@
     `).join("");
   }
 
-  function escapeHtml(str) {
-    return (str || "").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  // Makes any value safe to put into HTML text or an attribute. Every
+  // value that comes from saved data or an import file must go through it.
+  const ESCAPE_MAP = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  function escapeHtml(value) {
+    return (value === null || value === undefined ? "" : String(value)).replace(/[&<>"']/g, c => ESCAPE_MAP[c]);
   }
-  function escapeAttr(str) {
-    return (str || "").replace(/"/g, "&quot;");
-  }
+  const escapeAttr = escapeHtml;
 
   // ---- Recent Performance (Workout Context) ----
   // Looks up the last N times an exercise with this name was logged in
@@ -2253,7 +2310,7 @@
       return `
       <div class="recent-panel-row">
         <span class="recent-panel-date">${formatDateDisplay(r.date) || "—"}</span>
-        <span class="recent-panel-stats">${r.sets ?? "?"}×${r.reps ?? "?"} @ ${r.weight ?? "?"}${r.rpe !== "" && r.rpe != null ? ` <span class="recent-panel-rpe">RPE ${r.rpe}</span>` : ""}${mins !== "" ? ` <span class="recent-panel-rest">· ${mins}m rest</span>` : ""}</span>
+        <span class="recent-panel-stats">${escapeHtml(r.sets ?? "?")}×${escapeHtml(r.reps ?? "?")} @ ${escapeHtml(r.weight ?? "?")}${r.rpe !== "" && r.rpe != null ? ` <span class="recent-panel-rpe">RPE ${escapeHtml(r.rpe)}</span>` : ""}${mins !== "" ? ` <span class="recent-panel-rest">· ${mins}m rest</span>` : ""}</span>
       </div>
       ${r.notes ? `<div class="recent-panel-notes">"${escapeHtml(r.notes)}"</div>` : ""}
     `;
@@ -3187,24 +3244,27 @@
   function completeActiveWorkout() {
     const w = getActiveWorkout();
     if (!w || viewSource !== "queue") return;
-    queue = queue.filter(x => x.id !== w.id);
-    w.status = "completed";
-    w.date = todayISO();
-    w.note = w.note || "";
-    delete w.order;
+    const done = { ...w, status: "completed", date: todayISO(), note: w.note || "" };
+    delete done.order;
     // Stop the workout timer and keep its total (running time folded in).
-    if (w.timer) {
-      w.durationSec = Math.round(workoutTimerElapsedMs(w.timer) / 1000);
-      delete w.timer;
+    if (done.timer) {
+      done.durationSec = Math.round(workoutTimerElapsedMs(done.timer) / 1000);
+      delete done.timer;
     }
-    history.push(w);
+    // History is saved first. If that save fails, the workout stays in
+    // the queue, so it can never be in neither place.
+    history.push(done);
+    if (!saveHistory()) {
+      history.pop();
+      return;
+    }
+    queue = queue.filter(x => x.id !== w.id);
     saveQueue();
-    saveHistory();
     syncProgramState();
     // Land on the finished workout's Past Workout view; the Today tab
     // then shows the next queued workout as usual.
     viewSource = "history";
-    viewId = w.id;
+    viewId = done.id;
     editMode = false;
     historyEditDraft = null;
     showScreen("workout");
@@ -3226,10 +3286,7 @@
   function restoreWorkoutToQueue(id) {
     const idx = history.findIndex(w => w.id === id);
     if (idx === -1) return;
-    const w = history[idx];
-    history.splice(idx, 1);
-    w.status = "queued";
-    w.date = null;
+    const w = { ...history[idx], status: "queued", date: null };
     delete w.note;
     delete w.durationSec; // restored workouts start with an idle timer
     delete w.timer;
@@ -3237,8 +3294,15 @@
     q.unshift(w);
     q.forEach((x, i) => { x.order = i; });
     queue = q;
+    // The queue is saved first. If that save fails, the workout stays in
+    // history, so it can never be in neither place.
+    if (!saveQueue()) {
+      queue = queue.filter(x => x !== w);
+      queue.forEach((x, i) => { x.order = i; });
+      return;
+    }
+    history.splice(idx, 1);
     saveHistory();
-    saveQueue();
   }
 
   // Shared "Delete from Queue" flow — used both from the Queue list's
@@ -3278,7 +3342,7 @@
       `This will permanently delete "${w.label || "this workout"}" from your history. This action cannot be undone.`,
       () => {
         history = history.filter(x => x.id !== id);
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        writeKey(HISTORY_KEY, JSON.stringify(history));
         afterDelete();
       },
       "Delete",
@@ -3650,7 +3714,7 @@
 
   function exportAllData() {
     const data = {};
-    ALL_DATA_KEYS.forEach(k => { data[k] = localStorage.getItem(k); });
+    ALL_DATA_KEYS.forEach(k => { data[k] = readKey(k); });
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -3690,11 +3754,26 @@
   // restore touches all five keys at once and a fresh load is the
   // simplest way to guarantee everything (program, queue, history,
   // exercise list, and whichever workout is active) is consistent.
+  // If a write fails part-way (storage full), the old values are put back,
+  // so the phone never holds a mix of old and new data.
   function doImportAllData(data) {
-    ALL_DATA_KEYS.forEach(k => {
-      if (data[k] === null || data[k] === undefined) localStorage.removeItem(k);
-      else localStorage.setItem(k, data[k]);
-    });
+    const before = {};
+    try {
+      ALL_DATA_KEYS.forEach(k => { before[k] = localStorage.getItem(k); });
+      ALL_DATA_KEYS.forEach(k => {
+        if (data[k] === null || data[k] === undefined) localStorage.removeItem(k);
+        else localStorage.setItem(k, data[k]);
+      });
+    } catch (e) {
+      try {
+        ALL_DATA_KEYS.forEach(k => {
+          if (before[k] === null || before[k] === undefined) localStorage.removeItem(k);
+          else localStorage.setItem(k, before[k]);
+        });
+      } catch (e2) {}
+      openNotice("Restore failed", "The backup could not be saved on this phone. Your data was not changed.");
+      return;
+    }
     location.reload();
   }
 
@@ -3885,6 +3964,17 @@
   document.getElementById("emptyImportBtn").addEventListener("click", openImportModal);
 
   showScreen("workout");
+
+  // Saved data that could not be read at startup (see loadArray()).
+  if (corruptKeys.length) {
+    const names = corruptKeys.map(k => KEY_LABELS[k] || k).join(", ");
+    openNotice(
+      "Some data could not be read",
+      storageLocked
+        ? `Unreadable: ${names}. The data is still on this phone and nothing will be saved until you restore a backup (Settings → Restore from Backup).`
+        : `Unreadable: ${names}. A copy of the unreadable data is kept on this phone. To get your data back, use Settings → Restore from Backup with your latest backup.`
+    );
+  }
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
