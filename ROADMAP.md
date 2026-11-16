@@ -230,9 +230,9 @@ Potential features:
 
 ### 2.3 UI/UX Overhaul Epic
 
-**Status:** In progress. Stops 1 to 6 are done (v64, v66, v69, v70, v71). Stop 7 (backup and restore) is next.
+**Status:** In progress. Stops 1 to 7 are done (v64, v66, v69, v70, v71, v72). Stop 8 (import preview and progress screen) is next.
 
-**Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html` (stops 2 to 4) , `docs/mockups/GymLog UI Overhaul - Stop 5 Other Screens.html` (stop 5) and `docs/mockups/GymLog UI Overhaul - Stop 6 Exercise Picker.html` (stop 6).
+**Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html` (stops 2 to 4), `docs/mockups/GymLog UI Overhaul - Stop 5 Other Screens.html` (stop 5), `docs/mockups/GymLog UI Overhaul - Stop 6 Exercise Picker.html` (stop 6) and `docs/mockups/GymLog UI Overhaul - Stop 7 Backup and Restore.html` (stop 7).
 
 **Stops:**
 
@@ -242,7 +242,7 @@ Potential features:
 4. Set bar that replaces the rest timer bar: one button ("Start Workout", "Start Set 1" …, "Next Exercise", "Finish Workout") and a small pause button, saved rest time and set count, active exercise, "Start This Exercise" and "Restart This Exercise" in the rows (done, v69). This stop replaces feature 1.2's set squares and prepares feature 1.8.
 5. Other screens: Queue, History with month headings, Settings, Exercise List, dialogs and menus as bottom sheets, one message bar for Undo, Restore to Queue with Undo instead of a dialog (deletes keep their dialog) (done, v70).
 6. Exercise picker: full screen, search, recent exercises, values from the last session; new names always go on the Exercise List; the row is made only after a pick (done, v71).
-7. Backup and restore: last backup date and reminder, file summary before restore, undo copy.
+7. Backup and restore: last backup date and reminder after Finish Workout (with ✕), file check before a restore (file next to phone), undo copy and Undo Last Restore, restore keeps data that is not in the file, backup metadata (_meta), storage protection request, reload when another open copy saves (done, v72).
 8. Import preview and a progress screen for each exercise.
 9. Clean-up: dead code, manifest and icon, documents.
 
@@ -259,7 +259,7 @@ An initial suggested sequence, subject to further exploration:
 4. Workout Description and Comment (done).
 5. Superset Import (done).
 6. Program Builder Epic, Phases 1 to 3 (Phase 1 done; Phase 2 steps 1 to 4 done, steps 5 to 7 left).
-   The UI/UX Overhaul Epic (2.3) is in progress now, stops 1 to 6 done; it comes before the items below.
+   The UI/UX Overhaul Epic (2.3) is in progress now, stops 1 to 7 done; it comes before the items below.
 7. Set-by-Set Logging.
 8. Planned vs. Actual Tracking.
 9. Missed Reps Logging.

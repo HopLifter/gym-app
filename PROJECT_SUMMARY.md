@@ -1,5 +1,67 @@
 # GymLog — Project Summary
 
+## UI/UX overhaul, stop 7: backup and restore (v72, 17 November 2026)
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v72`. Committed and
+published at the user's request; the user has not tested it on the phone
+yet. Mockups: `docs/mockups/GymLog UI Overhaul - Stop 7 Backup and Restore.html`.
+
+- **Data model (user accepted D1 to D4).** Old backups and saved data
+  work unchanged; no migration.
+  - D1: the backup file has `_meta: { app, appVersion, exportedAt
+    ("2026-11-17T19:42:10", local time), counts: { history, queue,
+    programs, exercises } }`. Restore ignores `_meta` (and older app
+    versions do too, because they read only the data keys).
+  - D2: `gymapp_last_backup_v1` = `{ at, file }`, written when the backup
+    file is made. Only on this phone, never in the file.
+  - D3: `gymapp_before_restore_v1` = `{ at, label, data: { <key>: <text or
+    null> } }`: all data keys as they were just before the last restore.
+    One copy; the next restore replaces it. Only on this phone.
+  - D4: a restore writes only the keys that are in the file
+    (`inBackupFile()`); a `null` value still removes the key ("none at
+    backup time"). Before v72 a key that was not in the file was deleted.
+    The two program keys count as one kind of data: an old (pre-v59) file
+    with only `gymapp_program_v1` clears `gymapp_programs_v1`, so the
+    start-up migration builds the programs from the file, as before
+    (tested with the v58 baseline).
+- **Settings, Data:** "Back Up All Data" (renamed from "Backup All Data")
+  with "Last backup: 12 days ago (5 Nov)" below it, red when more than 7
+  days old or never (`backupStatus()`). "Undo Last Restore" shows when an
+  undo copy exists. About shows the storage protection answer.
+- **Backup:** `exportAllData()` adds `_meta`, saves D2 and shows "Backup
+  file made: gym-data-2026-11-17.json". R4: the app cannot know if the file
+  was saved.
+- **Reminder (R1):** after Finish Workout, `maybeRemindBackup()` shows
+  "Last backup: 12 days ago" with "Back Up" and a ✕ at the right edge
+  (user feedback). It comes back after each workout while a backup is due.
+  `showMessage()` has a new `{ close: true }` option (`#msgClose`).
+- **Restore check:** after a file is chosen, `openRestoreCheck()` shows a
+  sheet "Replace All Data?" with the file name, when it was made and the
+  version (or "made: unknown (older backup file)"), and a table In the File
+  / On This Phone: History, Newest, Queue, Program, Exercises
+  (`summarizeData()`). Smaller values in the file are red; "Not in file
+  (kept)" for missing keys; a red line when the file has fewer History
+  workouts. `openSheet()` now also takes `bodyHTML` and `confirm`.
+- **After a restore** the app reloads, opens Settings and shows
+  "Restored: backup from 5 Nov" with Undo (one-time `sessionStorage` flag
+  `gymapp_after_restore`). **Undo Last Restore** (`confirmUndoLastRestore()`)
+  swaps the undo copy and the current data, so the undo can be undone.
+  `doImportAllData(data, label, doneText)` keeps the old one-argument use
+  (the test helper).
+- **R2:** `navigator.storage.persisted()` / `persist()` once at start, no
+  question to the user; `storageProtected` is shown in About ("protected",
+  "not protected … Back up often.", or "no answer"). The desktop test
+  browser answers "not protected".
+- **R3:** a `storage` event for a `gymapp_` key (another open copy saved)
+  reloads this copy.
+- **Tested** in the desktop browser at 375 px with the baseline: restore
+  of the v58 file (programs rebuilt, 36 workouts), backup file content and
+  `_meta` (download captured, not saved), Settings lines, restore check with
+  a file that has 2 fewer workouts and no Queue (red values, "Not in file
+  (kept)", Queue kept after the restore), message after restore, Undo Last
+  Restore and the swap, reminder after Finish Workout with 12-day-old
+  backup, the ✕, the storage event reload. Not run on a phone; the file
+  download and the storage protection answer can only be checked there.
+
 ## UI/UX overhaul, stop 6: exercise picker (v71, 17 November 2026)
 `CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v71`. Approved by the user,
 committed and published. No data model change. Mockups:

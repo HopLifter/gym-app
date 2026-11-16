@@ -176,6 +176,23 @@
   .modal-btn-cancel { background: none; border: 1.5px solid var(--control); color: var(--text); }
   .modal-btn-danger { background: var(--danger); border: none; color: var(--bg); }
   .modal-btn-primary { background: var(--accent); border: none; color: var(--bg); }
+  .modal-actions .sheet-opt { justify-content: center; min-height: 52px; }
+  .modal-actions .sheet-opt.modal-btn-cancel { border-bottom: 1.5px solid var(--control); }
+  .modal-actions .sheet-opt.modal-btn-danger { border-bottom: none; color: var(--bg); }
+
+  /* Restore check (stop 7): the file compared with this phone. */
+  .cmp { width: 100%; border-collapse: collapse; font-size: 15px; margin: var(--s2) 0 var(--s3); }
+  .cmp th {
+    text-align: left; font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-2); padding: var(--s2) var(--s2) var(--s2) 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .cmp td { padding: 10px var(--s2) 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+  .cmp td:first-child { color: var(--text-2); width: 30%; }
+  .cmp td.diff { color: var(--danger); font-weight: 600; }
+  .sheet-note { font-size: 15px; color: var(--text-2); margin: var(--s2) 0 var(--s4); }
+  .sheet-note.warn { color: var(--danger); margin-bottom: var(--s2); }
+  .list-sub.warn { color: var(--danger); }
 
   .title-row { display: flex; align-items: flex-start; gap: 10px; }
   h1 {
@@ -513,6 +530,13 @@
     background: none; border: none; color: var(--accent);
     font: inherit; font-weight: 700; cursor: pointer;
   }
+  /* Optional ✕ at the right edge (the backup reminder). */
+  .msg-close {
+    width: 44px; height: 44px; flex-shrink: 0; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: none; border: none; color: var(--text-2); cursor: pointer;
+  }
+  .msg-bar.has-close { padding-right: 0; gap: var(--s1); }
 
   /* ---- List screens (stop 5): Queue, History, Settings, Exercise List.
      Flat rows with a divider line, no boxes. */
@@ -844,6 +868,7 @@
 <div class="msg-bar" id="msgBar" role="status">
   <span class="msg-text" id="msgText"></span>
   <button class="msg-action" type="button" id="msgAction">Undo</button>
+  <button class="msg-close hidden" type="button" id="msgClose" aria-label="Close message"><svg class="icon"><use href="#i-x"/></svg></button>
 </div>
 
 <!-- Bottom sheet for menus (openSheet) -->
@@ -909,7 +934,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v71";
+  const APP_VERSION = "gym-app-cache-v72";
 
   const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
   const PROGRAMS_KEY = "gymapp_programs_v1";
@@ -1870,9 +1895,12 @@
     const list = document.getElementById("settingsList");
     const cur = currentProgram();
     const nxt = nextProgram();
-    const row = (id, label, cls, val) => `
+    const backup = backupStatus();
+    const copy = undoCopy();
+    // sub: { text, warn } for a second line (plain text, escaped here).
+    const row = (id, label, cls, val, sub) => `
       <div class="list-row short ${cls}">
-        <button class="list-main" type="button" id="${id}"><span class="list-name">${label}</span></button>
+        <button class="list-main" type="button" id="${id}"><span class="list-name">${label}</span>${sub ? `<span class="list-sub${sub.warn ? " warn" : ""}">${escapeHtml(sub.text)}</span>` : ""}</button>
         ${val !== undefined ? `<span class="list-val num">${val}</span>` : ""}
         ${cls === "action" ? `<svg class="icon chev"><use href="#i-chev"/></svg>` : ""}
       </div>`;
@@ -1888,8 +1916,9 @@
       ${cur ? row("settingsEndProgramBtn", "End Current Program", "danger") : ""}
 
       <div class="list-head"><span class="label">Data</span></div>
-      ${row("settingsExportAllDataBtn", "Backup All Data", "action")}
+      ${row("settingsExportAllDataBtn", "Back Up All Data", "action", undefined, { text: backup.text, warn: backup.due })}
       ${row("settingsImportAllDataBtn", "Restore from Backup", "action")}
+      ${copy ? row("settingsUndoRestoreBtn", "Undo Last Restore", "action", undefined, { text: `Puts back your data from before ${formatStamp(copy.at)}` }) : ""}
       ${row("settingsExportGymLogBtn", "Export Gym Log", "action")}
 
       <div class="list-head"><span class="label">Exercises</span></div>
@@ -1899,8 +1928,12 @@
       <div class="list-row short"><div class="list-main">
         <span class="list-name" style="font-size:var(--f-body)">GymLog <span class="list-sub">· ${escapeHtml(APP_VERSION.replace("gym-app-cache-", ""))}</span></span>
         <span class="list-sub">Offline. Your data stays on this phone only. No account, no cloud.</span>
+        <span class="list-sub">${storageProtected === true ? "Storage: protected by the browser"
+          : storageProtected === false ? "Storage: not protected by the browser. Back up often."
+          : "Storage: the browser gives no answer about protection"}</span>
       </div></div>
     `;
+    if (copy) document.getElementById("settingsUndoRestoreBtn").addEventListener("click", confirmUndoLastRestore);
     const startBtn = document.getElementById("settingsStartProgramBtn");
     if (startBtn) startBtn.addEventListener("click", openImportModal);
     if (nxt) document.getElementById("settingsRemoveNextBtn").addEventListener("click", confirmRemoveNextProgram);
@@ -2840,10 +2873,20 @@
   // openSheet({ title, sub, options: [{ label, icon, danger, disabled, onSelect }] })
   // A tap on an option closes the sheet first, then runs onSelect (which
   // can open a confirm sheet). A tap on the dark area or Cancel closes it.
+  // Stop 7: openSheet({ title, sub, bodyHTML, confirm: { label, onSelect } })
+  // shows a question with a body (bodyHTML must be escaped by the caller)
+  // and two full-width buttons: the red action on top, Cancel below it.
   let sheetOptions = [];
-  function openSheet({ title, sub, options }) {
-    sheetOptions = options;
-    document.getElementById("sheet").innerHTML = `
+  function openSheet({ title, sub, options = [], bodyHTML = "", confirm = null }) {
+    sheetOptions = confirm ? [{ ...confirm }] : options;
+    document.getElementById("sheet").innerHTML = confirm ? `
+      <div class="sheet-title">${escapeHtml(title)}</div>
+      ${sub ? `<div class="sheet-sub">${escapeHtml(sub)}</div>` : ""}
+      ${bodyHTML}
+      <div class="modal-actions">
+        <button type="button" class="sheet-opt modal-btn-cancel" data-index="-1">Cancel</button>
+        <button type="button" class="sheet-opt modal-btn-danger" data-index="0">${escapeHtml(confirm.label)}</button>
+      </div>` : `
       <div class="sheet-head">
         <div class="sheet-title">${escapeHtml(title)}</div>
         ${sub ? `<div class="sheet-sub">${escapeHtml(sub)}</div>` : ""}
@@ -2865,19 +2908,22 @@
   });
 
   // ---- Message bar (stop 5) ----
-  // showMessage(text, actionLabel, onAction): one message at a time, for
-  // 8 s, just above the set bar (or the tab bar). A new message replaces
-  // the old one; its Undo can then no longer be used.
+  // showMessage(text, actionLabel, onAction, { close }): one message at a
+  // time, for 8 s, just above the set bar (or the tab bar). A new message
+  // replaces the old one; its Undo can then no longer be used. close: true
+  // adds a ✕ at the right edge (stop 7, the backup reminder).
   const MESSAGE_MS = 8000;
   let messageTimer = null;
   let messageAction = null;
-  function showMessage(text, actionLabel, onAction) {
+  function showMessage(text, actionLabel, onAction, opts = {}) {
     const bar = document.getElementById("msgBar");
     document.getElementById("msgText").textContent = text;
     const btn = document.getElementById("msgAction");
     btn.textContent = actionLabel || "";
     btn.classList.toggle("hidden", !actionLabel);
     messageAction = onAction || null;
+    document.getElementById("msgClose").classList.toggle("hidden", !opts.close);
+    bar.classList.toggle("has-close", !!opts.close);
     bar.classList.add("visible");
     positionMessageBar();
     clearTimeout(messageTimer);
@@ -2897,6 +2943,7 @@
       + (nav.classList.contains("hidden") ? 0 : nav.offsetHeight);
     bar.style.bottom = `${below + 8}px`;
   }
+  document.getElementById("msgClose").addEventListener("click", hideMessage);
   document.getElementById("msgAction").addEventListener("click", () => {
     const fn = messageAction;
     hideMessage();
@@ -3317,6 +3364,7 @@
     editMode = false;
     historyEditDraft = null;
     showScreen("workout");
+    maybeRemindBackup(); // R1: "Last backup: 12 days ago" with Back Up and ✕
   }
 
   // Restore to Queue acts at once (no dialog) and shows Undo (stop 5).
@@ -3775,40 +3823,102 @@
     }
   });
 
-  // ---- Backup / Restore All Data ----
-  // Full, code-free way to move all app data (Program, Queue, History,
-  // Exercise List) to a new phone: exports everything as one downloadable
-  // JSON file, and can read that same file back in. This is a full
-  // replace only (no merge) — importing a backup overwrites whatever is
-  // currently on the device. Keeping the export as one flat JSON object
-  // keyed by the same localStorage key names means this same shape could
-  // later be sent to a cloud endpoint instead of a file, without
-  // reworking this logic — this is meant as a foundation for that, not
-  // just a one-off fix.
+  // ---- Backup / Restore All Data (stop 7) ----
+  // One JSON file with the same keys as localStorage (each value is the
+  // saved JSON text, or null for "none at backup time"), plus "_meta"
+  // (D1): app version, date and time, counts. Old files have no "_meta"
+  // and restore as before; older app versions ignore "_meta".
+  // Keys only on this phone, never in the file:
+  // - LAST_BACKUP_KEY (D2): { at, file } of the last backup file made.
+  // - BEFORE_RESTORE_KEY (D3): { at, label, data } = all data keys as they
+  //   were just before the last restore. One copy; "Undo Last Restore"
+  //   swaps it with the current data, so the undo can be undone.
   const ALL_DATA_KEYS = [PROGRAM_KEY, PROGRAMS_KEY, QUEUE_KEY, HISTORY_KEY, EXERCISE_LIST_KEY];
+  const LAST_BACKUP_KEY = "gymapp_last_backup_v1";
+  const BEFORE_RESTORE_KEY = "gymapp_before_restore_v1";
+  const AFTER_RESTORE_FLAG = "gymapp_after_restore"; // sessionStorage, read once after the reload
+  const BACKUP_DUE_MS = 7 * 24 * 60 * 60 * 1000;
+
+  function readJSONKey(key) {
+    try { const v = JSON.parse(readKey(key)); return v && typeof v === "object" ? v : null; } catch (e) { return null; }
+  }
+  // Local date and time as "2026-11-17T19:42:10" (no time zone letter).
+  function localStamp(d = new Date()) {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+  }
+  // "17 Nov, 19:45" (and the year when it is not this year).
+  function formatStamp(stamp) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(stamp || "");
+    if (!m) return "";
+    const year = Number(m[1]) !== new Date().getFullYear() ? ` ${m[1]}` : "";
+    return `${Number(m[3])} ${MONTH_ABBR[Number(m[2]) - 1] || ""}${year}${m[4] ? `, ${m[4]}:${m[5]}` : ""}`;
+  }
+  function stampToMs(stamp) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):?(\d{2})?/.exec(stamp || "");
+    return m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0)).getTime() : NaN;
+  }
+
+  // ---- Last backup and reminder (D2, R1) ----
+  function lastBackup() {
+    const v = readJSONKey(LAST_BACKUP_KEY);
+    return v && typeof v.at === "string" ? v : null;
+  }
+  function daysAgoText(ms) {
+    const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+    const days = Math.round((startOfDay(Date.now()) - startOfDay(ms)) / 86400000);
+    return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+  }
+  // { text, due }: "Last backup: 12 days ago (5 Nov)" and whether it is
+  // more than 7 days old (or there is none while History has workouts).
+  function backupStatus() {
+    const last = lastBackup();
+    const ms = last ? stampToMs(last.at) : NaN;
+    if (!last || isNaN(ms)) return { text: "Last backup: never", due: history.length > 0, short: "never" };
+    const ago = daysAgoText(ms);
+    return {
+      text: `Last backup: ${ago} (${formatStamp(last.at).replace(/, \d\d:\d\d$/, "")})`,
+      due: Date.now() - ms > BACKUP_DUE_MS,
+      short: ago
+    };
+  }
+  // After Finish Workout: a reminder with "Back Up" and ✕ when a backup is due.
+  function maybeRemindBackup() {
+    const s = backupStatus();
+    if (s.due) showMessage(`Last backup: ${s.short}`, "Back Up", exportAllData, { close: true });
+  }
 
   function exportAllData() {
-    const data = {};
+    const at = localStamp();
+    const data = {
+      _meta: {
+        app: "GymLog",
+        appVersion: APP_VERSION,
+        exportedAt: at,
+        counts: { history: history.length, queue: queue.length, programs: programs.length, exercises: exerciseList.length }
+      }
+    };
     ALL_DATA_KEYS.forEach(k => { data[k] = readKey(k); });
+    const file = `gym-data-${todayISO()}.json`;
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `gym-data-${todayISO()}.json`;
+    a.download = file;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    // R4: the app cannot know if the file was saved; it counts the backup now.
+    writeKey(LAST_BACKUP_KEY, JSON.stringify({ at, file }));
+    if (currentScreen === "settings") renderSettings();
+    showMessage(`Backup file made: ${file}`);
   }
 
   // Sanity-checks an imported file before touching localStorage: must be
-  // a plain object, must contain at least one of the five expected keys,
-  // and any present value must be null or a string that itself parses as
-  // JSON (each key's value is a JSON-encoded string, matching how
-  // localStorage stores it) — catches "wrong file" mistakes without
-  // being strict about which keys are present (e.g. a backup taken with
-  // no active program legitimately has a null program value).
+  // a plain object, must contain at least one of the data keys, and any
+  // present value must be null or a string that itself parses as JSON.
+  // "_meta" and other unknown keys are ignored.
   function validateAllDataFile(data) {
     if (!data || typeof data !== "object" || Array.isArray(data)) return "Not a valid backup file.";
     const present = ALL_DATA_KEYS.filter(k => k in data);
@@ -3822,20 +3932,88 @@
     return null;
   }
 
-  // Full replace: any key present in the file overwrites the matching
-  // localStorage key; a null value (no data of that kind at export time,
-  // e.g. no active program) removes that key instead of writing "null".
-  // Reloads afterward rather than patching the in-memory state, since a
-  // restore touches all five keys at once and a fresh load is the
-  // simplest way to guarantee everything (program, queue, history,
-  // exercise list, and whichever workout is active) is consistent.
-  // If a write fails part-way (storage full), the old values are put back,
-  // so the phone never holds a mix of old and new data.
-  function doImportAllData(data) {
+  // ---- Restore check (stop 7): what is in the file, next to this phone ----
+  // Each value is { text, n } (n is for the "less than the phone" check),
+  // or null when the file does not have that kind of data (D4: kept).
+  function summarizeData(get) {
+    const arr = (k) => { try { const v = JSON.parse(get(k)); return Array.isArray(v) ? v : null; } catch (e) { return null; } };
+    const has = (k) => get(k) !== undefined;
+    const out = {};
+    if (has(HISTORY_KEY)) {
+      const h = (arr(HISTORY_KEY) || []).filter(w => w && typeof w === "object");
+      const newest = h.map(w => (typeof w.date === "string" ? w.date : "")).sort().pop() || "";
+      out.history = { text: `${h.length} workout${h.length === 1 ? "" : "s"}`, n: h.length };
+      out.newest = { text: newest ? formatStamp(newest) : "None", n: newest };
+    } else { out.history = null; out.newest = null; }
+    if (has(QUEUE_KEY)) {
+      const q = arr(QUEUE_KEY) || [];
+      out.queue = { text: `${q.length} workout${q.length === 1 ? "" : "s"}`, n: q.length };
+    } else out.queue = null;
+    if (has(PROGRAMS_KEY) || has(PROGRAM_KEY)) {
+      const ps = arr(PROGRAMS_KEY);
+      let name = "";
+      if (ps) { const cur = ps.find(p => p && p.status === "current"); name = cur && cur.name ? cur.name : ""; }
+      else { try { const legacy = JSON.parse(get(PROGRAM_KEY)); name = legacy && legacy.name ? legacy.name : ""; } catch (e) {} }
+      out.program = { text: name || "None", n: null };
+    } else out.program = null;
+    if (has(EXERCISE_LIST_KEY)) {
+      const ex = arr(EXERCISE_LIST_KEY) || [];
+      out.exercises = { text: String(ex.length), n: ex.length };
+    } else out.exercises = null;
+    return out;
+  }
+
+  function restoreCheckHTML(data, fileName) {
+    const meta = data._meta && typeof data._meta === "object" ? data._meta : null;
+    const made = meta && typeof meta.exportedAt === "string" ? `made ${formatStamp(meta.exportedAt)}` : "made: unknown (older backup file)";
+    const ver = meta && typeof meta.appVersion === "string" ? ` · ${meta.appVersion.replace("gym-app-cache-", "")}` : "";
+    const file = summarizeData(k => (k in data ? data[k] : undefined));
+    const phone = summarizeData(k => readKey(k));
+    const rows = [["History", "history"], ["Newest", "newest"], ["Queue", "queue"], ["Program", "program"], ["Exercises", "exercises"]];
+    const cell = (v) => v ? escapeHtml(v.text) : "—";
+    const less = (f, p) => f && p && f.n !== null && p.n !== null && f.n < p.n;
+    const table = rows.map(([label, key]) => {
+      const f = file[key], p = phone[key];
+      const fileText = f ? cell(f) : "Not in file (kept)";
+      return `<tr><td>${label}</td><td class="${less(f, p) ? "diff" : ""}">${fileText}</td><td>${cell(p)}</td></tr>`;
+    }).join("");
+    const fewer = file.history && phone.history && file.history.n < phone.history.n
+      ? `<div class="sheet-note warn">The file has ${phone.history.n - file.history.n} fewer workout${phone.history.n - file.history.n === 1 ? "" : "s"} in History than this phone.</div>` : "";
+    return `
+      <div class="sheet-sub">${escapeHtml(fileName || "Backup file")} · ${escapeHtml(made)}${escapeHtml(ver)}</div>
+      <table class="cmp"><tr><th></th><th>In the File</th><th>On This Phone</th></tr>${table}</table>
+      ${fewer}
+      <div class="sheet-note">Your current data is kept as an undo copy. You can put it back with Settings → Undo Last Restore.</div>`;
+  }
+
+  // "backup from 5 Nov" (from _meta, else from a gym-data-YYYY-MM-DD name).
+  function backupLabel(data, fileName) {
+    const meta = data && data._meta && typeof data._meta === "object" ? data._meta : null;
+    if (meta && typeof meta.exportedAt === "string") return `backup from ${formatStamp(meta.exportedAt).replace(/, \d\d:\d\d$/, "")}`;
+    const m = /(\d{4}-\d{2}-\d{2})/.exec(fileName || "");
+    return m ? `backup from ${formatStamp(m[1])}` : "backup file";
+  }
+
+  // Writes the data keys from `data` and keeps the old values as the undo
+  // copy (D3). D4: only keys that are in the file are written; a null
+  // value removes that key (it was "none" at backup time); keys that the
+  // file does not have stay as they are. If a write fails part-way, the
+  // old values are put back. Reloads after success (the test helper
+  // fetch("/__baseline.json")...doImportAllData(d) uses this too).
+  // The two program keys are one kind of data: an old (pre-v59) file has
+  // only PROGRAM_KEY, so PROGRAMS_KEY is then cleared and the start-up
+  // migration builds the programs from the file's program, as before.
+  function inBackupFile(data, k) {
+    if (k === PROGRAM_KEY || k === PROGRAMS_KEY) return PROGRAM_KEY in data || PROGRAMS_KEY in data;
+    return k in data;
+  }
+  function doImportAllData(data, label = "backup file", doneText = `Restored: ${label}`) {
     const before = {};
     try {
       ALL_DATA_KEYS.forEach(k => { before[k] = localStorage.getItem(k); });
+      localStorage.setItem(BEFORE_RESTORE_KEY, JSON.stringify({ at: localStamp(), label, data: before }));
       ALL_DATA_KEYS.forEach(k => {
+        if (!inBackupFile(data, k)) return;
         if (data[k] === null || data[k] === undefined) localStorage.removeItem(k);
         else localStorage.setItem(k, data[k]);
       });
@@ -3847,9 +4025,32 @@
         });
       } catch (e2) {}
       openNotice("Restore failed", "The backup could not be saved on this phone. Your data was not changed.");
-      return;
+      return false;
     }
+    try { sessionStorage.setItem(AFTER_RESTORE_FLAG, JSON.stringify({ text: doneText })); } catch (e) {}
     location.reload();
+    return true;
+  }
+
+  // Undo Last Restore: swap the undo copy and the current data.
+  function undoCopy() {
+    const v = readJSONKey(BEFORE_RESTORE_KEY);
+    return v && v.data && typeof v.data === "object" ? v : null;
+  }
+  function confirmUndoLastRestore() {
+    const copy = undoCopy();
+    if (!copy) return;
+    openConfirm(
+      "Undo Last Restore?",
+      `Your data goes back to how it was before ${formatStamp(copy.at)}. The data that you have now becomes the undo copy, so you can change your mind again.`,
+      () => {
+        const data = {};
+        ALL_DATA_KEYS.forEach(k => { data[k] = k in copy.data ? copy.data[k] : null; });
+        doImportAllData(data, "data from before the restore", "Restore undone");
+      },
+      "Undo Restore",
+      true
+    );
   }
 
   function handleImportAllDataFile(e) {
@@ -3862,25 +4063,45 @@
       try {
         data = JSON.parse(reader.result);
       } catch (err) {
-        openConfirm("Import failed", "Invalid JSON — couldn't parse the file.", null, "OK", false);
+        openNotice("Import failed", "Invalid JSON — couldn't parse the file.");
         return;
       }
       const validationError = validateAllDataFile(data);
       if (validationError) {
-        openConfirm("Import failed", validationError, null, "OK", false);
+        openNotice("Import failed", validationError);
         return;
       }
-      openConfirm(
-        "Replace all data?",
-        "This will replace your Program, Queue, History, and Exercise List with the contents of this file. This cannot be undone.",
-        () => doImportAllData(data),
-        "Replace All Data",
-        true
-      );
+      openRestoreCheck(data, file.name);
     };
     reader.readAsText(file);
   }
+  function openRestoreCheck(data, fileName) {
+    openSheet({
+      title: "Replace All Data?",
+      bodyHTML: restoreCheckHTML(data, fileName),
+      confirm: { label: "Replace All Data", onSelect: () => doImportAllData(data, backupLabel(data, fileName)) }
+    });
+  }
   document.getElementById("importAllDataFileInput").addEventListener("change", handleImportAllDataFile);
+
+  // ---- Storage protection (R2) ----
+  // Asks the browser once per start to keep GymLog's data when the phone
+  // is low on space. No question to the user; the browser decides.
+  // storageProtected: true / false / null (the browser gives no answer).
+  let storageProtected = null;
+  if (navigator.storage && navigator.storage.persisted && navigator.storage.persist) {
+    navigator.storage.persisted()
+      .then(p => p || navigator.storage.persist())
+      .then(p => { storageProtected = !!p; if (currentScreen === "settings") renderSettings(); })
+      .catch(() => {});
+  }
+
+  // ---- Two open copies of the app (R3) ----
+  // When another tab or window saves GymLog data, this copy reloads, so it
+  // cannot save its old data over the new data.
+  window.addEventListener("storage", (e) => {
+    if (e.key === null || (typeof e.key === "string" && e.key.startsWith("gymapp_"))) location.reload();
+  });
 
   // Queue screen interactions
   document.getElementById("addAdhocBtn").addEventListener("click", addAdhocWorkout);
@@ -4022,7 +4243,19 @@
   document.getElementById("emptyAddAdhocBtn").addEventListener("click", addAdhocWorkout);
   document.getElementById("emptyImportBtn").addEventListener("click", openImportModal);
 
-  showScreen("workout");
+  // Just after a restore (or its undo) the app opens Settings and says so,
+  // with Undo (stop 7). The flag is read once.
+  let afterRestore = null;
+  try {
+    afterRestore = JSON.parse(sessionStorage.getItem(AFTER_RESTORE_FLAG) || "null");
+    sessionStorage.removeItem(AFTER_RESTORE_FLAG);
+  } catch (e) {}
+  if (afterRestore && typeof afterRestore.text === "string") {
+    showScreen("settings");
+    showMessage(afterRestore.text, undoCopy() ? "Undo" : "", confirmUndoLastRestore);
+  } else {
+    showScreen("workout");
+  }
 
   // Saved data that could not be read at startup (see loadArray()).
   if (corruptKeys.length) {

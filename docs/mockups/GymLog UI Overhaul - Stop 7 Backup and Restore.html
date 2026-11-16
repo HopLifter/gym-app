@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymLog UI Overhaul - Stop 7 Backup and Restore</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --raised: #1A1E1B;
+    --line: #343A35;
+    --control: #5E675F;
+    --text: #EDEEEA;
+    --text-2: #A3ABA3;
+    --accent: #C6FF3D;
+    --danger: #FF7566;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --r-control: 8px; --r-sheet: 16px;
+    --f-label: 13px; --f-body: 16px; --f-name: 18px; --f-title: 24px; --f-timer: 34px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #000; color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, "Segoe UI", sans-serif;
+    font-size: var(--f-body); line-height: 1.35;
+    padding: var(--s5) 0 64px;
+  }
+  svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* Mockup page furniture (not part of the app) */
+  .doc { max-width: 430px; margin: 0 auto; padding: 0 var(--s4); }
+  .doc h2 { font-size: 20px; margin: 48px 0 var(--s2); }
+  .doc h2:first-child { margin-top: 0; }
+  .doc p, .doc li { color: var(--text-2); font-size: 14px; margin: 0 0 var(--s3); }
+  .doc ul { padding-left: 20px; margin: 0 0 var(--s3); }
+  .doc b { color: var(--text); }
+  .phone { max-width: 430px; height: 780px; margin: 0 auto var(--s4); background: var(--bg); outline: 1px solid #222; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .screen { flex: 1; padding: 0 var(--s4); overflow: hidden; }
+
+  /* ---- App components ---- */
+  .label { font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+  .label.accent { color: var(--accent); }
+  .num { font-variant-numeric: tabular-nums; }
+  .title { font-size: var(--f-title); font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.2; }
+  .h1row { padding: var(--s4) 0 var(--s2); display: flex; align-items: center; min-height: 64px; }
+  .h1row .title { flex: 1; }
+
+  .row { display: flex; align-items: center; gap: var(--s3); min-height: 64px; padding: var(--s3) 0; border-bottom: 1px solid var(--line); position: relative; }
+  .row-main { flex: 1; min-width: 0; }
+  .row-name { font-size: var(--f-name); font-weight: 600; }
+  .row-sub { font-size: 14px; color: var(--text-2); }
+  .row-val { font-size: var(--f-body); color: var(--text-2); }
+  .row.next::before { content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .row.danger .row-name { color: var(--danger); font-weight: 600; font-size: var(--f-body); }
+  .row.action .row-name { font-size: var(--f-body); }
+  .row.short { min-height: 56px; }
+  .chev { color: var(--control); }
+  .more { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text-2); margin-right: -10px; }
+  .month { display: flex; align-items: baseline; padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .month .label:first-child { flex: 1; }
+  .section { padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .text-btn { min-height: 56px; display: flex; align-items: center; gap: var(--s2); color: var(--text); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .prog { padding: var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+  .prog-name { font-size: var(--f-name); font-weight: 600; margin-top: 2px; }
+  .prog-sub { font-size: 14px; color: var(--text-2); }
+
+  /* Set bar (from stop 4, for context) */
+  .bar { background: var(--raised); border-top: 1px solid var(--line); padding: var(--s3) var(--s4); display: flex; align-items: center; gap: var(--s4); }
+  .bar-info { flex: 1; min-width: 0; }
+  .bar-time { font-size: var(--f-timer); font-weight: 700; line-height: 1.1; }
+  .bar-what { font-size: 14px; color: var(--text-2); }
+  .btn { height: 52px; border-radius: var(--r-control); display: flex; align-items: center; justify-content: center; font-size: var(--f-body); font-weight: 700; padding: 0 var(--s5); }
+  .btn.primary { background: var(--accent); color: #0B0D0C; }
+  .btn.secondary { border: 1.5px solid var(--control); color: var(--text); }
+  .btn.danger { background: var(--danger); color: #0B0D0C; }
+  .bar .btn { height: 56px; }
+
+  .tabs { display: flex; background: var(--bg); border-top: 1px solid var(--line); position: relative; z-index: 3; }
+  .tab { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.on { color: var(--accent); }
+
+  /* Bottom sheet: one component for menus AND confirm dialogs */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.62); z-index: 4; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--raised); border-radius: var(--r-sheet) var(--r-sheet) 0 0; padding: var(--s2) var(--s4) var(--s4); }
+  .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--control); margin: 0 auto var(--s3); }
+  .sheet-title { font-size: var(--f-name); font-weight: 700; margin-bottom: 2px; }
+  .sheet-sub { font-size: 14px; color: var(--text-2); padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+  .sheet-text { font-size: var(--f-body); color: var(--text-2); margin: var(--s2) 0 var(--s5); }
+  .opt { min-height: 56px; display: flex; align-items: center; gap: var(--s3); font-size: var(--f-body); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .opt svg { color: var(--text-2); }
+  .opt.danger, .opt.danger svg { color: var(--danger); }
+  .opt.off { color: var(--control); }
+  .opt.off svg { color: var(--control); }
+  .opt.cancel { justify-content: center; border-bottom: 0; color: var(--text-2); }
+  .stack { display: flex; flex-direction: column; gap: var(--s3); }
+
+  /* Message bar: one place, just above the set bar / tab bar */
+  .msg { margin: 0 var(--s3) var(--s2); background: var(--raised); border-radius: var(--r-control); display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s2) 0 var(--s4); min-height: 52px; border: 1px solid var(--line); }
+  .msg span { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg b { font-weight: 600; }
+  .msg .act { flex: 0 0 auto; min-width: 64px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 700; }
+  .msg .close { flex: 0 0 44px; min-width: 44px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text-2); }
+  .msg.has-close { padding-right: 0; gap: var(--s1); }
+  .float { position: absolute; left: 0; right: 0; bottom: 57px; z-index: 2; }
+  .float.over-bar { bottom: 138px; }
+</style>
+</head>
+<body>
+<svg style="display:none">
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="i-today" viewBox="0 0 24 24"><path d="M4 9v6M8 6v12M16 6v12M20 9v6M8 12h8"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+</svg>
+<style>
+  .phone { height: 812px; }
+  .row-sub.warn { color: var(--danger); }
+  .cmp { width: 100%; border-collapse: collapse; font-size: 15px; margin: var(--s2) 0 var(--s3); }
+  .cmp th { text-align: left; font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
+  .cmp td { padding: 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .cmp td:first-child { color: var(--text-2); width: 34%; }
+  .cmp td.diff { color: var(--danger); font-weight: 600; }
+  .file { font-size: 14px; color: var(--text-2); padding-bottom: var(--s2); }
+  .warnline { color: var(--danger); font-size: 15px; margin: var(--s2) 0; }
+  .keep { color: var(--text-2); font-size: 15px; margin: 0 0 var(--s4); }
+  .wk-head { padding: var(--s4) 0 var(--s3); border-bottom: 1px solid var(--line); }
+  table.code { font-family: monospace; font-size: 12px; color: var(--text-2); }
+  pre { background: #121513; border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 12px; color: var(--text-2); overflow-x: auto; }
+</style>
+
+<div class="doc">
+  <h2>Stop 7: backup and restore</h2>
+  <p>Today, "Backup All Data" saves a file, and "Restore from Backup" asks one question and replaces all data. Nothing tells you when you last made a backup, the question does not show what is in the file, and a restore cannot be undone.</p>
+  <p><b>Bug found:</b> a restore deletes every kind of data that is not in the file. A file with only History in it would delete your Queue, programs and Exercise List. D4 below fixes this.</p>
+
+  <h2>Data model: four changes (your OK first)</h2>
+  <p>Your data is 42 KB. The phone allows about 5 MB, so one extra copy is no problem.</p>
+  <ul>
+    <li><b>D1. Backup file: a new "_meta" part</b> with the app version, the date and time of the backup, and the counts. Old backup files have no "_meta" and still restore. Older app versions ignore "_meta", so a new file still restores in an old version.</li>
+    <li><b>D2. New key on the phone: last backup</b> (<code>gymapp_last_backup_v1</code>): the date and time and the file name. It is not in the backup file, because it belongs to this phone.</li>
+    <li><b>D3. New key on the phone: the undo copy</b> (<code>gymapp_before_restore_v1</code>): all your data as it was just before the last restore. There is only one copy; the next restore replaces it. "Undo Last Restore" swaps the two, so you can also undo the undo. Not in the backup file.</li>
+    <li><b>D4. A restore writes only what is in the file.</b> Data that the file does not have stays as it is. An empty value in the file ("none at backup time", for example no program) still clears that data, as now.</li>
+  </ul>
+  <pre>{
+  "_meta": { "app": "GymLog", "appVersion": "gym-app-cache-v72",
+             "exportedAt": "2026-11-17T19:42:10",
+             "counts": { "history": 36, "queue": 2, "programs": 1, "exercises": 58 } },
+  "gymapp_programs_v1": "[...]",
+  "gymapp_queue_v1": "[...]",
+  "gymapp_history_v1": "[...]",
+  "gymapp_exercise_list_v1": "[...]"
+}</pre>
+
+  <p><b>Four other proposals:</b></p>
+  <ul>
+    <li><b>R1. Reminder.</b> When the last backup is more than 7 days old (or there is none) and you finished a workout since then, the message bar shows "Last backup: 12 days ago" with "Back Up" after Finish Workout. Settings shows the same line in red. No pop-up when the app opens.</li>
+    <li><b>R2. Ask the browser to protect the data</b> (<code>navigator.storage.persist()</code>) once when the app opens, without a question to you. About shows the result. The browser decides; on some phones the answer is always "No".</li>
+    <li><b>R3. Two open copies of the app:</b> when one copy saves, the other reloads. Without this, an old copy can save over new data. You see nothing in normal use.</li>
+    <li><b>R4. Limit:</b> the app counts a backup when it makes the file. It cannot know if you saved the file or cancelled the download.</li>
+  </ul>
+  <p>I also propose "Back Up All Data" in place of "Backup All Data" ("back up" is the action, "backup" is the file).</p>
+
+  <p><b>Decision (user, 17 Nov 2026):</b> D1 to D4, R1 to R4 and the rename accepted. Screen 4 has a ✕ at the right edge of the message, with "Back Up" just to its left. Built in v72.</p>
+
+  <h2>1. Settings: Data section</h2>
+  <p>"Back Up All Data" shows the last backup below it, in red when it is more than 7 days old. "Undo Last Restore" shows only after a restore. About shows if the browser protects the data.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Settings</h1></div>
+    <div class="section"><span class="label">Program</span></div>
+    <div class="row short"><div class="row-main"><div class="row-sub">Current Program</div><div class="row-name">Block 1 – Knee Rehab</div></div></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Add Next Program</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short danger"><div class="row-main"><div class="row-name">End Current Program</div></div></div>
+
+    <div class="section"><span class="label">Data</span></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Back Up All Data</div><div class="row-sub warn">Last backup: 12 days ago (5 Nov)</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Restore from Backup</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Undo Last Restore</div><div class="row-sub">Puts back your data from before 17 Nov, 19:45</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Export Gym Log</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+
+    <div class="section"><span class="label">About</span></div>
+    <div class="row short"><div class="row-main"><div class="row-name" style="font-size:16px">GymLog <span class="row-val">· v72</span></div><div class="row-sub">Offline. Your data stays on this phone only. No account, no cloud.</div><div class="row-sub">Storage: protected by the browser</div></div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab on"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>2. Before a restore: what is in the file</h2>
+  <p>After you choose a file, the sheet compares the file with this phone. Red values are less than on the phone. If the file has fewer History workouts, a red line says so. The undo copy is mentioned, so the step is less frightening. An old file without "_meta" shows "Made: unknown (older backup file)".</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Settings</h1></div>
+    <div class="section"><span class="label">Program</span></div>
+    <div class="row short"><div class="row-main"><div class="row-sub">Current Program</div><div class="row-name">Block 1 – Knee Rehab</div></div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab on"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-title">Replace All Data?</div>
+    <div class="file">gym-data-2026-11-05.json · made 5 Nov 2026, 21:14 · v70</div>
+    <table class="cmp">
+      <tr><th></th><th>In the File</th><th>On This Phone</th></tr>
+      <tr><td>History</td><td class="diff">34 workouts</td><td>36 workouts</td></tr>
+      <tr><td>Newest</td><td class="diff">29 Oct</td><td>2 Nov</td></tr>
+      <tr><td>Queue</td><td>4 workouts</td><td>2 workouts</td></tr>
+      <tr><td>Program</td><td>Block 1 – Knee Rehab</td><td>Block 1 – Knee Rehab</td></tr>
+      <tr><td>Exercises</td><td>58</td><td>58</td></tr>
+    </table>
+    <div class="warnline">The file has 2 fewer workouts in History than this phone.</div>
+    <div class="keep">Your current data is kept as an undo copy. You can put it back with Settings → Undo Last Restore.</div>
+    <div class="stack">
+      <div class="btn danger">Replace All Data</div>
+      <div class="btn secondary">Cancel</div>
+    </div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>3. After the restore</h2>
+  <p>The app reloads (as now) and opens Settings. The message bar confirms the restore and has Undo for 8 s. After that, "Undo Last Restore" in Settings still works.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Settings</h1></div>
+    <div class="section"><span class="label">Program</span></div>
+    <div class="row short"><div class="row-main"><div class="row-sub">Current Program</div><div class="row-name">Block 1 – Knee Rehab</div></div></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Add Next Program</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short danger"><div class="row-main"><div class="row-name">End Current Program</div></div></div>
+    <div class="section"><span class="label">Data</span></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Back Up All Data</div><div class="row-sub warn">Last backup: 12 days ago (5 Nov)</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Restore from Backup</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Undo Last Restore</div><div class="row-sub">Puts back your data from before 17 Nov, 19:45</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+  </div>
+  <div class="float"><div class="msg"><span><b>Restored:</b> backup from 5 Nov</span><span class="act">Undo</span></div></div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab on"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>4. Reminder after Finish Workout (R1)</h2>
+  <p>You finished a workout and the last backup is 12 days old. The finished workout shows, and the message bar has "Back Up", which makes the file at once. The ✕ closes the message (user feedback, 17 Nov 2026). If you ignore it, it goes away after 8 s. Either way it comes back after the next workout, until you make a backup.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="wk-head"><span class="label">Mon, 2 Nov 2026 · 1h 12m</span><h1 class="title">Wk4 D2 · Deadlift + Back</h1></div>
+    <div class="row"><div class="row-main"><div class="row-name">Hamstring Curl Machine</div><div class="row-sub">3 × 12 · 61 kg · RPE 7</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Sumo Deadlift</div><div class="row-sub">3 × 5 · 140 kg · RPE 6 · Beltless; no knee issues</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Pullups</div><div class="row-sub">3 × 8 · 10 kg · RPE 8 · Wide grip</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Hip Adduction</div><div class="row-sub">3 × 20 · 103 kg · RPE 20</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Seated Rows</div><div class="row-sub">3 × 10 · 78.5 kg · RPE 8</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Face Pulls</div><div class="row-sub">3 × 15 · 24 kg · RPE 7</div></div></div>
+  </div>
+  <div class="float"><div class="msg has-close"><span><b>Last backup:</b> 12 days ago</span><span class="act">Back Up</span><span class="close" aria-label="Close"><svg><use href="#i-x"/></svg></span></div></div>
+  <div class="tabs">
+    <div class="tab on"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+</body>
+</html>
