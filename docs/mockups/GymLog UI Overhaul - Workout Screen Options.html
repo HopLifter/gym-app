@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymLog UI Overhaul - Workout Screen Options</title>
+<style>
+  /* Proposed tokens (assessment part B) */
+  :root {
+    --bg: #0B0D0C;
+    --raised: #1A1E1B;
+    --line: #343A35;
+    --control: #5E675F;
+    --text: #EDEEEA;
+    --text-2: #A3ABA3;
+    --accent: #C6FF3D;
+    --danger: #FF7566;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --r-control: 8px; --r-sheet: 16px;
+    --f-label: 13px; --f-body: 16px; --f-name: 18px; --f-title: 24px; --f-timer: 34px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #000; color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, "Segoe UI", sans-serif;
+    font-size: var(--f-body); line-height: 1.35;
+    padding: var(--s5) 0 64px;
+  }
+  svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* Mockup page furniture (not part of the app) */
+  .doc { max-width: 430px; margin: 0 auto; padding: 0 var(--s4); }
+  .doc h2 { font-size: 20px; margin: 48px 0 var(--s2); }
+  .doc h2:first-child { margin-top: 0; }
+  .doc p { color: var(--text-2); font-size: 14px; margin: 0 0 var(--s3); }
+  .phone { max-width: 430px; margin: 0 auto var(--s4); background: var(--bg); outline: 1px solid #222; display: flex; flex-direction: column; }
+  .phone.tall { min-height: 780px; }
+  .screen { flex: 1; padding: 0 var(--s4); }
+
+  /* ---- App components ---- */
+  .label { font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .hdr { padding: var(--s4) 0 var(--s3); border-bottom: 1px solid var(--line); }
+  .hdr-top { display: flex; align-items: center; gap: var(--s3); min-height: 48px; }
+  .hdr-top .label { flex: 1; }
+  .clock { font-size: var(--f-name); font-weight: 700; }
+  .icon-btn { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: var(--text-2); margin-right: -12px; }
+  .title { font-size: var(--f-title); font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.2; }
+
+  /* Exercise row: full width, divider line, no box */
+  .row { display: flex; align-items: center; gap: var(--s3); min-height: 64px; padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+  .row-main { flex: 1; min-width: 0; }
+  .row-name { font-size: var(--f-name); font-weight: 600; }
+  .row-sub { font-size: 14px; color: var(--text-2); }
+  .row-count { font-size: var(--f-body); font-weight: 600; color: var(--text-2); }
+  .row.done .row-name { color: var(--text-2); font-weight: 400; }
+  .row.done svg { color: var(--accent); }
+
+  /* Open (active) exercise: accent bar at the left edge is the only marker */
+  .open { border-bottom: 1px solid var(--line); padding: var(--s3) 0 var(--s4); position: relative; }
+  .open::before { content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .open-head { display: flex; align-items: center; min-height: 48px; }
+  .open-head .row-name { flex: 1; }
+  .last { font-size: 14px; color: var(--text-2); margin-bottom: var(--s3); }
+  .fields { display: flex; gap: var(--s4); margin-bottom: var(--s3); }
+  .field { flex: 1; min-width: 0; }
+  .field .label { display: block; margin-bottom: var(--s1); }
+  .stepper { display: flex; align-items: center; height: 48px; border-bottom: 2px solid var(--control); }
+  .stepper .pm { width: 44px; height: 48px; display: flex; align-items: center; justify-content: center; color: var(--text-2); }
+  .stepper .val { flex: 1; text-align: center; font-size: 22px; font-weight: 700; }
+  .plain { height: 48px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; border-bottom: 2px solid var(--control); }
+  .note { display: flex; gap: var(--s2); align-items: center; color: var(--text-2); font-size: 15px; min-height: 32px; }
+  .note svg { width: 18px; height: 18px; }
+
+  .text-btn { min-height: 48px; display: flex; align-items: center; gap: var(--s2); color: var(--text); font-weight: 600; }
+  .btn { height: 52px; border-radius: var(--r-control); display: flex; align-items: center; justify-content: center; font-size: var(--f-body); font-weight: 700; }
+  .btn.primary { background: var(--accent); color: #0B0D0C; }
+  .btn.secondary { border: 1.5px solid var(--control); color: var(--text); }
+  .end { padding: var(--s3) 0 var(--s5); }
+
+  /* Bottom bar: one row, fixed above the tabs */
+  .bar { background: var(--raised); border-top: 1px solid var(--line); padding: var(--s3) var(--s4); display: flex; align-items: center; gap: var(--s4); position: relative; }
+  .bar-progress { position: absolute; left: 0; top: -1px; height: 3px; background: var(--accent); }
+  .bar-info { flex: 1; min-width: 0; }
+  .bar-time { font-size: var(--f-timer); font-weight: 700; line-height: 1.1; }
+  .bar-what { font-size: 14px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-what b { color: var(--text); font-weight: 600; }
+  .bar .btn { padding: 0 var(--s5); height: 56px; flex-shrink: 0; }
+  .bar.over .bar-time { color: var(--danger); }
+  .bar.over .bar-progress { background: var(--danger); width: 100%; }
+  .pips { display: flex; gap: var(--s1); margin-top: 6px; }
+  .pips i { width: 22px; height: 4px; border-radius: 2px; background: var(--control); }
+  .pips i.on { background: var(--accent); }
+  .undo { color: var(--text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+  .tabs { display: flex; background: var(--bg); border-top: 1px solid var(--line); }
+  .tab { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.on { color: var(--accent); }
+
+  /* Option B rows */
+  .b-row { padding: var(--s3) 0 var(--s4); border-bottom: 1px solid var(--line); position: relative; }
+  .b-row.active::before { content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .b-head { display: flex; align-items: center; min-height: 44px; gap: var(--s3); }
+  .b-head .row-name { flex: 1; }
+  .b-fields { display: flex; gap: var(--s3); }
+  .b-fields .field .plain { font-size: 18px; }
+
+  /* History list */
+  .month { padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .h1row { padding: var(--s4) 0 var(--s2); }
+  .chev { color: var(--control); }
+</style>
+</head>
+<body>
+
+<!-- Icon sprite -->
+<svg style="display:none">
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 5h14v10l-4 4H5z"/><path d="M15 19v-4h4"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="i-today" viewBox="0 0 24 24"><path d="M4 9v6M8 6v12M16 6v12M20 9v6M8 12h8"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></symbol>
+</svg>
+
+<div class="doc">
+  <h2>1. Workout screen, option A: one exercise open</h2>
+  <p>Only the exercise you do now is open. All others are one line each, so the complete workout fits on one screen. The state shown: you rest after set 2 of Squats. I recommend this option.</p>
+</div>
+
+<div class="phone tall">
+  <div class="screen">
+    <div class="hdr">
+      <div class="hdr-top">
+        <span class="label">Today · Mon 16 Nov</span>
+        <span class="clock num">24:10</span>
+        <span class="icon-btn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <h1 class="title">Wk4 D3 · Squat + Incline Bench + Arms/Delts</h1>
+    </div>
+
+    <div class="row done">
+      <svg><use href="#i-check"/></svg>
+      <div class="row-main">
+        <div class="row-name">Hamstring Curl Machine</div>
+        <div class="row-sub num">3 × 12 · 60 kg</div>
+      </div>
+    </div>
+
+    <div class="open">
+      <div class="open-head">
+        <span class="row-name">Squats</span>
+        <span class="icon-btn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <div class="last num">Last time: 1 Nov · 5 × 5 · 145 kg · RPE 8</div>
+      <div class="fields">
+        <div class="field">
+          <span class="label">Weight (kg)</span>
+          <div class="stepper"><span class="pm"><svg><use href="#i-minus"/></svg></span><span class="val num">150</span><span class="pm"><svg><use href="#i-plus"/></svg></span></div>
+        </div>
+        <div class="field">
+          <span class="label">Reps</span>
+          <div class="stepper"><span class="pm"><svg><use href="#i-minus"/></svg></span><span class="val num">5</span><span class="pm"><svg><use href="#i-plus"/></svg></span></div>
+        </div>
+      </div>
+      <div class="fields">
+        <div class="field"><span class="label">Sets</span><div class="plain num">5</div></div>
+        <div class="field"><span class="label">RPE</span><div class="plain num">8</div></div>
+        <div class="field"><span class="label">Rest (min)</span><div class="plain num">3.5</div></div>
+      </div>
+      <div class="note"><svg><use href="#i-note"/></svg>Beltless</div>
+    </div>
+
+    <div class="row">
+      <div class="row-main">
+        <div class="row-name">Incline Bench</div>
+        <div class="row-sub num">3 × 8 · 70 kg · RPE 8</div>
+      </div>
+      <span class="row-count num">0/3</span>
+    </div>
+    <div class="row">
+      <div class="row-main">
+        <div class="row-name">Tricep Pulldowns</div>
+        <div class="row-sub num">3 × 12 · 28 kg · RPE 8</div>
+      </div>
+      <span class="row-count num">0/3</span>
+    </div>
+    <div class="row">
+      <div class="row-main">
+        <div class="row-name">DB Shoulder Raises</div>
+        <div class="row-sub num">3 × 15 · 7 kg · RPE 8</div>
+      </div>
+      <span class="row-count num">0/3</span>
+    </div>
+    <div class="row">
+      <div class="row-main">
+        <div class="row-name">Hanging Leg Raise</div>
+        <div class="row-sub num">3 × 25 · RPE 7 · Straight legs only</div>
+      </div>
+      <span class="row-count num">0/3</span>
+    </div>
+
+    <div class="text-btn"><svg><use href="#i-plus"/></svg>Add Exercise</div>
+    <div class="end"><div class="btn secondary">Finish Workout</div></div>
+  </div>
+
+  <div class="bar">
+    <span class="bar-progress" style="width:62%"></span>
+    <div class="bar-info">
+      <div class="bar-time num">2:10</div>
+      <div class="bar-what"><b>Squats</b> · rest after set 2 of 5</div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="btn primary">Set 3 Done</div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab on"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>1b. Option A: a tap on a closed row</h2>
+  <p>A tap opens the row so that you can read or change its values. It does not change the active exercise: the green bar and the bottom bar stay on Squats. A second tap closes the row. Only "Start This Exercise" makes it the active exercise. If the active exercise still has sets that are not done, a confirm dialog comes first: "Squats is not finished. Start Incline Bench now?"</p>
+</div>
+
+<style>.open.viewing::before { display: none; } .open.viewing .btn { margin-top: 4px; }</style>
+<div class="phone">
+  <div class="screen">
+    <div class="row" style="position:relative">
+      <span style="position:absolute;left:-16px;top:0;bottom:0;width:3px;background:var(--accent)"></span>
+      <div class="row-main">
+        <div class="row-name">Squats</div>
+        <div class="row-sub num">Active exercise (stays open; shown short here)</div>
+      </div>
+      <span class="row-count num">2/5</span>
+    </div>
+
+    <div class="open viewing">
+      <div class="open-head">
+        <span class="row-name">Incline Bench</span>
+        <span class="row-count num">0/3</span>
+        <span class="icon-btn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <div class="last num">Last time: 28 Oct · 3 × 8 · 67.5 kg · RPE 8</div>
+      <div class="fields">
+        <div class="field">
+          <span class="label">Weight (kg)</span>
+          <div class="stepper"><span class="pm"><svg><use href="#i-minus"/></svg></span><span class="val num">70</span><span class="pm"><svg><use href="#i-plus"/></svg></span></div>
+        </div>
+        <div class="field">
+          <span class="label">Reps</span>
+          <div class="stepper"><span class="pm"><svg><use href="#i-minus"/></svg></span><span class="val num">8</span><span class="pm"><svg><use href="#i-plus"/></svg></span></div>
+        </div>
+      </div>
+      <div class="fields">
+        <div class="field"><span class="label">Sets</span><div class="plain num">3</div></div>
+        <div class="field"><span class="label">RPE</span><div class="plain num">8</div></div>
+        <div class="field"><span class="label">Rest (min)</span><div class="plain num">2</div></div>
+      </div>
+      <div class="btn secondary">Start This Exercise</div>
+    </div>
+
+    <div class="row" style="border-bottom:none">
+      <div class="row-main">
+        <div class="row-name">Tricep Pulldowns</div>
+        <div class="row-sub num">3 × 12 · 28 kg · RPE 8</div>
+      </div>
+      <span class="row-count num">0/3</span>
+    </div>
+  </div>
+
+  <div class="bar">
+    <span class="bar-progress" style="width:62%"></span>
+    <div class="bar-info">
+      <div class="bar-time num">2:10</div>
+      <div class="bar-what"><b>Squats</b> · rest after set 2 of 5</div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="btn primary">Set 3 Done</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>2. Workout screen, option B: all exercises open</h2>
+  <p>Each exercise shows its fields at all times, as the app does now. There is less tapping to open a row, but more scrolling: about 3 exercises fit on one screen. There is no room for − and + buttons.</p>
+</div>
+
+<div class="phone tall">
+  <div class="screen">
+    <div class="hdr">
+      <div class="hdr-top">
+        <span class="label">Today · Mon 16 Nov</span>
+        <span class="clock num">24:10</span>
+        <span class="icon-btn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <h1 class="title">Wk4 D3 · Squat + Incline Bench + Arms/Delts</h1>
+    </div>
+
+    <div class="b-row">
+      <div class="b-head">
+        <span class="row-name" style="color:var(--text-2);font-weight:400">Hamstring Curl Machine</span>
+        <svg style="color:var(--accent)"><use href="#i-check"/></svg>
+        <span class="icon-btn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <div class="b-fields">
+        <div class="field"><span class="label">Sets</span><div class="plain num">3</div></div>
+        <div class="field"><span class="label">Reps</span><div class="plain num">12</div></div>
+        <div class="field"><span class="label">kg</span><div class="plain num">60</div></div>
+        <div class="field"><span class="label">RPE</span><div class="plain num">7</div></div>
+        <div class="field"><span class="label">Rest</span><div class="plain num">2</div></div>
+      </div>
+    </div>
+
+    <div class="b-row active">
+      <div class="b-head">
+        <span class="row-name">Squats</span>
+        <span class="row-count num">2/5</span>
+        <span class="icon-btn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <div class="b-fields">
+        <div class="field"><span class="label">Sets</span><div class="plain num">5</div></div>
+        <div class="field"><span class="label">Reps</span><div class="plain num">5</div></div>
+        <div class="field"><span class="label">kg</span><div class="plain num">150</div></div>
+        <div class="field"><span class="label">RPE</span><div class="plain num">8</div></div>
+        <div class="field"><span class="label">Rest</span><div class="plain num">3.5</div></div>
+      </div>
+      <div class="note" style="margin-top:8px"><svg><use href="#i-note"/></svg>Beltless</div>
+    </div>
+
+    <div class="b-row">
+      <div class="b-head">
+        <span class="row-name">Incline Bench</span>
+        <span class="row-count num">0/3</span>
+        <span class="icon-btn"><svg><use href="#i-more"/></svg></span>
+      </div>
+      <div class="b-fields">
+        <div class="field"><span class="label">Sets</span><div class="plain num">3</div></div>
+        <div class="field"><span class="label">Reps</span><div class="plain num">8</div></div>
+        <div class="field"><span class="label">kg</span><div class="plain num">70</div></div>
+        <div class="field"><span class="label">RPE</span><div class="plain num">8</div></div>
+        <div class="field"><span class="label">Rest</span><div class="plain num">2</div></div>
+      </div>
+    </div>
+
+    <div class="b-row" style="border-bottom:none">
+      <div class="b-head">
+        <span class="row-name">Tricep Pulldowns</span>
+        <span class="row-count num">0/3</span>
+        <span class="icon-btn"><svg><use href="#i-more"/></svg></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bar">
+    <span class="bar-progress" style="width:62%"></span>
+    <div class="bar-info">
+      <div class="bar-time num">2:10</div>
+      <div class="bar-what"><b>Squats</b> · rest after set 2 of 5</div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="btn primary">Set 3 Done</div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab on"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>3. Bottom bar: the five states</h2>
+  <p>The bar is one row above the tabs. It has one button. The button always says what the next tap does.</p>
+
+  <p><b>a. Before the first set.</b> The first tap also starts the workout clock.</p>
+</div>
+<div class="phone">
+  <div class="bar">
+    <div class="bar-info">
+      <div class="bar-what"><b>Squats</b> · set 1 of 5</div>
+      <div class="pips"><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="btn primary">Set 1 Done</div>
+  </div>
+</div>
+
+<div class="doc"><p><b>b. Rest.</b> The line at the top edge shows the rest time that remains. "Undo" shows for 6 seconds after each tap.</p></div>
+<div class="phone">
+  <div class="bar">
+    <span class="bar-progress" style="width:96%"></span>
+    <div class="bar-info">
+      <div class="bar-time num">3:24</div>
+      <div class="bar-what"><b>Squats</b> · Set 2 Done · <span class="undo">Undo</span></div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="btn primary">Set 3 Done</div>
+  </div>
+</div>
+
+<div class="doc"><p><b>c. Rest is over.</b> The time counts up in red.</p></div>
+<div class="phone">
+  <div class="bar over">
+    <span class="bar-progress"></span>
+    <div class="bar-info">
+      <div class="bar-time num">+0:40</div>
+      <div class="bar-what"><b>Squats</b> · rest after set 2 of 5</div>
+      <div class="pips"><i class="on"></i><i class="on"></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="btn primary">Set 3 Done</div>
+  </div>
+</div>
+
+<div class="doc"><p><b>d. Last set done.</b> The exercise gets its check mark, the next exercise opens, and the rest time runs.</p></div>
+<div class="phone">
+  <div class="bar">
+    <span class="bar-progress" style="width:88%"></span>
+    <div class="bar-info">
+      <div class="bar-time num">3:05</div>
+      <div class="bar-what">Next: <b>Incline Bench</b> · set 1 of 3</div>
+      <div class="pips"><i></i><i></i><i></i></div>
+    </div>
+    <div class="btn primary">Set 1 Done</div>
+  </div>
+</div>
+
+<div class="doc"><p><b>e. All exercises done.</b></p></div>
+<div class="phone">
+  <div class="bar">
+    <div class="bar-info">
+      <div class="bar-what"><b>All Done</b> · 58 min</div>
+    </div>
+    <div class="btn primary">Finish Workout</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>4. List screen: History</h2>
+  <p>Flat rows with a line between them and a heading for each month. Queue, Settings and the Exercise List use the same row.</p>
+</div>
+
+<div class="phone tall">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">History</h1></div>
+
+    <div class="month"><span class="label">November 2026</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk4 D2 · Deadlift + Back</div><div class="row-sub">Mon 2 Nov · 6 exercises</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk4 D1 · Squat + Heavy Bench</div><div class="row-sub">Sun 1 Nov · 7 exercises</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+
+    <div class="month"><span class="label">October 2026</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D4 · Squat + DB Push/Pull</div><div class="row-sub">Thu 29 Oct · 7 exercises</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D3 · Squat + Incline Bench + Arms/Delts</div><div class="row-sub">Wed 28 Oct · 6 exercises</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D2 · Deadlift + Back</div><div class="row-sub">Mon 26 Oct · 5 exercises</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D1 · Squat + Heavy Bench</div><div class="row-sub">Sun 25 Oct · 6 exercises</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk2 D4 · Squat + DB Push/Pull</div><div class="row-sub">Thu 22 Oct · 6 exercises</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk2 D3 · Squat + Incline Bench + Arms/Delts</div><div class="row-sub">Wed 21 Oct · 6 exercises</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+  </div>
+  <div class="tabs">
+    <div class="tab on"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+</body>
+</html>
