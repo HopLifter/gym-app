@@ -1,5 +1,94 @@
 # GymLog — Project Summary
 
+## UI/UX overhaul, stop 3 feedback: Today screen changes (v66, 16 November 2026)
+Changes from the user's test of v65 (v65 was not committed or published).
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v66`. No data model change.
+Where this section and the v65 section below disagree, this section is correct.
+
+- **Reps before Weight** in the open row (Reps left, Weight right).
+- **History button:** the "Last time" line is gone. A clock button to the
+  left of the ⋮ menu shows or hides the "Last 3 Sessions" panel
+  (`toggle-history`, `expandedHistoryIds`); the button is green while the
+  panel shows. `lastTimeText()` is removed.
+- **Superset pair:** both rows open and close as one, and both can be
+  edited (`cardHTML(ex, { open, timerBtn })`, set in `renderExercises()`).
+  One "Start Rest Timer" button is below the second row. It uses the rest
+  time and sets of the second exercise; if that exercise has no rest time,
+  it uses the first. The timer bar shows the names in workout order
+  (`pairNames()`).
+- **Timer bar tap:** a tap on the rest timer bar (not on its buttons) goes
+  back to the timer's exercise (`goToTimerExercise()`): the workout shows,
+  the row opens and scrolls to just below the header. The timer now stores
+  `exerciseId` and `workoutId` (in memory only). If the timer belongs to a
+  past workout, its read-only view opens.
+- **"Replace set timer?" dialog:** the user confirmed it stays as it is. In
+  stop 4, "Start This Exercise" uses this same dialog; the wording planned
+  earlier ("Squats is not finished…") is dropped.
+- **Tested** in the desktop browser at 375 px with the restored baseline and
+  a temporary superset. Not run on a phone.
+
+## UI/UX overhaul, stop 3: New workout screen (v65, 16 November 2026)
+Stop 2 was the mockups (`docs/mockups/GymLog UI Overhaul - Workout Screen
+Options.html`; option A was chosen). Stop 3 rebuilds the Workout screen to
+that mockup. `CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v65`. No data
+model change. Sections further down that describe exercise cards, the date
+badge, the 📊/⏱ buttons, Volume and "last-tapped highlighting" describe the
+old screen.
+
+- **Design tokens** at the top of the CSS (`:root`): 8 colours (`--bg`,
+  `--raised`, `--line`, `--control`, `--text`, `--text-2`, `--accent`,
+  `--danger`), 5 font sizes, a spacing scale, 2 radii. Rules: flat screens,
+  divider lines, no boxes, one accent action per screen, controls at least
+  44 px high (48 px where there is room), 16 px text in fields. New work
+  uses these tokens only. The old names (`--surface`, `--surface-2`,
+  `--text-dim`, `--accent-dim`, `--done`) remain for Queue, History,
+  Settings, the dialogs and the condensed table until stop 5.
+- **Icons:** one inline SVG sprite at the top of `<body>`; use
+  `<svg class="icon"><use href="#i-name"/></svg>`. No emoji icons.
+- **Exercise rows** (`cardHTML()`): each exercise is a flat row. One row is
+  open at a time (`openExerciseId`; a workout opens with its first row
+  open). A closed row shows the name and a one-line summary
+  (`exerciseSummary()`). A tap opens a row; a tap on the name of the open
+  row closes it. The open row has a "Last time" line (a tap shows the last
+  3 sessions), Weight and Reps with − and + buttons (2.5 kg and 1 rep), Sets,
+  RPE, Rest, Notes and a "Start Rest Timer" button. A tap on a number field
+  selects its value. Sets and Reps are now text fields with a numeric
+  keyboard (parsed with `parseInt`).
+- **Exercise menu:** Change Exercise, Move Up, Move Down, Superset, Delete
+  (last). The name is plain text; the name picker shows only for an exercise
+  with no name or after "Change Exercise" (`renamingIds`). Stop 6 replaces
+  the picker.
+- **Click handling** reads the action with `e.target.closest("[data-action]")`,
+  because buttons now hold icons and spans.
+- **Header:** label "Today · 16 Nov" (only the date while a workout timer
+  exists), the workout clock and Start/Hold to Pause button, and the ⋮ menu
+  in one row. The title is a one-line `<textarea>` that grows, so long
+  titles wrap. The date badge is gone.
+- **Finish Workout** is a button at the end of the exercise list (Today's
+  Workout only), with the same confirm dialog. It is no longer in the ⋮ menu.
+- **Removed from the screen:** Volume, the 📊 and ⏱ icon buttons, the
+  last-tapped highlight. `calcVolume()` and `formatDateBadge()` are now
+  unused (clean-up in stop 9).
+- **Tab bar:** solid background, full width, icon plus label, 56 px plus the
+  bottom safe area. The rest timer bar is attached above it (same content as
+  before; stop 4 replaces it with the "Set Done" bar).
+- **Viewport:** `viewport-fit=cover` with `env(safe-area-inset-*)` padding;
+  `user-scalable=no` removed (`maximum-scale=1` stays, to stop the zoom on
+  focus on iOS); `touch-action: manipulation` on the body.
+- **Decisions for stop 4 (agreed):** small data model ("set 3 of 5 done"
+  for today's workout only, room left for set-by-set logging later); one
+  bottom bar with one button ("Set 3 Done"), no Pause and no ✕; a tap on a
+  closed row opens it but does not change the active exercise; "Start This
+  Exercise" makes it active, with a confirm dialog if the active exercise
+  still has sets that are not done; Finish Workout is always active and its
+  dialog names exercises that are not complete.
+- **Testing limits:** desktop browser at 375, 360 and 768 px with the
+  restored baseline: open/close rows, steppers, typed values with a comma,
+  Recent sessions, menu actions, Change Exercise, delete and undo, Add
+  Exercise, rest timer, Finish dialog, peeked queue workout, Past Workout
+  view and edit mode, Queue, History and Settings screens. Not run on a
+  phone; safe-area padding can only be checked there.
+
 ## UI/UX overhaul, stop 1: Protect the data (v64, 16 November 2026)
 First stop of a 9-stop overhaul (assessment of UX, visual design, code and
 data safety done in the same session). Nothing looks different in this stop.
@@ -72,7 +161,7 @@ no subscriptions.
 - Section headings below that say "session" were written at different
   times. Use `git log` for the real dates.
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v64` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v66` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s

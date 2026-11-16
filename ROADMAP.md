@@ -228,6 +228,27 @@ Potential features:
 **Complexity:** 5/5  
 **UX/UI Improvement:** 5/5
 
+### 2.3 UI/UX Overhaul Epic
+
+**Status:** In progress. Stops 1 to 3 are done (v64 and v66).
+
+**Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html`.
+
+**Stops:**
+
+1. Protect the data: safe storage helpers, failed-save rollback, text escaping (done, v64).
+2. Mockups for the Workout screen, the bottom bar and the History list (done).
+3. New Workout screen: flat rows with one open row, − and + buttons, history button, superset pair opens as one, timer bar tap goes to its exercise (done, v66).
+4. "Set Done" bar that replaces the rest timer bar: one button ("Set 3 Done"), saved timer and set count, active exercise with "Start This Exercise". This stop replaces feature 1.2's set squares and prepares feature 1.8.
+5. Other screens: Queue, History with month headings, Settings, dialogs, bottom sheets, one message bar.
+6. Exercise picker: full screen, search, recent exercises, values from the last session.
+7. Backup and restore: last backup date and reminder, file summary before restore, undo copy.
+8. Import preview and a progress screen for each exercise.
+9. Clean-up: dead code, manifest and icon, documents.
+
+**Complexity:** 4/5  
+**UX/UI Improvement:** 5/5
+
 ## 3. Suggested Development Order
 
 An initial suggested sequence, subject to further exploration:
@@ -238,6 +259,7 @@ An initial suggested sequence, subject to further exploration:
 4. Workout Description and Comment (done).
 5. Superset Import (done).
 6. Program Builder Epic, Phases 1 to 3 (Phase 1 done; Phase 2 steps 1 to 4 done, steps 5 to 7 left).
+   The UI/UX Overhaul Epic (2.3) is in progress now, stops 1 to 3 done; it comes before the items below.
 7. Set-by-Set Logging.
 8. Planned vs. Actual Tracking.
 9. Missed Reps Logging.
