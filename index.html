@@ -354,32 +354,43 @@
   .text-btn { display: flex; align-items: center; gap: var(--s2); width: 100%; min-height: 56px; font-weight: 600; }
   .workout-end { padding: var(--s1) 0 var(--s5); }
 
-  /* Name picker (shown for a new exercise and after "Change Exercise"). */
-  .name-field-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-  .name-input, .name-select {
-    flex: 1; width: 100%; min-width: 0; height: 48px;
+  /* ---- Exercise picker (stop 6): one full screen for "Add Exercise"
+     and "Change Exercise" (openPicker). It covers the tab bar and the
+     set bar; bottom sheets and dialogs still show above it. */
+  .picker {
+    position: fixed; inset: 0; z-index: 48;
     background: var(--bg);
-    border: none; border-bottom: 2px solid var(--control); border-radius: 0;
-    color: var(--text);
-    font-family: inherit; font-size: var(--f-name); font-weight: 600;
-    padding: 0 2px;
+    overflow-y: auto; overscroll-behavior: contain;
   }
-  .name-select option { background: var(--raised); color: var(--text); }
-  .name-input:focus, .name-select:focus { outline: none; border-bottom-color: var(--accent); }
-  .add-to-list-btn {
-    align-self: flex-start;
-    background: none;
-    border: 1.5px solid var(--control);
-    border-radius: var(--r-control);
-    color: var(--text);
-    font-size: 14px;
-    font-weight: 700;
-    height: 44px;
-    padding: 0 14px;
-    margin-bottom: var(--s2);
-    cursor: pointer;
+  .picker-inner {
+    max-width: 480px; margin: 0 auto;
+    padding: calc(var(--safe-top) + var(--s2)) var(--s4) calc(var(--safe-bottom) + var(--s6));
   }
-  .add-to-list-btn:disabled { color: var(--text-2); border-color: var(--line); cursor: default; }
+  .picker-top { position: sticky; top: 0; z-index: 1; background: var(--bg); margin-top: calc(var(--s2) * -1); padding-top: var(--s2); }
+  .picker-now { font-size: 14px; color: var(--text-2); margin-top: calc(var(--s2) * -1); padding-bottom: var(--s2); overflow-wrap: anywhere; }
+  .picker-search {
+    display: flex; align-items: center; gap: var(--s3); height: 56px;
+    border-bottom: 2px solid var(--control); color: var(--text-2);
+  }
+  .picker-search:focus-within { border-bottom-color: var(--accent); }
+  .picker-search input {
+    flex: 1; min-width: 0; height: 100%;
+    background: none; border: none; border-radius: 0;
+    color: var(--text); font-family: inherit; font-size: var(--f-body);
+  }
+  .picker-search input:focus { outline: none; }
+  .picker-search input::placeholder { color: var(--text-2); }
+  .picker-search input::-webkit-search-cancel-button { display: none; }
+  button.picker-row {
+    width: 100%; background: none; border: none; border-bottom: 1px solid var(--line);
+    color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer;
+  }
+  .picker-row .list-main { min-height: 56px; }
+  .picker-row .list-name { font-size: var(--f-body); }
+  .picker-row .list-sub.none { color: var(--control); }
+  .picker-row mark { background: none; color: var(--accent); }
+  .picker-row.add-new { gap: var(--s3); }
+  .picker-row.add-new > .icon, .picker-row.add-new .list-name { color: var(--accent); }
 
   .recent-panel { padding-bottom: var(--s3); font-size: 14px; }
   .recent-panel-title {
@@ -688,6 +699,8 @@
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 6l10 6-10 6z"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-set" viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
   <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
   <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
@@ -789,6 +802,25 @@
   <div id="exerciseListItems"></div>
 </div>
 
+<!-- EXERCISE PICKER (full screen, over everything except sheets) -->
+<div class="picker hidden" id="pickerScreen" role="dialog" aria-modal="true" aria-labelledby="pickerTitle">
+  <div class="picker-inner">
+    <div class="picker-top">
+      <div class="screen-head">
+        <h1 id="pickerTitle">Add Exercise</h1>
+        <button class="menu-btn" type="button" id="pickerCloseBtn" aria-label="Close" style="margin-right:-12px"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="picker-now hidden" id="pickerNow"></div>
+      <div class="picker-search">
+        <svg class="icon"><use href="#i-search"/></svg>
+        <input type="search" id="pickerSearch" placeholder="Search or type a new name" maxlength="60" autocomplete="off" autocapitalize="words" enterkeyhint="done" aria-label="Search exercises">
+        <button class="menu-btn hidden" type="button" id="pickerClearBtn" aria-label="Clear search" style="margin-right:-12px"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+    </div>
+    <div id="pickerList"></div>
+  </div>
+</div>
+
 <input type="file" id="importAllDataFileInput" accept="application/json" class="hidden">
 
 <div class="bottom-nav" id="bottomNav">
@@ -877,7 +909,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v70";
+  const APP_VERSION = "gym-app-cache-v71";
 
   const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
   const PROGRAMS_KEY = "gymapp_programs_v1";
@@ -970,8 +1002,6 @@
     "Tricep Kickbacks", "Tricep Pulldowns"
   ];
 
-  const CUSTOM_NAME_VALUE = "__custom__"; // sentinel <option> value meaning "not on the list"
-
   function loadExerciseList() {
     const saved = loadArray(EXERCISE_LIST_KEY);
     return saved ? saved.filter(n => typeof n === "string") : null; // null = not yet migrated, distinct from []
@@ -992,20 +1022,9 @@
     saveExerciseList();
   }
 
-  function normalizeExerciseName(str) {
-    return (str || "").toLowerCase().trim().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ");
-  }
-  // Exact (case/whitespace/punctuation-insensitive) lookup of a name
-  // against the exercise list — used to decide whether the dropdown
-  // should show a matching entry selected or fall back to "New Exercise".
-  function findCanonicalMatch(name, list) {
-    const norm = normalizeExerciseName(name);
-    if (!norm) return null;
-    return list.find(c => normalizeExerciseName(c) === norm) || null;
-  }
   // Duplicate check for adding to the list: exact match ignoring case
-  // and surrounding whitespace only — deliberately NOT fuzzy (that's
-  // what the name-suggestion dropdown is for, not list management).
+  // and surrounding whitespace only. The picker uses the same rule to
+  // decide whether a typed name is new.
   function isDuplicateExerciseName(name, list) {
     const norm = (name || "").trim().toLowerCase();
     if (!norm) return false;
@@ -1116,7 +1135,6 @@
   let expandedHistoryIds = new Set(); // exercise ids with the "Recent" panel open
   let backNavTarget = null; // "queue" | "history" | null — where the contextual back button on the Workout screen goes
   let supersettingId = null;
-  let customNameEditingIds = new Set(); // exercise ids currently showing the free-text name input instead of the dropdown
   // Set bar (see the set progress section).
   const REST_OVERTIME_LIMIT_MS = 300000;
   const SET_UNDO_MS = 6000;
@@ -1124,7 +1142,6 @@
   let setBarInterval = null;
   let openExerciseId = null;   // the one exercise row that is open (see cardHTML)
   let openForWorkoutId = null; // the workout that openExerciseId belongs to
-  let renamingIds = new Set(); // exercise ids that show the name picker after "Change Exercise"
   let confirmAction = null;
   // Deep-copy working draft used while editing a Past Workout
   // (viewSource === "history" && editMode). All edits made in edit mode
@@ -1321,58 +1338,6 @@
     return isNaN(num) ? "" : num;
   }
 
-  // Renders the exercise-name picker for editable cards.
-  // Two states per exercise:
-  // - Editing a custom name (id is in customNameEditingIds): a plain
-  //   free-text input, plus an "Add to Exercise List" button that
-  //   lets the user promote what they just typed into the standardized
-  //   list right from here (disabled while empty or an exact duplicate
-  //   of something already on the list). Entered on picking "New
-  //   Exercise" from the dropdown, or when a brand-new exercise is
-  //   added.
-  // - Otherwise: a dropdown only, listing the standardized exerciseList
-  //   alphabetically. Its selected/visible text is whatever name the
-  //   exercise currently has — a list entry, or (via a synthetic
-  //   option) the custom name the user already typed. "New Exercise"
-  //   is just one option inside that dropdown, not something
-  //   displayed once a name has been chosen — it only reappears if the
-  //   user opens the list again.
-  function nameFieldHTML(ex) {
-    if (customNameEditingIds.has(ex.id)) {
-      const trimmed = (ex.name || "").trim();
-      const dup = trimmed && isDuplicateExerciseName(trimmed, exerciseList);
-      const addDisabled = !trimmed || dup;
-      return `
-        <div class="name-field-wrap">
-          <input class="name-input" data-field="name" data-action="custom-name-input" value="${escapeAttr(ex.name)}" placeholder="Exercise name">
-          <button class="add-to-list-btn" type="button" data-action="add-to-exercise-list"${addDisabled ? " disabled" : ""}>${dup ? "Already on list" : "Add to Exercise List"}</button>
-        </div>
-      `;
-    }
-    const matched = findCanonicalMatch(ex.name, exerciseList);
-    const options = [];
-    if (!ex.name) {
-      // Brand-new exercise (no name yet): make the select start on an
-      // invisible placeholder value, NOT on "New Exercise" itself. If
-      // "New Exercise" were already the selected option, tapping it
-      // again fires no "change" event (the value wouldn't actually
-      // change), so the free-text input would never open. Starting on
-      // a distinct placeholder guarantees picking "New Exercise" is a
-      // real value change every time.
-      options.push(`<option value="" selected disabled hidden></option>`);
-    }
-    options.push(`<option value="${CUSTOM_NAME_VALUE}">New Exercise</option>`);
-    if (!matched && ex.name) {
-      // Synthetic option so the select's own visible text is the user's
-      // custom name, not the "New Exercise" placeholder label.
-      options.push(`<option value="${escapeAttr(ex.name)}" selected>${escapeHtml(ex.name)}</option>`);
-    }
-    options.push(...exerciseList.map(n =>
-      `<option value="${escapeAttr(n)}"${matched === n ? " selected" : ""}>${escapeHtml(n)}</option>`
-    ));
-    return `<select class="name-select" data-action="name-select">${options.join("")}</select>`;
-  }
-
   // ---- Exercise rows (UI overhaul, v65) ----
   // Each exercise is one flat row. One row is open at a time
   // (openExerciseId); the others show the name and a one-line summary.
@@ -1449,13 +1414,15 @@
           </button>
         </div>`;
     }
-    // The name is plain text (a tap closes the row). The picker shows only
-    // for an exercise with no name, or after "Change Exercise".
-    const picking = !ex.name || renamingIds.has(ex.id) || customNameEditingIds.has(ex.id);
+    // The name is plain text (a tap closes the row). A row without a name
+    // (only in old saved data) shows "Choose Exercise", which opens the
+    // picker.
     return `
       <div class="exercise open${cls}" data-id="${id}">
         <div class="ex-head">
-          ${picking ? nameFieldHTML(ex) : `<button class="ex-title" type="button" data-action="toggle-open"><span class="ex-name">${escapeHtml(ex.name)}</span></button>`}
+          ${ex.name
+            ? `<button class="ex-title" type="button" data-action="toggle-open"><span class="ex-name">${escapeHtml(ex.name)}</span></button>`
+            : `<button class="ex-title" type="button" data-action="rename"><span class="ex-name" style="color:var(--accent)">Choose Exercise</span></button>`}
           ${count}
           <button class="menu-btn hist-btn${expandedHistoryIds.has(ex.id) ? " on" : ""}" type="button" data-action="toggle-history" aria-label="Last 3 sessions" aria-pressed="${expandedHistoryIds.has(ex.id)}"><svg class="icon"><use href="#i-hist"/></svg></button>
           <button class="menu-btn" type="button" data-action="menu" aria-label="Exercise menu"><svg class="icon"><use href="#i-more"/></svg></button>
@@ -2651,83 +2618,10 @@
 
   const container = document.getElementById("workout");
 
-  // Exercise-name dropdown: picking a canonical entry sets the name
-  // directly and keeps the dropdown showing. Picking "New Exercise"
-  // clears the name and switches to the free-text input, focused
-  // so the user can type right away; the dropdown (and its "New
-  // Exercise" option) only comes back if they reopen it later.
-  container.addEventListener("change", (e) => {
-    if (e.target.dataset.action !== "name-select") return;
-    const card = e.target.closest(".exercise");
-    if (!card) return;
-    const id = card.dataset.id;
-    const ex = findExercise(id);
-    if (!ex) return;
-    const value = e.target.value;
-    if (value === CUSTOM_NAME_VALUE) {
-      ex.name = "";
-      customNameEditingIds.add(id);
-    } else {
-      ex.name = value;
-      renamingIds.delete(id);
-    }
-    saveActiveWorkout();
-    renderExercises();
-    if (value === CUSTOM_NAME_VALUE) {
-      setTimeout(() => {
-        const input = document.querySelector(`.exercise[data-id="${id}"] .name-input`);
-        if (input) input.focus();
-      }, 30);
-    }
-  });
-
-  // Primary fix: stop "Add to Exercise List" from ever blurring the
-  // name input in the first place. A mousedown's default action is what
-  // shifts focus to the clicked element — preventing that default keeps
-  // focus (and the input/button) exactly where they are; the click
-  // event still fires normally afterward. This avoids the blur race
-  // entirely instead of just outrunning it, and is the standard fix for
-  // this exact "button next to a focused field" pattern.
-  container.addEventListener("mousedown", (e) => {
-    if (e.target.dataset.action === "add-to-exercise-list") {
-      e.preventDefault();
-    }
-  });
-
-  // Finishing a custom name (leaving the field) switches back to the
-  // dropdown view, now showing the typed name instead of "New
-  // Exercise". Enter key does the same, via blur.
-  //
-  // Backstop for the mousedown fix above (e.g. keyboard-only focus
-  // changes): deferring with setTimeout(0) means if a click on
-  // "Add to Exercise List" is what caused this blur, that click's own
-  // handler (which runs first, synchronously, before any timer) gets to
-  // finish and clear customNameEditingIds itself — making this a no-op
-  // instead of a second, conflicting render that would remove the
-  // button out from under the pending click.
-  container.addEventListener("focusout", (e) => {
-    if (e.target.dataset.action !== "custom-name-input") return;
-    const card = e.target.closest(".exercise");
-    if (!card) return;
-    const id = card.dataset.id;
-    if (!customNameEditingIds.has(id)) return;
-    setTimeout(() => {
-      if (customNameEditingIds.has(id) && findExercise(id)) {
-        customNameEditingIds.delete(id);
-        renderExercises();
-      }
-    }, 0);
-  });
-  container.addEventListener("keydown", (e) => {
-    if (e.target.dataset.action === "custom-name-input" && e.key === "Enter") {
-      e.target.blur();
-    }
-  });
-
   // A tap on a number field selects its value, so the next key replaces it.
   container.addEventListener("focusin", (e) => {
     const el = e.target;
-    if (el.tagName !== "INPUT" || !el.dataset.field || el.dataset.field === "name") return;
+    if (el.tagName !== "INPUT" || !el.dataset.field) return;
     setTimeout(() => { if (document.activeElement === el) el.select(); }, 0);
   });
 
@@ -2750,7 +2644,6 @@
     if (action === "toggle-open") {
       // The class, not the id: both rows of a superset pair are open.
       openExerciseId = card.classList.contains("open") ? null : id;
-      renamingIds.delete(id);
       renderExercises();
       return;
     }
@@ -2770,16 +2663,8 @@
       return;
     }
 
-    if (action === "add-to-exercise-list") {
-      const trimmed = (ex.name || "").trim();
-      if (!trimmed) return;
-      const result = addExerciseToList(trimmed);
-      if (result.ok) {
-        ex.name = trimmed;
-        customNameEditingIds.delete(id);
-        saveActiveWorkout();
-        renderExercises();
-      }
+    if (action === "rename") {
+      openPicker("change", ex);
       return;
     }
 
@@ -2823,8 +2708,7 @@
     if (!w || !ex) return;
 
     if (action === "rename") {
-      renamingIds.add(id);
-      renderExercises();
+      openPicker("change", ex);
       return;
     }
 
@@ -2832,8 +2716,6 @@
       const exs = w.exercises;
       const index = exs.findIndex(x => x.id === id);
       exs.splice(index, 1);
-      customNameEditingIds.delete(id);
-      renamingIds.delete(id);
       if (openExerciseId === id) openExerciseId = null;
       saveActiveWorkout();
       renderExercises();
@@ -3030,16 +2912,7 @@
     const field = e.target.dataset.field;
     if (!field) return;
 
-    if (field === "name") {
-      ex.name = e.target.value;
-      const addBtn = card.querySelector('[data-action="add-to-exercise-list"]');
-      if (addBtn) {
-        const trimmed = ex.name.trim();
-        const dup = trimmed && isDuplicateExerciseName(trimmed, exerciseList);
-        addBtn.disabled = !trimmed || dup;
-        addBtn.textContent = dup ? "Already on list" : "Add to Exercise List";
-      }
-    } else if (field === "rest") {
+    if (field === "rest") {
       ex.rest = restMinutesToSeconds(e.target.value);
       // Superset members share one rest time: mirror the new value onto
       // the partner's data, and — if the partner's card is on screen —
@@ -3066,27 +2939,223 @@
 
   window.addEventListener("resize", positionMessageBar);
 
-  document.getElementById("addBtn").addEventListener("click", () => {
-    const ex = { id: newId("ex"), name: "", sets: 3, reps: 10, weight: 0, rpe: "", rest: 60, notes: "", supersetId: null };
+  document.getElementById("addBtn").addEventListener("click", () => openPicker("add"));
+
+  // ---- Exercise picker (stop 6) ----
+  // One full screen for "Add Exercise" and "Change Exercise". No data
+  // model change: "Recent" and the last values come from History, matched
+  // by name (trimmed, case-insensitive), like getRecentPerformance().
+  // - A typed name that is not on the Exercise List is added to it.
+  // - "Add Exercise" makes the row only after a pick, with sets, reps,
+  //   weight, RPE and rest from the last session (not the notes).
+  // - "Change Exercise" changes only the name.
+  const PICKER_RECENT = 8;
+  let picker = null; // { mode: "add" | "change", workout, ex, index }
+
+  // name key -> { name, date, sets, reps, weight, rpe, rest } of the newest
+  // workout that has the exercise (its first row, if there are two).
+  function lastSessionIndex() {
+    const index = new Map();
+    for (const w of history) {
+      if (!w || !Array.isArray(w.exercises)) continue;
+      const date = typeof w.date === "string" ? w.date : "";
+      for (const ex of w.exercises) {
+        const name = typeof ex.name === "string" ? ex.name.trim() : "";
+        if (!name) continue;
+        const key = name.toLowerCase();
+        const cur = index.get(key);
+        if (!cur || date > cur.date) {
+          index.set(key, { name, date, sets: ex.sets, reps: ex.reps, weight: ex.weight, rpe: ex.rpe, rest: ex.rest });
+        }
+      }
+    }
+    return index;
+  }
+
+  function openPicker(mode, ex) {
     const w = getActiveWorkout();
-    if (!w) return;
+    if (!w || !isEditable()) return;
+    picker = { mode, workout: w, ex: ex || null, index: lastSessionIndex() };
+    document.getElementById("pickerTitle").textContent =
+      mode === "add" ? "Add Exercise" : (ex && ex.name ? "Change Exercise" : "Choose Exercise");
+    const now = document.getElementById("pickerNow");
+    const nowText = mode === "change" && ex && ex.name
+      ? ["Now: " + ex.name, exerciseSummary({ ...ex, notes: "" })].filter(Boolean).join(" · ")
+      : "";
+    now.textContent = nowText;
+    now.classList.toggle("hidden", !nowText);
+    const search = document.getElementById("pickerSearch");
+    search.value = "";
+    renderPicker();
+    const screen = document.getElementById("pickerScreen");
+    screen.classList.remove("hidden");
+    screen.scrollTop = 0;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closePicker() {
+    picker = null;
+    const search = document.getElementById("pickerSearch");
+    search.blur();
+    search.value = "";
+    document.getElementById("pickerScreen").classList.add("hidden");
+    document.body.style.overflow = "";
+  }
+
+  function pickerSubText(last) {
+    if (!last) return "";
+    return [exerciseSummary({ ...last, notes: "" }), formatDateShort(last.date)].filter(Boolean).join(" · ");
+  }
+
+  // The name with each search word in the accent colour. Text is escaped
+  // piece by piece, so only <mark> is HTML.
+  function highlightHTML(name, words) {
+    if (!words || !words.length) return escapeHtml(name);
+    const re = new RegExp(words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "gi");
+    let out = "", at = 0, m;
+    while ((m = re.exec(name)) && m[0]) {
+      out += escapeHtml(name.slice(at, m.index)) + "<mark>" + escapeHtml(m[0]) + "</mark>";
+      at = m.index + m[0].length;
+    }
+    return out + escapeHtml(name.slice(at));
+  }
+
+  function pickerRowHTML(name, last, words) {
+    const sub = pickerSubText(last);
+    return `
+      <button type="button" class="list-row picker-row" data-name="${escapeAttr(name)}">
+        <span class="list-main">
+          <span class="list-name">${highlightHTML(name, words)}</span>
+          <span class="list-sub num${sub ? "" : " none"}">${sub ? escapeHtml(sub) : "No history yet"}</span>
+        </span>
+      </button>`;
+  }
+
+  function renderPicker() {
+    if (!picker) return;
+    const raw = document.getElementById("pickerSearch").value.trim();
+    const q = raw.toLowerCase();
+    document.getElementById("pickerClearBtn").classList.toggle("hidden", !raw);
+    const index = picker.index;
+    const lastOf = (name) => index.get(name.trim().toLowerCase()) || null;
+    // Every known name: the Exercise List, then names that are only in History.
+    const names = [...exerciseList];
+    for (const last of index.values()) {
+      if (!isDuplicateExerciseName(last.name, names)) names.push(last.name);
+    }
+    let html = "";
+    if (!q) {
+      const recent = [...index.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, PICKER_RECENT);
+      if (recent.length) {
+        html += `<div class="list-head"><span class="label">Recent</span></div>`;
+        html += recent.map(last => pickerRowHTML(last.name, last, null)).join("");
+      }
+      let letter = null;
+      exerciseList.forEach((name, i) => {
+        const first = /[a-z]/i.test(name[0]) ? name[0].toUpperCase() : "#";
+        if (first !== letter) {
+          letter = first;
+          html += `<div class="list-head"><span class="label">${i === 0 ? "All Exercises · " : ""}${escapeHtml(first)}</span></div>`;
+        }
+        html += pickerRowHTML(name, lastOf(name), null);
+      });
+      if (!exerciseList.length) html += `<div class="list-empty">Your Exercise List is empty. Type a name above.</div>`;
+    } else {
+      // A name matches when it contains every typed word ("db curl" finds
+      // "Alternating DB Curls"). If none does, names with any word show as
+      // similar names.
+      const words = q.split(/\s+/).filter(Boolean);
+      let matches = names.filter(n => words.every(w => n.toLowerCase().includes(w)));
+      const exact = matches.length > 0;
+      if (!exact) matches = names.filter(n => words.some(w => w.length > 1 && n.toLowerCase().includes(w)));
+      matches.sort((a, b) => {
+        const la = lastOf(a), lb = lastOf(b);
+        if (la && lb) return la.date < lb.date ? 1 : la.date > lb.date ? -1 : a.localeCompare(b);
+        if (la || lb) return la ? -1 : 1;
+        return a.localeCompare(b);
+      });
+      // The "Add" row is first when no name contains all the words, and
+      // last otherwise, so a part of a name is not added by mistake.
+      const addRow = isDuplicateExerciseName(raw, names) ? "" : `
+          <button type="button" class="list-row picker-row add-new" data-name="${escapeAttr(raw)}" data-new="1">
+            <svg class="icon"><use href="#i-plus"/></svg>
+            <span class="list-main">
+              <span class="list-name">Add "${escapeHtml(raw)}"</span>
+              <span class="list-sub">New exercise. It also goes on your Exercise List.</span>
+            </span>
+          </button>`;
+      const rowsHTML = matches.map(n => pickerRowHTML(n, lastOf(n), words)).join("");
+      html += exact ? rowsHTML + addRow : addRow + rowsHTML;
+    }
+    document.getElementById("pickerList").innerHTML = html;
+  }
+
+  function pickExercise(rawName, isNew) {
+    const p = picker;
+    const name = (rawName || "").trim();
+    if (!p || !name) return;
+    closePicker();
+    const w = p.workout;
+    if (getActiveWorkout() !== w) return;
+    const addedToList = isNew ? addExerciseToList(name).ok : false;
+
+    if (p.mode === "change") {
+      if (!p.ex || !w.exercises.includes(p.ex)) return;
+      p.ex.name = name;
+      saveActiveWorkout();
+      renderExercises();
+      return;
+    }
+
+    const last = p.index.get(name.toLowerCase()) || null;
+    const ex = { id: newId("ex"), name, sets: 3, reps: 10, weight: 0, rpe: "", rest: 60, notes: "", supersetId: null };
+    if (last) {
+      for (const f of ["sets", "reps", "weight", "rpe", "rest"]) {
+        if (hasValue(last[f])) ex[f] = last[f];
+      }
+    }
     w.exercises.push(ex);
     openExerciseId = ex.id;
-    // Left out of customNameEditingIds on purpose: a brand-new exercise
-    // starts showing the dropdown (with "New Exercise" as its first
-    // option) immediately, rather than a free-text input that only
-    // becomes a dropdown after the user taps away from it.
+    openForWorkoutId = w.id;
     saveActiveWorkout();
     renderExercises();
     setTimeout(() => {
-      const cards = document.querySelectorAll(".exercise");
-      const last = cards[cards.length - 1];
-      if (last) {
-        last.scrollIntoView({ behavior: "smooth", block: "center" });
-        const select = last.querySelector(".name-select");
-        if (select) select.focus();
-      }
+      const row = document.querySelector(`#workout .exercise[data-id="${CSS.escape(ex.id)}"]`);
+      if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 50);
+    // Undo removes the row (and the new list entry, if this pick made one).
+    showMessage(`Added: "${name}"` + (last && last.date ? ` · values from ${formatDateShort(last.date)}` : ""), "Undo", () => {
+      if (getActiveWorkout() !== w) return;
+      const i = w.exercises.indexOf(ex);
+      if (i === -1) return;
+      w.exercises.splice(i, 1);
+      if (openExerciseId === ex.id) openExerciseId = null;
+      if (addedToList) removeExerciseFromList(name);
+      saveActiveWorkout();
+      renderExercises();
+    });
+  }
+
+  document.getElementById("pickerList").addEventListener("click", (e) => {
+    const row = e.target.closest(".picker-row");
+    if (row) pickExercise(row.dataset.name, row.dataset.new === "1");
+  });
+  document.getElementById("pickerSearch").addEventListener("input", () => {
+    renderPicker();
+    document.getElementById("pickerScreen").scrollTop = 0;
+  });
+  document.getElementById("pickerSearch").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") e.target.blur(); // closes the keyboard; the list stays
+  });
+  document.getElementById("pickerClearBtn").addEventListener("click", () => {
+    const search = document.getElementById("pickerSearch");
+    search.value = "";
+    renderPicker();
+    search.focus();
+  });
+  document.getElementById("pickerCloseBtn").addEventListener("click", closePicker);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && picker) closePicker();
   });
 
   // The title is a textarea so that long titles wrap; it stays one

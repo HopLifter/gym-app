@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymLog UI Overhaul - Stop 6 Exercise Picker</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --raised: #1A1E1B;
+    --line: #343A35;
+    --control: #5E675F;
+    --text: #EDEEEA;
+    --text-2: #A3ABA3;
+    --accent: #C6FF3D;
+    --danger: #FF7566;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --r-control: 8px; --r-sheet: 16px;
+    --f-label: 13px; --f-body: 16px; --f-name: 18px; --f-title: 24px; --f-timer: 34px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #000; color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, "Segoe UI", sans-serif;
+    font-size: var(--f-body); line-height: 1.35;
+    padding: var(--s5) 0 64px;
+  }
+  svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* Mockup page furniture (not part of the app) */
+  .doc { max-width: 430px; margin: 0 auto; padding: 0 var(--s4); }
+  .doc h2 { font-size: 20px; margin: 48px 0 var(--s2); }
+  .doc h2:first-child { margin-top: 0; }
+  .doc p, .doc li { color: var(--text-2); font-size: 14px; margin: 0 0 var(--s3); }
+  .doc ul { padding-left: 20px; margin: 0 0 var(--s3); }
+  .doc b { color: var(--text); }
+  .phone { max-width: 430px; height: 780px; margin: 0 auto var(--s4); background: var(--bg); outline: 1px solid #222; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .screen { flex: 1; padding: 0 var(--s4); overflow: hidden; }
+
+  /* ---- App components ---- */
+  .label { font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+  .label.accent { color: var(--accent); }
+  .num { font-variant-numeric: tabular-nums; }
+  .title { font-size: var(--f-title); font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.2; }
+  .h1row { padding: var(--s4) 0 var(--s2); display: flex; align-items: center; min-height: 64px; }
+  .h1row .title { flex: 1; }
+
+  .row { display: flex; align-items: center; gap: var(--s3); min-height: 64px; padding: var(--s3) 0; border-bottom: 1px solid var(--line); position: relative; }
+  .row-main { flex: 1; min-width: 0; }
+  .row-name { font-size: var(--f-name); font-weight: 600; }
+  .row-sub { font-size: 14px; color: var(--text-2); }
+  .row-val { font-size: var(--f-body); color: var(--text-2); }
+  .row.next::before { content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .row.danger .row-name { color: var(--danger); font-weight: 600; font-size: var(--f-body); }
+  .row.action .row-name { font-size: var(--f-body); }
+  .row.short { min-height: 56px; }
+  .chev { color: var(--control); }
+  .more { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text-2); margin-right: -10px; }
+  .month { display: flex; align-items: baseline; padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .month .label:first-child { flex: 1; }
+  .section { padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .text-btn { min-height: 56px; display: flex; align-items: center; gap: var(--s2); color: var(--text); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .prog { padding: var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+  .prog-name { font-size: var(--f-name); font-weight: 600; margin-top: 2px; }
+  .prog-sub { font-size: 14px; color: var(--text-2); }
+
+  /* Set bar (from stop 4, for context) */
+  .bar { background: var(--raised); border-top: 1px solid var(--line); padding: var(--s3) var(--s4); display: flex; align-items: center; gap: var(--s4); }
+  .bar-info { flex: 1; min-width: 0; }
+  .bar-time { font-size: var(--f-timer); font-weight: 700; line-height: 1.1; }
+  .bar-what { font-size: 14px; color: var(--text-2); }
+  .btn { height: 52px; border-radius: var(--r-control); display: flex; align-items: center; justify-content: center; font-size: var(--f-body); font-weight: 700; padding: 0 var(--s5); }
+  .btn.primary { background: var(--accent); color: #0B0D0C; }
+  .btn.secondary { border: 1.5px solid var(--control); color: var(--text); }
+  .btn.danger { background: var(--danger); color: #0B0D0C; }
+  .bar .btn { height: 56px; }
+
+  .tabs { display: flex; background: var(--bg); border-top: 1px solid var(--line); position: relative; z-index: 3; }
+  .tab { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.on { color: var(--accent); }
+
+  /* Bottom sheet: one component for menus AND confirm dialogs */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.62); z-index: 4; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--raised); border-radius: var(--r-sheet) var(--r-sheet) 0 0; padding: var(--s2) var(--s4) var(--s4); }
+  .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--control); margin: 0 auto var(--s3); }
+  .sheet-title { font-size: var(--f-name); font-weight: 700; margin-bottom: 2px; }
+  .sheet-sub { font-size: 14px; color: var(--text-2); padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+  .sheet-text { font-size: var(--f-body); color: var(--text-2); margin: var(--s2) 0 var(--s5); }
+  .opt { min-height: 56px; display: flex; align-items: center; gap: var(--s3); font-size: var(--f-body); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .opt svg { color: var(--text-2); }
+  .opt.danger, .opt.danger svg { color: var(--danger); }
+  .opt.off { color: var(--control); }
+  .opt.off svg { color: var(--control); }
+  .opt.cancel { justify-content: center; border-bottom: 0; color: var(--text-2); }
+  .stack { display: flex; flex-direction: column; gap: var(--s3); }
+
+  /* Message bar: one place, just above the set bar / tab bar */
+  .msg { margin: 0 var(--s3) var(--s2); background: var(--raised); border-radius: var(--r-control); display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s2) 0 var(--s4); min-height: 52px; border: 1px solid var(--line); }
+  .msg span { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg b { font-weight: 600; }
+  .msg .act { min-width: 64px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 700; }
+  .float { position: absolute; left: 0; right: 0; bottom: 57px; z-index: 2; }
+  .float.over-bar { bottom: 138px; }
+</style>
+</head>
+<body>
+<svg style="display:none">
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="i-today" viewBox="0 0 24 24"><path d="M4 9v6M8 6v12M16 6v12M20 9v6M8 12h8"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+</svg>
+<style>
+  .phone { height: 812px; }
+  .pick-head { display: flex; align-items: center; min-height: 64px; }
+  .pick-head h1 { flex: 1; font-size: var(--f-title); margin: 0; }
+  .x { width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; color: var(--text-2); margin-right: -12px; }
+  .search { display: flex; align-items: center; gap: var(--s3); height: 56px; border-bottom: 2px solid var(--control); color: var(--text-2); font-size: var(--f-body); }
+  .search.on { border-bottom-color: var(--accent); color: var(--text); }
+  .search .ph { flex: 1; }
+  .caret { display: inline-block; width: 2px; height: 20px; background: var(--accent); vertical-align: -4px; margin-left: 1px; }
+  .now { font-size: 14px; color: var(--text-2); padding: var(--s2) 0 0; }
+  .row-name.sm { font-size: var(--f-body); }
+  .row-sub.none { color: var(--control); }
+  .hl { color: var(--accent); }
+  .kbd { position: absolute; left: 0; right: 0; bottom: 0; height: 290px; background: #1E2220; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: center; color: var(--control); font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; z-index: 3; }
+  .add-new .row-name { color: var(--accent); }
+  .add-new svg { color: var(--accent); }
+  .open-row { border-bottom: 1px solid var(--line); padding: var(--s3) 0 var(--s4); position: relative; }
+  .open-row::before { content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .fields { display: flex; gap: var(--s4); margin-top: var(--s3); }
+  .field { flex: 1; }
+  .field .label { display: block; margin-bottom: var(--s1); }
+  .stepper { display: flex; align-items: center; height: 48px; border-bottom: 2px solid var(--control); }
+  .stepper .pm { width: 44px; height: 48px; display: flex; align-items: center; justify-content: center; color: var(--text-2); }
+  .stepper .val { flex: 1; text-align: center; font-size: 22px; font-weight: 700; }
+  .plain { height: 48px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; border-bottom: 2px solid var(--control); }
+</style>
+<svg style="display:none">
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M6 12h12"/></symbol>
+</svg>
+
+<div class="doc">
+  <h2>Stop 6: exercise picker</h2>
+  <p>Today, "Add Exercise" adds an empty row with a dropdown of 58 names, and a typed name goes through a second field and an "Add to Exercise List" button. The new picker is one full screen for "Add Exercise" and "Change Exercise". Data: your baseline (58 exercises, 27 different names in History).</p>
+  <p><b>No data model change.</b> "Recent" and the last values come from History, by exercise name (the same lookup as the "Last 3 Sessions" panel). Old backups work as before.</p>
+  <p><b>Five proposals for you to accept or reject:</b></p>
+  <ul>
+    <li><b>Q1. A new name always goes on the Exercise List.</b> No more names that are in a workout but not on the list. This removes the second field, the "Add to Exercise List" button and about 60 lines of code. You can still remove a name in Settings.</li>
+    <li><b>Q2. "Add Exercise" fills in the values from the last session:</b> sets, reps, weight, RPE and rest. Not the notes, because your notes are often instructions for that day ("Increase by 2.5kg"). If the last workout has the exercise two times (a top set and back-off sets), the first row is used.</li>
+    <li><b>Q3. "Change Exercise" changes only the name.</b> The sets, reps and weight of the row stay, because they usually come from your program.</li>
+    <li><b>Q4. The row is made only after you pick a name.</b> "✕" adds nothing, so there are no more empty "New Exercise" rows.</li>
+    <li><b>Q5. The search field is not active when the picker opens.</b> The keyboard would hide the Recent list. One tap on the field starts the search.</li>
+  </ul>
+
+  <p><b>Decision (user, 17 Nov 2026):</b> Q1 to Q5 accepted. Built in v71 with one change: the 'Add "…"' row is first only when no name contains all the typed words; otherwise it is last, so a part of a name ("curl") is not added by mistake.</p>
+
+  <h2>1. Picker after "Add Exercise"</h2>
+  <p>"Recent" shows the last 8 different exercises from History, newest first, with the values from that session and its date. "All Exercises" follows, A to Z, with a heading for each letter. A tap on a row picks it and closes the picker.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="pick-head"><h1>Add Exercise</h1><span class="x"><svg><use href="#i-x"/></svg></span></div>
+    <div class="search"><svg><use href="#i-search"/></svg><span class="ph">Search or type a new name</span></div>
+    <div class="month"><span class="label">Recent</span></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Hamstring Curl Machine</div><div class="row-sub num">3 × 12 · 61 kg · RPE 7 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Sumo Deadlift</div><div class="row-sub num">3 × 5 · 140 kg · RPE 6 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Pullups</div><div class="row-sub num">3 × 8 · 10 kg · RPE 8 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Hip Adduction</div><div class="row-sub num">3 × 20 · 103 kg · RPE 20 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Seated Rows</div><div class="row-sub num">3 × 10 · 78.5 kg · RPE 8 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Face Pulls</div><div class="row-sub num">3 × 15 · 24 kg · RPE 7 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Squats</div><div class="row-sub num">5 × 5 · 145 kg · RPE 8 · 1 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Bench</div><div class="row-sub num">1 × 1 · 132.5 kg · RPE 8 · 1 Nov</div></div></div>
+    <div class="month"><span class="label">All Exercises · A</span></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Ab Roller</div><div class="row-sub none">No history yet</div></div></div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>2. Search</h2>
+  <p>You typed "curl". The list shows every name that contains the text, in any place, with the found text in the accent colour. Names with history come first, the most recent at the top. The keyboard covers the lower part of the screen, so the top 4 results are in thumb reach above it.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="pick-head"><h1>Add Exercise</h1><span class="x"><svg><use href="#i-x"/></svg></span></div>
+    <div class="search on"><svg><use href="#i-search"/></svg><span class="ph">curl<span class="caret"></span></span><span class="x" style="margin-right:-12px"><svg><use href="#i-x"/></svg></span></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Hamstring <span class="hl">Curl</span> Machine</div><div class="row-sub num">3 × 12 · 61 kg · RPE 7 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Concentration <span class="hl">Curl</span>s</div><div class="row-sub num">5 × 6 · 27.5 kg · RPE 7 · 1 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Standing Barbell <span class="hl">Curl</span>s</div><div class="row-sub num">2 × 10 · 15 kg · RPE 6 · 29 Aug</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Cable Bicep <span class="hl">Curl</span>s</div><div class="row-sub num">3 × 12 · 27 kg · RPE 7 · 10 Aug</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Alternating DB <span class="hl">Curl</span>s</div><div class="row-sub none">No history yet</div></div></div>
+  </div>
+  <div class="kbd">Phone keyboard</div>
+</div>
+
+<div class="doc">
+  <h2>3. A new name</h2>
+  <p>You typed "Hip Thrust" and no name on the list is the same. The first row adds it (Q1). It shows also when some names are similar, for example "Hip Abduction" below it, so you can always add a new name.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="pick-head"><h1>Add Exercise</h1><span class="x"><svg><use href="#i-x"/></svg></span></div>
+    <div class="search on"><svg><use href="#i-search"/></svg><span class="ph">Hip Thrust<span class="caret"></span></span><span class="x" style="margin-right:-12px"><svg><use href="#i-x"/></svg></span></div>
+    <div class="row short add-new"><svg><use href="#i-plus"/></svg><div class="row-main"><div class="row-name sm">Add "Hip Thrust"</div><div class="row-sub">New exercise. It also goes on your Exercise List.</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm"><span class="hl">Hip</span> Abduction</div><div class="row-sub none">No history yet</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm"><span class="hl">Hip</span> Adduction</div><div class="row-sub num">3 × 20 · 103 kg · RPE 20 · 2 Nov</div></div></div>
+  </div>
+  <div class="kbd">Phone keyboard</div>
+</div>
+
+<div class="doc">
+  <h2>4. After the pick (Q2)</h2>
+  <p>You picked "Face Pulls". The picker closes, the new row is open at the end of the workout, and its values come from 2 Nov. The message bar says where the values come from, with Undo (which removes the row).</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="row"><div class="row-main"><div class="row-name">Tricep Pulldowns</div><div class="row-sub">3 × 12 · 28 kg · RPE 8</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">DB Shoulder Raises</div><div class="row-sub">3 × 15 · 7 kg · RPE 8</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Hanging Leg Raise</div><div class="row-sub">3 × 25 · RPE 7 · Straight legs only</div></div></div>
+    <div class="open-row">
+      <div class="row-name" style="min-height:48px;display:flex;align-items:center">Face Pulls</div>
+      <div class="fields">
+        <div class="field"><span class="label">Reps</span><div class="stepper"><span class="pm"><svg><use href="#i-minus"/></svg></span><span class="val num">15</span><span class="pm"><svg><use href="#i-plus"/></svg></span></div></div>
+        <div class="field"><span class="label">Weight (kg)</span><div class="stepper"><span class="pm"><svg><use href="#i-minus"/></svg></span><span class="val num">24</span><span class="pm"><svg><use href="#i-plus"/></svg></span></div></div>
+      </div>
+      <div class="fields">
+        <div class="field"><span class="label">Sets</span><div class="plain num">3</div></div>
+        <div class="field"><span class="label">RPE</span><div class="plain num">7</div></div>
+        <div class="field"><span class="label">Rest (min)</span><div class="plain num">2</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="float"><div class="msg"><span><b>Added: "Face Pulls"</b> · values from 2 Nov</span><span class="act">Undo</span></div></div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab on"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>5. "Change Exercise" (Q3)</h2>
+  <p>The same picker, opened from the exercise ⋮ menu. The line below the title names the exercise that you change. Only the name changes.</p>
+</div>
+
+<div class="phone" style="height:520px">
+  <div class="screen">
+    <div class="pick-head"><h1>Change Exercise</h1><span class="x"><svg><use href="#i-x"/></svg></span></div>
+    <div class="now">Now: Squats · 5 × 5 · 150 kg</div>
+    <div class="search"><svg><use href="#i-search"/></svg><span class="ph">Search or type a new name</span></div>
+    <div class="month"><span class="label">Recent</span></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Hamstring Curl Machine</div><div class="row-sub num">3 × 12 · 61 kg · RPE 7 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Sumo Deadlift</div><div class="row-sub num">3 × 5 · 140 kg · RPE 6 · 2 Nov</div></div></div>
+    <div class="row short"><div class="row-main"><div class="row-name sm">Pullups</div><div class="row-sub num">3 × 8 · 10 kg · RPE 8 · 2 Nov</div></div></div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,5 +1,54 @@
 # GymLog — Project Summary
 
+## UI/UX overhaul, stop 6: exercise picker (v71, 17 November 2026)
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v71`. Approved by the user,
+committed and published. No data model change. Mockups:
+`docs/mockups/GymLog UI Overhaul - Stop 6 Exercise Picker.html`.
+
+- **Decisions (user accepted Q1 to Q5):** a new name always goes on the
+  Exercise List; "Add Exercise" fills sets, reps, weight, RPE and rest from
+  the last session (not the notes); "Change Exercise" changes only the
+  name; the row is made only after a pick; the search field is not active
+  when the picker opens.
+- **Picker** (`openPicker(mode, ex)`, `closePicker()`, `renderPicker()`,
+  `pickExercise(name, isNew)`): one full screen (`#pickerScreen`, z-index
+  48, over the tab bar and set bar, under sheets) for "Add Exercise",
+  "Change Exercise", and "Choose Exercise" (an old saved row without a
+  name). It opens only when the workout can be edited; in a Past Workout
+  in edit mode it adds to the edit draft.
+- **Data from History** (`lastSessionIndex()`): name (trimmed,
+  case-insensitive) to the values of the newest workout with that name; if
+  that workout has the name two times, the first row is used. "Recent" is
+  the 8 newest names. Rows show "3 × 15 · 24 kg · RPE 7 · 2 Nov" or "No
+  history yet".
+- **List without search:** Recent, then the Exercise List A to Z with a
+  heading for each letter ("All Exercises · A", "B", …).
+- **Search:** a name matches when it contains every typed word ("db curl"
+  finds "Alternating DB Curls"); names with history come first, newest
+  first. The search also finds names that are only in History (for
+  example "Conv. Deadlifts"). If no name has all the words, names with any
+  word show as similar names. Found words are in the accent colour
+  (`highlightHTML()`, escaped piece by piece). The row 'Add "…"' shows
+  when no known name is the same (case-insensitive, `isDuplicateExerciseName`);
+  it is first when there is no match and last when there are matches, so a
+  part of a name is not added by mistake (a change from the mockup).
+- **After "Add Exercise":** the row is open at the end of the workout, and
+  the message bar says 'Added: "Face Pulls" · values from 2 Nov' with
+  Undo. Undo removes the row and, if the pick added a new name, removes it
+  from the Exercise List again.
+- **Removed:** the name dropdown and its custom-name field
+  (`nameFieldHTML`, `CUSTOM_NAME_VALUE`, `customNameEditingIds`,
+  `renamingIds`, `findCanonicalMatch`, `normalizeExerciseName`, the
+  change/mousedown/focusout/keydown handlers, the `add-to-exercise-list`
+  action and the `.name-input`, `.name-select`, `.add-to-list-btn` CSS).
+- **Tested** in the desktop browser at 375 px with the restored baseline:
+  Recent order and values, letter headings, search ("curl", "db curl",
+  "Hip Thrust", "face pulls"), HTML in the search text, add with values
+  from the last session, add a new name (on the list and saved), both
+  Undos, Change Exercise (values kept), a row without a name, a read-only
+  Past Workout (picker does not open), edit mode (adds to the draft only).
+  Not run on a phone; the keyboard behaviour can only be checked there.
+
 ## UI/UX overhaul, stop 5: other screens (v70, 16 November 2026)
 `CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v70`. Approved by the user,
 committed and published. No data model change. Mockups:
