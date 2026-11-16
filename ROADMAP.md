@@ -230,7 +230,7 @@ Potential features:
 
 ### 2.3 UI/UX Overhaul Epic
 
-**Status:** In progress. Stops 1 to 3 are done (v64 and v66).
+**Status:** In progress. Stops 1 to 3 are done (v64 and v66). Stop 4 is built (v69) and in test with the user.
 
 **Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html`.
 
@@ -239,7 +239,7 @@ Potential features:
 1. Protect the data: safe storage helpers, failed-save rollback, text escaping (done, v64).
 2. Mockups for the Workout screen, the bottom bar and the History list (done).
 3. New Workout screen: flat rows with one open row, − and + buttons, history button, superset pair opens as one, timer bar tap goes to its exercise (done, v66).
-4. "Set Done" bar that replaces the rest timer bar: one button ("Set 3 Done"), saved timer and set count, active exercise with "Start This Exercise". This stop replaces feature 1.2's set squares and prepares feature 1.8.
+4. Set bar that replaces the rest timer bar: one button ("Start Workout", "Start Set 1" …, "Next Exercise", "Finish Workout") and a small pause button, saved rest time and set count, active exercise, "Start This Exercise" and "Restart This Exercise" in the rows (built, v69; in test). This stop replaces feature 1.2's set squares and prepares feature 1.8.
 5. Other screens: Queue, History with month headings, Settings, dialogs, bottom sheets, one message bar.
 6. Exercise picker: full screen, search, recent exercises, values from the last session.
 7. Backup and restore: last backup date and reminder, file summary before restore, undo copy.

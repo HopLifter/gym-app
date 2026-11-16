@@ -287,7 +287,8 @@
   }
 
   /* ---- Exercise rows: full width, a divider line below, no box.
-     One row is open at a time; the accent bar at the left edge marks it. */
+     One row is open at a time. The accent bar at the left edge marks the
+     active exercise (the one that the set bar counts). */
   .exercise { border-bottom: 1px solid var(--line); position: relative; }
   .ex-row, .ex-title, .text-btn {
     background: none; border: none; color: inherit; font: inherit;
@@ -298,7 +299,9 @@
   .ex-name { display: block; font-size: var(--f-name); font-weight: 600; overflow-wrap: anywhere; }
   .ex-sub { display: block; font-size: 14px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .exercise.open { padding-bottom: var(--s4); }
-  .exercise.open::before {
+  .ex-count { flex-shrink: 0; font-size: 14px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .ex-count.done { color: var(--accent); display: flex; }
+  .exercise.active::before {
     content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0;
     width: 3px; background: var(--accent);
   }
@@ -406,7 +409,7 @@
     text-transform: uppercase; color: var(--text-2);
     padding-top: var(--s3);
   }
-  .superset-group .exercise.open::before { left: -30px; }
+  .superset-group .exercise.active::before { left: -30px; }
   .superset-group .exercise.open + .exercise.open { padding-top: var(--s2); }
   .select-banner {
     position: fixed;
@@ -443,8 +446,9 @@
   }
   .status { text-align: center; font-size: 13px; color: var(--text-2); margin-top: 24px; }
 
-  /* Rest timer bar: attached above the tab bar. Stop 4 replaces its content. */
-  .rest-timer-bar {
+  /* Set bar: one row above the tab bar, with one button. The line
+     at its top edge shows the rest time that remains. */
+  .set-bar {
     position: fixed;
     left: 0; right: 0;
     bottom: var(--tab-h);
@@ -453,58 +457,36 @@
     border-top: 1px solid var(--line);
     padding: var(--s3) var(--s4);
     display: none;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
+    align-items: center;
+    gap: var(--s4);
     z-index: 40;
   }
-  .rest-timer-bar.visible { display: flex; }
-  .rest-timer-main { display: flex; align-items: center; gap: 10px; }
-  .rest-timer-info { cursor: pointer; }
-  /* Set squares (feature 1.2): display only, one per set, wrap if needed. */
-  .rest-timer-sets { display: flex; flex-wrap: wrap; gap: 6px; }
-  .rest-timer-sets:empty { display: none; }
-  .set-square {
-    width: 30px; height: 30px; border-radius: var(--r-control);
+  .set-bar.visible { display: flex; }
+  .set-bar-progress { position: absolute; left: 0; top: -1px; height: 3px; background: var(--accent); }
+  .set-bar-info { flex: 1; min-width: 0; cursor: pointer; }
+  .set-bar-time { font-size: var(--f-timer); font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .set-bar-what { display: flex; font-size: 14px; color: var(--text-2); white-space: nowrap; }
+  .set-bar-what b { color: var(--text); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .set-bar-what span { flex-shrink: 0; white-space: pre; }
+  .set-bar-pips { display: flex; gap: 4px; margin-top: 6px; }
+  .set-bar-pips:empty { display: none; }
+  .set-bar-pips i { width: 16px; min-width: 4px; height: 4px; border-radius: 2px; background: var(--control); }
+  .set-bar-pips i.on { background: var(--accent); }
+  .set-bar .btn { width: auto; height: 56px; padding: 0 var(--s4); flex-shrink: 0; }
+  .set-bar.over .set-bar-time { color: var(--danger); }
+  .set-bar.over .set-bar-progress { background: var(--danger); }
+  .set-bar.paused .set-bar-time { opacity: 0.5; }
+  .bar-pause {
+    width: 44px; height: 56px; flex-shrink: 0; margin-right: calc(var(--s2) * -1);
     display: flex; align-items: center; justify-content: center;
-    font-size: 14px; font-weight: 700;
-    background: transparent; color: var(--text-2); border: 1px solid var(--control);
+    background: none; border: 1.5px solid var(--control); border-radius: var(--r-control);
+    color: var(--text); padding: 0; cursor: pointer;
   }
-  .set-square.done { background: var(--done); color: var(--text); border-color: var(--done); }
-  .set-square.current { background: var(--accent); color: var(--bg); border-color: var(--accent); }
-  .rest-timer-bar.finished, .rest-timer-bar.complete { border-top-color: var(--accent); }
-  .rest-timer-bar.complete .rest-timer-time,
-  .rest-timer-bar.finished .rest-timer-time { color: var(--text); font-size: var(--f-name); }
-  .rest-timer-info { flex: 1; min-width: 0; }
-  .rest-timer-label {
-    font-size: var(--f-label); color: var(--text-2); text-transform: uppercase;
-    letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .rest-timer-time {
-    font-size: 28px; font-weight: 700; color: var(--text);
-    font-variant-numeric: tabular-nums;
-  }
-  /* Overtime: 15s+ after the countdown hit zero. Declared after .finished so it wins. */
-  .rest-timer-bar.overtime { border-top-color: var(--danger); }
-  .rest-timer-bar.overtime .rest-timer-time { color: var(--danger); font-size: 28px; }
-  .rest-timer-progress-track { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 6px; }
-  .rest-timer-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; }
-  .rest-timer-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-  .rest-timer-btn {
-    background: none;
-    border: 1.5px solid var(--control);
-    border-radius: var(--r-control);
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 700;
-    height: 44px;
-    padding: 0 14px;
-    cursor: pointer;
-  }
-  .rest-timer-close {
-    width: 44px; height: 44px;
-    background: none; border: none; color: var(--text-2);
-    font-size: 20px; cursor: pointer; padding: 0; line-height: 1;
+  /* Negative margin: a 44 px tap area that does not make the line taller. */
+  .bar-undo {
+    background: none; border: none; color: var(--text); font: inherit; font-weight: 600;
+    text-decoration: underline; text-underline-offset: 3px;
+    padding: 14px 8px; margin: -14px -8px; cursor: pointer;
   }
 
   /* Positioned by positionUndoBanner(), just under the sticky header. */
@@ -872,6 +854,9 @@
   <symbol id="i-hist" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
   <symbol id="i-today" viewBox="0 0 24 24"><path d="M4 9v6M8 6v12M16 6v12M20 9v6M8 12h8"/></symbol>
   <symbol id="i-queue" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 6l10 6-10 6z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-set" viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></symbol>
 </svg>
 
@@ -979,20 +964,15 @@
   <button class="bottom-nav-btn" id="bottomNavSettings"><svg class="icon"><use href="#i-set"/></svg>Settings</button>
 </div>
 
-<div class="rest-timer-bar" id="restTimerBar">
-  <div class="rest-timer-sets" id="restTimerSets"></div>
-  <div class="rest-timer-main">
-    <div class="rest-timer-info">
-      <div class="rest-timer-label" id="restTimerLabel"></div>
-      <div class="rest-timer-time" id="restTimerTime"></div>
-      <div class="rest-timer-progress-track"><div class="rest-timer-progress-fill" id="restTimerFill"></div></div>
-    </div>
-    <div class="rest-timer-actions">
-      <button class="rest-timer-btn primary" id="restTimerPauseBtn">Pause</button>
-      <button class="rest-timer-btn" id="restTimerResetBtn">Reset</button>
-      <button class="rest-timer-close" id="restTimerCloseBtn">✕</button>
-    </div>
+<div class="set-bar" id="setBar">
+  <span class="set-bar-progress" id="setBarProgress"></span>
+  <div class="set-bar-info">
+    <div class="set-bar-time hidden" id="setBarTime"></div>
+    <div class="set-bar-what" id="setBarWhat"></div>
+    <div class="set-bar-pips" id="setBarPips"></div>
   </div>
+  <button class="bar-pause hidden" type="button" id="setPauseBtn" aria-label="Pause rest time"></button>
+  <button class="btn primary" type="button" id="setDoneBtn"></button>
 </div>
 
 <div class="undo-banner" id="undoBanner">
@@ -1058,7 +1038,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v66";
+  const APP_VERSION = "gym-app-cache-v69";
 
   const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
   const PROGRAMS_KEY = "gymapp_programs_v1";
@@ -1303,6 +1283,11 @@
   let openItemMenuId = null; // queue list item ⋮ menu
   let supersettingId = null;
   let customNameEditingIds = new Set(); // exercise ids currently showing the free-text name input instead of the dropdown
+  // Set bar (see the set progress section).
+  const REST_OVERTIME_LIMIT_MS = 300000;
+  const SET_UNDO_MS = 6000;
+  let setUndo = null;        // { workoutId, before, name, label, until }: the last "Start Set" tap
+  let setBarInterval = null;
   let openExerciseId = null;   // the one exercise row that is open (see cardHTML)
   let openForWorkoutId = null; // the workout that openExerciseId belongs to
   let renamingIds = new Set(); // exercise ids that show the name picker after "Change Exercise"
@@ -1378,8 +1363,9 @@
   function clearStaleWorkoutTimers() {
     let changed = false;
     sortedQueue().forEach((w, i) => {
-      if (i > 0 && w.timer) {
+      if (i > 0 && (w.timer || w.progress)) {
         delete w.timer;
+        delete w.progress; // the set count belongs to Today's Workout only
         changed = true;
       }
     });
@@ -1392,6 +1378,7 @@
     clearStaleWorkoutTimers();
     const ok = writeKey(QUEUE_KEY, JSON.stringify(queue));
     if (ok) flashSaved();
+    renderSetBar(); // set values and the queue order change what the bar shows
     return ok;
   }
   function saveHistory() {
@@ -1593,13 +1580,29 @@
   }
 
   // opts.open: a superset pair opens and closes as one (see renderExercises).
-  // opts.timerBtn false: the first row of an open pair has no timer button;
-  // the pair shares the button below the second row.
+  // opts.startBtn false: the first row of an open pair has no "Start This
+  // Exercise" button; the pair shares the button below the second row.
+  // On Today's Workout each row shows its set count ("2/5", then a check
+  // mark) and the active exercise gets the accent bar.
   function cardHTML(ex, opts = {}) {
     const id = escapeAttr(ex.id);
     const isOpen = opts.open !== undefined ? opts.open : openExerciseId === ex.id;
     const selectable = supersettingId && supersettingId !== ex.id;
-    const cls = selectable ? " selectable" : "";
+    const tw = isTodayView() ? todaysWorkout() : null;
+    const active = tw ? activeUnit(tw) : null;
+    const isActive = !!active && active.includes(ex);
+    const total = setsTotal(ex), doneSets = tw ? setsDone(tw, ex) : 0;
+    const unit = tw ? workoutUnits(tw).find(u => u.includes(ex)) : null;
+    const unitComplete = !!unit && unitDone(tw, unit);
+    // The active unit is in the middle of its sets.
+    const running = isActive && !unitComplete && unitCount(tw, unit) > 0;
+    // The check mark comes when the user moves on ("Next Exercise"), or
+    // when no exercise with sets left remains.
+    const checked = unitComplete && doneSets >= total && (!isActive || !nextUnit(tw, active));
+    const count = !tw ? "" : checked
+      ? `<span class="ex-count done" aria-label="All sets done"><svg class="icon"><use href="#i-check"/></svg></span>`
+      : `<span class="ex-count">${doneSets}/${total}</span>`;
+    const cls = (selectable ? " selectable" : "") + (isActive ? " active" : "");
     if (!isOpen) {
       return `
         <div class="exercise${cls}" data-id="${id}">
@@ -1608,6 +1611,7 @@
               <span class="ex-name">${escapeHtml(ex.name || "New Exercise")}</span>
               <span class="ex-sub num">${escapeHtml(exerciseSummary(ex))}</span>
             </span>
+            ${count}
           </button>
         </div>`;
     }
@@ -1618,6 +1622,7 @@
       <div class="exercise open${cls}" data-id="${id}">
         <div class="ex-head">
           ${picking ? nameFieldHTML(ex) : `<button class="ex-title" type="button" data-action="toggle-open"><span class="ex-name">${escapeHtml(ex.name)}</span></button>`}
+          ${count}
           <button class="menu-btn hist-btn${expandedHistoryIds.has(ex.id) ? " on" : ""}" type="button" data-action="toggle-history" aria-label="Last 3 sessions" aria-pressed="${expandedHistoryIds.has(ex.id)}"><svg class="icon"><use href="#i-hist"/></svg></button>
           <button class="menu-btn" type="button" data-action="menu" aria-label="Exercise menu"><svg class="icon"><use href="#i-more"/></svg></button>
           <div class="menu-dropdown${openMenuId === ex.id ? " open" : ""}">
@@ -1639,8 +1644,8 @@
           ${plainFieldHTML("rest", "Rest (min)", restSecondsToMinutes(ex.rest), "decimal")}
         </div>
         <textarea placeholder="Notes" rows="2" data-field="notes" aria-label="Notes">${escapeHtml(ex.notes)}</textarea>
-        ${opts.timerBtn === false ? "" : `<div class="ex-actions">
-          <button class="btn secondary" type="button" data-action="start-timer"><svg class="icon"><use href="#i-timer"/></svg>Start Rest Timer</button>
+        ${!tw || running || opts.startBtn === false ? "" : `<div class="ex-actions">
+          <button class="btn secondary" type="button" data-action="start-exercise">${unitComplete ? "Restart This Exercise" : "Start This Exercise"}</button>
         </div>`}
       </div>`;
   }
@@ -1868,10 +1873,12 @@
     const workout = getActiveWorkout();
     if (!workout || isCondensedHistoryView()) return;
     const exs = workout.exercises;
-    // A workout opens with its first exercise row open.
+    // A workout opens with one row open: the active exercise on Today's
+    // Workout, the first exercise on other workouts.
     if (openForWorkoutId !== workout.id) {
       openForWorkoutId = workout.id;
-      openExerciseId = exs.length ? exs[0].id : null;
+      const active = isTodayView() ? activeUnit(workout) : null;
+      openExerciseId = active ? active[0].id : exs.length ? exs[0].id : null;
     }
     let i = 0;
     while (i < exs.length) {
@@ -1882,7 +1889,7 @@
         wrap.className = "superset-group";
         wrap.dataset.supersetId = ex.supersetId;
         const open = openExerciseId === ex.id || openExerciseId === next.id;
-        wrap.innerHTML = `<div class="superset-label">Superset</div>${cardHTML(ex, { open, timerBtn: false })}${cardHTML(next, { open })}`;
+        wrap.innerHTML = `<div class="superset-label">Superset</div>${cardHTML(ex, { open, startBtn: false })}${cardHTML(next, { open })}`;
         container.appendChild(wrap);
         i += 2;
       } else {
@@ -2162,6 +2169,7 @@
     else render();
     syncWorkoutTimerInterval();
     updateBottomNav();
+    renderSetBar();
   }
 
   // Bottom tab bar — always-available switch between the 4 top-level
@@ -2295,176 +2303,197 @@
     return w.exercises.find(x => x.supersetId === ex.supersetId && x.id !== ex.id) || null;
   }
 
-  // ---- Rest Timer (app-level, single active instance) ----
-  // Reads an exercise's configured rest duration (ex.rest, in seconds) at
-  // start time; nothing is written back onto the exercise. Uses a
-  // timestamp-based countdown (rather than a naive per-tick decrement) so
-  // it stays accurate through brief backgrounding/screen-lock.
-  // After the countdown reaches zero (restTimer.endAt is that moment),
-  // the display is derived from Date.now() - endAt:
-  //   < 15s            -> "Rest Complete"
-  //   15s .. < 5:00    -> red "+MM:SS" (total time since completion)
-  //   >= 5:00          -> red "Over 5:00" (counter stops)
-  const REST_COMPLETE_GRACE_MS = 15000;
-  const REST_OVERTIME_LIMIT_MS = 300000;
-
-  // totalSets/currentSet/allSetsComplete are in-memory only (feature 1.2);
-  // totalSets 0 = no set tracking (exercise has blank/0 sets).
-  let restTimer = null; // { exerciseName, duration, remaining, running, finished, endAt, intervalId, totalSets, currentSet, allSetsComplete }
-
-  // An active set timer has set squares and hasn't reached All Sets Complete.
-  function hasActiveSetTimer() {
-    return !!(restTimer && restTimer.totalSets > 0 && !restTimer.allSetsComplete);
+  // ---- Set progress and the set bar ("Start Set n") (UI overhaul, stop 4) ----
+  // Today's Workout (front of the queue) can hold
+  //   progress: { activeId, done: { [exerciseId]: setsDone }, rest: { endAt, duration } | null }
+  // (a paused rest is { pausedLeft, duration }). It is saved with the queue, so the set count and the rest time stay
+  // correct after a reload, a phone lock or an app close. It is removed
+  // when the workout is finished or stops being Today's Workout; History
+  // never holds it. Room for set-by-set logging (roadmap 1.8): each count
+  // in `done` can later become a list of sets.
+  //
+  // A "unit" is one exercise, or the two exercises of a superset pair.
+  // A pair shares one set count and one rest time.
+  function getProgress(w) {
+    const p = w && w.progress;
+    if (!p || typeof p !== "object") return { activeId: null, done: {}, rest: null };
+    if (!p.done || typeof p.done !== "object") p.done = {};
+    // A paused rest has pausedLeft (ms) and no endAt.
+    if (!p.rest || typeof p.rest !== "object" || !(Number(p.rest.endAt) > 0 || Number(p.rest.pausedLeft) > 0)) p.rest = null;
+    return p;
   }
-
-  function clearRestTimerInterval() {
-    if (restTimer && restTimer.intervalId) {
-      clearInterval(restTimer.intervalId);
-      restTimer.intervalId = null;
+  // An exercise with no Sets value counts as 1 set.
+  function setsTotal(ex) {
+    return Math.max(1, Math.floor(Number(ex.sets) || 0));
+  }
+  function setsDone(w, ex) {
+    return Math.min(setsTotal(ex), Math.max(0, Math.floor(Number(getProgress(w).done[ex.id]) || 0)));
+  }
+  function workoutUnits(w) {
+    const units = [];
+    const exs = w.exercises;
+    for (let i = 0; i < exs.length; i++) {
+      const a = exs[i], b = exs[i + 1];
+      if (a.supersetId && b && b.supersetId === a.supersetId) { units.push([a, b]); i++; }
+      else units.push([a]);
     }
+    return units;
+  }
+  function unitTotal(u) { return Math.max(...u.map(setsTotal)); }
+  function unitCount(w, u) { return Math.max(...u.map(x => setsDone(w, x))); }
+  function unitDone(w, u) { return u.every(x => setsDone(w, x) >= setsTotal(x)); }
+  function unitName(u) { return u.map(x => x.name || "Exercise").join(" + "); }
+  // The active unit is the saved one, also after its last set: the app
+  // never moves to a different exercise by itself. With nothing saved (or
+  // the saved exercise deleted) it is the first unit with sets left.
+  // null = no exercises, or all done and nothing saved.
+  function activeUnit(w) {
+    if (!w) return null;
+    const units = workoutUnits(w);
+    const activeId = getProgress(w).activeId;
+    return units.find(u => u.some(x => x.id === activeId)) || units.find(u => !unitDone(w, u)) || null;
+  }
+  // The next unit with sets left: after `u`, then from the start of the list.
+  function nextUnit(w, u) {
+    const units = workoutUnits(w);
+    const start = units.findIndex(x => x[0].id === u[0].id);
+    for (let k = 1; k < units.length; k++) {
+      const x = units[(start + k) % units.length];
+      if (!unitDone(w, x)) return x;
+    }
+    return null;
+  }
+  function isTodayView() {
+    const t = todaysWorkout();
+    return viewSource === "queue" && !!t && t.id === viewId;
+  }
+  function hasSetProgress(w) {
+    return Object.values(getProgress(w).done).some(n => Number(n) > 0);
   }
 
-  // "Tricep Pulldowns + DB Shoulder Raises": the names in workout order.
-  function pairNames(ex, partner) {
-    const name = ex.name || "Exercise";
-    if (!partner) return name;
-    const exs = getActiveWorkout().exercises;
-    const pair = exs.indexOf(ex) < exs.indexOf(partner) ? [ex, partner] : [partner, ex];
-    return pair.map(x => x.name || "Exercise").join(" + ");
+  function refreshAfterProgress() {
+    renderSetBar();
+    if (currentScreen !== "workout") return;
+    if (isTodayView()) renderExercises();
+    renderWorkoutTimer();
+    syncWorkoutTimerInterval();
   }
 
-  function startRestTimer(ex) {
-    clearRestTimerInterval();
-    const duration = Math.max(0, Math.round(Number(ex.rest) || 0));
-    const partner = findSupersetPartner(ex);
-    const totalSets = Math.max(0, Math.floor(Number(ex.sets) || 0));
-    restTimer = {
-      exerciseId: ex.id,
-      workoutId: viewId,
-      exerciseName: pairNames(ex, partner),
-      duration,
-      remaining: duration,
-      running: false,
-      finished: false,
-      endAt: null,
-      intervalId: null,
-      totalSets,
-      currentSet: totalSets > 0 ? 1 : 0,
-      allSetsComplete: false
+  // "Start Workout" on the bar: starts the workout clock only.
+  function startWorkoutFromBar() {
+    const w = todaysWorkout();
+    if (!w || w.timer) return;
+    w.timer = { status: "running", startedAt: Date.now(), accumulatedMs: 0 };
+    saveQueue();
+    refreshAfterProgress();
+  }
+
+  // "Start Set n" on the bar. It counts set n of the active unit and
+  // starts the rest time. The last set of a unit gets no rest time: the
+  // button then becomes "Next Exercise". `before` (optional) is the
+  // progress that Undo goes back to.
+  function startSet(before) {
+    const w = todaysWorkout();
+    const u = activeUnit(w);
+    if (!u || unitDone(w, u)) return;
+    if (before === undefined) before = w.progress ? JSON.stringify(w.progress) : null;
+    const hadTimer = !!w.timer;
+    const p = getProgress(w);
+    w.progress = p;
+    const n = unitCount(w, u) + 1;
+    u.forEach(x => { p.done[x.id] = Math.min(n, setsTotal(x)); });
+    p.activeId = u[0].id;
+    // The rest comes after the second exercise of a pair, so its value is
+    // used; the first exercise's value is the fallback.
+    const restEx = u.length > 1 && Number(u[1].rest) > 0 ? u[1] : u[0];
+    const duration = Math.max(0, Math.round(Number(restEx.rest) || 0));
+    p.rest = n < unitTotal(u) && duration > 0 ? { endAt: Date.now() + duration * 1000, duration } : null;
+    // A set started from a row before "Start Workout" also starts the clock.
+    if (!hadTimer) w.timer = { status: "running", startedAt: Date.now(), accumulatedMs: 0 };
+    if (!saveQueue()) {
+      if (before) w.progress = JSON.parse(before); else delete w.progress;
+      if (!hadTimer) delete w.timer;
+      refreshAfterProgress();
+      return;
+    }
+    setUndo = { workoutId: w.id, before, label: `Set ${n} Started`, until: Date.now() + SET_UNDO_MS };
+    refreshAfterProgress();
+  }
+
+  function undoSetDone() {
+    const w = todaysWorkout();
+    const undo = setUndo;
+    setUndo = null;
+    if (undo && w && w.id === undo.workoutId) {
+      if (undo.before) w.progress = JSON.parse(undo.before); else delete w.progress;
+      saveQueue();
+    }
+    refreshAfterProgress();
+  }
+
+  // "Start This Exercise" / "Restart This Exercise" in an open row: the
+  // unit becomes active and its next set starts. A completed unit starts
+  // again from set 1 (this removes its check mark). If a different unit is
+  // in the middle of its sets, a confirmation comes first.
+  function requestStartExercise(ex) {
+    const w = todaysWorkout();
+    if (!w) return;
+    const target = workoutUnits(w).find(u => u.includes(ex));
+    if (!target) return;
+    const cur = activeUnit(w);
+    const same = !!cur && cur[0].id === target[0].id;
+    const go = () => {
+      const before = w.progress ? JSON.stringify(w.progress) : null;
+      const p = getProgress(w);
+      w.progress = p;
+      if (unitDone(w, target)) target.forEach(x => { delete p.done[x.id]; });
+      p.activeId = target[0].id;
+      startSet(before);
     };
-    if (duration > 0) {
-      restTimer.running = true;
-      runRestTimerInterval();
+    if (!same && cur && unitCount(w, cur) > 0 && !unitDone(w, cur)) {
+      // Text kept from the old set timer at the user's request.
+      openConfirm(
+        "Replace set timer?",
+        "You will lose track of which set you are on. Are you sure you want to do this?",
+        go, "Confirm", true
+      );
     } else {
-      finishRestTimerNow();
+      go();
     }
-    renderRestTimer();
   }
 
-  // Used only for 0-second timers: treats "now" as the completion time
-  // and keeps the interval running so overtime can count up.
-  function finishRestTimerNow() {
-    clearRestTimerInterval();
-    restTimer.running = false;
-    restTimer.finished = true;
-    restTimer.endAt = Date.now();
-    restTimer.intervalId = setInterval(tickRestTimer, 250);
+  // "Next Exercise" on the bar: the next unit with sets left becomes
+  // active. The unit that was active gets its check mark.
+  function startNextExercise() {
+    const w = todaysWorkout();
+    const u = activeUnit(w);
+    const next = u && nextUnit(w, u);
+    if (!next) return;
+    const p = getProgress(w);
+    w.progress = p;
+    p.activeId = next[0].id;
+    p.rest = null;
+    setUndo = null;
+    saveQueue();
+    goToActiveExercise(); // opens the row and scrolls to it
+    refreshAfterProgress();
   }
 
-  function runRestTimerInterval() {
-    clearRestTimerInterval();
-    restTimer.endAt = Date.now() + restTimer.remaining * 1000;
-    restTimer.intervalId = setInterval(tickRestTimer, 250);
-  }
-
-  function tickRestTimer() {
-    if (!restTimer || restTimer.allSetsComplete) return;
-    if (restTimer.running) {
-      const remaining = Math.max(0, Math.ceil((restTimer.endAt - Date.now()) / 1000));
-      restTimer.remaining = remaining;
-      if (remaining <= 0) {
-        // endAt is left untouched: it is now the completion timestamp.
-        restTimer.running = false;
-        restTimer.finished = true;
-      }
-    }
-    // Interval keeps running after completion (for the overtime counter)
-    // and stops only once the 5:00 cap has been reached.
-    if (restTimer.finished && Date.now() - restTimer.endAt >= REST_OVERTIME_LIMIT_MS) {
-      clearRestTimerInterval();
-    }
-    renderRestTimer();
-  }
-
-  function pauseRestTimer() {
-    if (!restTimer || !restTimer.running) return;
-    restTimer.running = false;
-    clearRestTimerInterval();
-    renderRestTimer();
-  }
-
-  function resumeRestTimer() {
-    if (!restTimer || restTimer.running || restTimer.remaining <= 0) return;
-    restTimer.running = true;
-    restTimer.finished = false;
-    runRestTimerInterval();
-    renderRestTimer();
-  }
-
-  // Reset now immediately starts a fresh countdown, rather than just
-  // zeroing the clock back to a stopped state. It reuses restTimer.duration
-  // — already the duration of whichever exercise's timer was most recently
-  // started (startRestTimer() sets it fresh each time and nothing else
-  // touches it) — so no new state is needed to "remember" the last-used
-  // duration. Mirrors startRestTimer()'s own duration>0 vs 0 handling.
-  function resetRestTimer() {
-    if (!restTimer || restTimer.allSetsComplete) return;
-    clearRestTimerInterval();
-    if (restTimer.totalSets > 0) {
-      if (restTimer.currentSet >= restTimer.totalSets) {
-        restTimer.running = false;
-        restTimer.finished = false;
-        restTimer.allSetsComplete = true;
-        renderRestTimer();
-        return;
-      }
-      restTimer.currentSet++;
-    }
-    restTimer.remaining = restTimer.duration;
-    if (restTimer.duration > 0) {
-      restTimer.running = true;
-      restTimer.finished = false;
-      runRestTimerInterval();
+  // Pause keeps the time that remains; Resume makes a new end time from it.
+  function toggleRestPause() {
+    const w = todaysWorkout();
+    const r = w && getProgress(w).rest;
+    if (!r) return;
+    if (Number(r.pausedLeft) > 0) {
+      r.endAt = Date.now() + r.pausedLeft;
+      delete r.pausedLeft;
     } else {
-      finishRestTimerNow();
+      const left = r.endAt - Date.now();
+      if (left <= 0) return;
+      r.pausedLeft = left;
+      r.endAt = null;
     }
-    renderRestTimer();
-  }
-
-  function dismissRestTimer() {
-    clearRestTimerInterval();
-    restTimer = null;
-    renderRestTimer();
-  }
-
-  const SET_TIMER_WARNING = "You will lose track of which set you are on. Are you sure you want to do this?";
-
-  // ✕ goes through here so an active set timer isn't lost by accident.
-  function requestDismissRestTimer() {
-    if (hasActiveSetTimer()) {
-      openConfirm("Close set timer?", SET_TIMER_WARNING, dismissRestTimer, "Confirm", true);
-    } else {
-      dismissRestTimer();
-    }
-  }
-
-  // ⏱ goes through here so an active set timer isn't replaced by accident.
-  function requestStartRestTimer(ex) {
-    if (hasActiveSetTimer()) {
-      openConfirm("Replace set timer?", SET_TIMER_WARNING, () => startRestTimer(ex), "Confirm", true);
-    } else {
-      startRestTimer(ex);
-    }
+    saveQueue(); // also refreshes the bar
   }
 
   function formatTimerClock(totalSeconds) {
@@ -2473,111 +2502,148 @@
     return `${m}:${String(s).padStart(2, "0")}`;
   }
 
-  function renderRestTimer() {
-    const bar = document.getElementById("restTimerBar");
-    if (!restTimer) {
-      bar.classList.remove("visible", "finished", "overtime", "complete");
-      return;
-    }
-    bar.classList.add("visible");
-    bar.classList.toggle("finished", restTimer.finished);
-    bar.classList.toggle("complete", restTimer.allSetsComplete);
-    document.getElementById("restTimerLabel").textContent = restTimer.exerciseName;
-    const setsEl = document.getElementById("restTimerSets");
-    let squares = "";
-    for (let i = 1; i <= restTimer.totalSets; i++) {
-      const state = restTimer.allSetsComplete || i < restTimer.currentSet ? "done"
-        : i === restTimer.currentSet ? "current" : "";
-      squares += `<div class="set-square ${state}">${i}</div>`;
-    }
-    setsEl.innerHTML = squares;
-    document.getElementById("restTimerResetBtn").classList.toggle("hidden", restTimer.allSetsComplete);
-    let timeText = formatTimerClock(restTimer.remaining);
-    let isOvertime = false;
-    if (restTimer.allSetsComplete) {
-      timeText = "All sets complete";
-    } else if (restTimer.finished) {
-      const sinceMs = Date.now() - restTimer.endAt;
-      if (sinceMs >= REST_OVERTIME_LIMIT_MS) {
-        timeText = "Over 5:00";
-        isOvertime = true;
-      } else if (sinceMs >= REST_COMPLETE_GRACE_MS) {
-        const s = Math.floor(sinceMs / 1000);
-        timeText = "+" + pad2(Math.floor(s / 60)) + ":" + pad2(s % 60);
-        isOvertime = true;
-      } else {
-        timeText = "Rest Complete";
-      }
-    }
-    bar.classList.toggle("overtime", isOvertime);
-    document.getElementById("restTimerTime").textContent = timeText;
-    const pct = restTimer.duration > 0
-      ? Math.max(0, Math.min(100, (restTimer.remaining / restTimer.duration) * 100))
-      : 0;
-    document.getElementById("restTimerFill").style.width = pct + "%";
-    const pauseBtn = document.getElementById("restTimerPauseBtn");
-    pauseBtn.textContent = restTimer.running ? "Pause" : "Resume";
-    pauseBtn.classList.toggle("hidden", restTimer.finished || restTimer.allSetsComplete);
+  // The bar shows on Today's Workout. On the other screens it shows only
+  // after the workout has started.
+  function setBarVisible(w) {
+    if (!w || !w.exercises.length || currentScreen === "exerciseList") return false;
+    if (currentScreen === "workout" && isTodayView()) return true;
+    return !!w.timer || hasSetProgress(w);
   }
 
-  // The countdown is already derived from real-world time (endAt is a
-  // fixed timestamp, remaining = endAt - Date.now()), so it's naturally
-  // correct even after the app was backgrounded. The only gap: while
-  // backgrounded, the browser throttles/pauses setInterval, so the
-  // on-screen number doesn't refresh until the next tick fires — which
-  // could lag a moment after you unlock your phone. This forces an
-  // immediate recompute the instant the app becomes visible again, so a
-  // timer that already finished shows "Rest complete" right away instead
-  // of waiting for the next 250ms tick.
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && restTimer && (restTimer.running || restTimer.finished)) {
-      tickRestTimer();
-    }
-  });
+  // Changes an element only when its content is different, so that a
+  // refresh during a tap does not replace the button under the finger.
+  function setBarHTML(id, html) {
+    const el = document.getElementById(id);
+    if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; }
+  }
 
-  // A tap on the bar (not on its buttons) goes back to the exercise that
-  // the timer belongs to: its workout shows, its row opens and scrolls
-  // into view.
-  function goToTimerExercise() {
-    if (!restTimer) return;
-    const { workoutId, exerciseId } = restTimer;
-    const inQueue = queue.some(w => w.id === workoutId);
-    if (!inQueue && !history.some(w => w.id === workoutId)) return;
-    const here = currentScreen === "workout" && viewId === workoutId;
-    const show = () => {
-      if (!here) {
-        viewSource = inQueue ? "queue" : "history";
-        viewId = workoutId;
-        // A past workout opens in its read-only view (no rows to open).
-        if (!inQueue) { editMode = false; historyEditDraft = null; }
+  // All times come from the saved end time (rest.endAt), never from a
+  // count of interval ticks, so they are correct after the app was in the
+  // background.
+  function renderSetBar() {
+    const bar = document.getElementById("setBar");
+    const w = todaysWorkout();
+    const show = setBarVisible(w);
+    bar.classList.toggle("visible", show);
+    let tick = false;
+    if (show) {
+      const now = Date.now();
+      if (setUndo && (now >= setUndo.until || setUndo.workoutId !== w.id)) setUndo = null;
+      const p = getProgress(w);
+      const u = activeUnit(w);
+      const uDone = !!u && unitDone(w, u);
+      const next = uDone ? nextUnit(w, u) : null;
+      const rest = u && (!uDone || next) ? p.rest : null;
+      let timeText = "", over = false, pct = 0, canPause = false;
+      const paused = !!rest && Number(rest.pausedLeft) > 0;
+      if (rest) {
+        const left = paused ? rest.pausedLeft : rest.endAt - now;
+        if (left > 0) {
+          timeText = formatTimerClock(Math.ceil(left / 1000));
+          pct = rest.duration > 0 ? Math.min(100, (left / (rest.duration * 1000)) * 100) : 0;
+          tick = !paused;
+          canPause = true;
+        } else {
+          over = true;
+          pct = 100;
+          if (-left >= REST_OVERTIME_LIMIT_MS) timeText = "Over 5:00";
+          else { timeText = "+" + formatTimerClock(Math.floor(-left / 1000)); tick = true; }
+        }
       }
-      const w = getActiveWorkout();
-      if (!w || !w.exercises.some(x => x.id === exerciseId)) { if (!here) showScreen("workout"); return; }
-      openForWorkoutId = workoutId;
-      openExerciseId = exerciseId;
+      let what, btnText, pips = "";
+      const name = u ? `<b>${escapeHtml(unitName(u))}</b>` : "";
+      const total = u ? unitTotal(u) : 0, n = u ? unitCount(w, u) : 0;
+      // The name can shorten ("Hamstring Cur…"); the spans cannot.
+      if (!w.timer && !hasSetProgress(w)) {
+        // Nothing started: the first tap starts the workout clock only.
+        what = `${name}<span> · ${total} ${total === 1 ? "set" : "sets"}</span>`;
+        btnText = "Start Workout";
+      } else if (u && !uDone) {
+        what = n > 0 ? `${name}<span> · set ${n} of ${total}</span>` : `${name}<span> · ${total} ${total === 1 ? "set" : "sets"}</span>`;
+        btnText = `Start Set ${n + 1}`;
+      } else if (next) {
+        // The last set of the active unit is started. The user moves on with a tap.
+        what = `${name}<span> · set ${n} of ${total}</span>`;
+        btnText = "Next Exercise";
+      } else {
+        const mins = w.timer ? " · " + escapeHtml(formatDurationLabel(Math.round(workoutTimerElapsedMs(w.timer) / 1000))) : "";
+        what = `<b>All Done</b><span>${mins}</span>`;
+        btnText = "Finish Workout";
+      }
+      if (u && (!uDone || next) && total <= 12) for (let i = 1; i <= total; i++) pips += `<i${i <= n ? ' class="on"' : ""}></i>`;
+      if (setUndo) {
+        // No exercise name here: on a narrow phone there is no room for it.
+        what = `<b>${escapeHtml(setUndo.label)}</b><span> · <button type="button" class="bar-undo" data-bar="undo">Undo</button></span>`;
+        tick = true;
+      }
+      bar.classList.toggle("over", over);
+      bar.classList.toggle("paused", paused);
+      // The pause button shows only while a rest time counts down (or is paused).
+      const pauseBtn = document.getElementById("setPauseBtn");
+      pauseBtn.classList.toggle("hidden", !canPause);
+      pauseBtn.setAttribute("aria-label", paused ? "Resume rest time" : "Pause rest time");
+      setBarHTML("setPauseBtn", `<svg class="icon"><use href="#${paused ? "i-play" : "i-pause"}"/></svg>`);
+      const timeEl = document.getElementById("setBarTime");
+      timeEl.classList.toggle("hidden", !rest);
+      timeEl.textContent = timeText;
+      document.getElementById("setBarProgress").style.width = pct + "%";
+      setBarHTML("setBarWhat", what);
+      setBarHTML("setBarPips", pips);
+      setBarHTML("setDoneBtn", btnText);
+    }
+    if (tick && !setBarInterval) {
+      setBarInterval = setInterval(renderSetBar, 250);
+    } else if (!tick && setBarInterval) {
+      clearInterval(setBarInterval);
+      setBarInterval = null;
+    }
+  }
+
+  // A tap on the bar (not on its buttons) goes to the active exercise:
+  // Today's Workout shows, the row opens and scrolls to just below the
+  // header.
+  function goToActiveExercise() {
+    const w = todaysWorkout();
+    if (!w) return;
+    const show = () => {
+      const here = currentScreen === "workout" && isTodayView();
+      const u = activeUnit(w);
+      openForWorkoutId = w.id;
+      if (u) openExerciseId = u[0].id;
       openMenuId = null;
-      if (here) renderExercises(); else showScreen("workout");
-      const row = document.querySelector(`#workout .exercise[data-id="${CSS.escape(exerciseId)}"]`);
+      if (here) renderExercises(); else goHome();
+      if (!u) return;
+      const row = document.querySelector(`#workout .exercise[data-id="${CSS.escape(u[0].id)}"]`);
       if (!row) return;
-      // Put the row (or its superset pair) just below the sticky header.
       const target = row.closest(".superset-group") || row;
-      const header = document.querySelector("#workoutScreen .sticky-header");
-      const top = target.getBoundingClientRect().top + window.scrollY - (header ? header.offsetHeight : 0) - 8;
+      const header = document.getElementById("workoutStickyHeader");
+      const top = target.getBoundingClientRect().top + window.scrollY - header.offsetHeight - 8;
       window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
     };
-    if (here) show(); else guardLeavingEdit(show);
+    if (currentScreen === "workout" && isTodayView()) show(); else guardLeavingEdit(show);
   }
-  document.getElementById("restTimerBar").addEventListener("click", (e) => {
-    if (e.target.closest("button")) return;
-    goToTimerExercise();
+
+  document.getElementById("setBar").addEventListener("click", (e) => {
+    if (e.target.closest('[data-bar="undo"]')) { undoSetDone(); return; }
+    if (e.target.closest("#setPauseBtn")) { toggleRestPause(); return; }
+    if (e.target.closest("#setDoneBtn")) {
+      const w = todaysWorkout(), u = activeUnit(w);
+      if (!w.timer && !hasSetProgress(w)) { startWorkoutFromBar(); return; }
+      if (u && !unitDone(w, u)) { startSet(); return; }
+      if (u && nextUnit(w, u)) { startNextExercise(); return; }
+      // All done: the button is "Finish Workout".
+      if (currentScreen === "workout" && isTodayView()) confirmFinishWorkout();
+      else guardLeavingEdit(() => { goHome(); confirmFinishWorkout(); });
+      return;
+    }
+    goToActiveExercise();
   });
 
-  document.getElementById("restTimerPauseBtn").addEventListener("click", () => {
-    if (!restTimer) return;
-    if (restTimer.running) pauseRestTimer(); else resumeRestTimer();
+  // The interval is slowed or stopped while the app is in the background.
+  // This refresh shows the correct time at once when the app comes back.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") renderSetBar();
   });
-  document.getElementById("restTimerResetBtn").addEventListener("click", resetRestTimer);
-  document.getElementById("restTimerCloseBtn").addEventListener("click", requestDismissRestTimer);
 
   // ---- Global Workout Timer ----
   // Total time spent on Today's Workout, independent of the rest timer.
@@ -2857,13 +2923,8 @@
       return;
     }
 
-    if (action === "start-timer") {
-      // A superset pair shares this button (it is in the second row). The
-      // rest comes after the second exercise, so its values are used; the
-      // first exercise's values are the fallback.
-      const partner = findSupersetPartner(ex);
-      const src = partner && !(Number(ex.rest) > 0) && Number(partner.rest) > 0 ? partner : ex;
-      requestStartRestTimer(src);
+    if (action === "start-exercise") {
+      requestStartExercise(ex);
       return;
     }
 
@@ -3276,9 +3337,13 @@
     const w = getActiveWorkout();
     if (!w || viewSource !== "queue") return;
     const durationLine = w.timer ? `\n\nDuration: ${formatElapsed(workoutTimerElapsedMs(w.timer))}` : "";
+    // Only when the set count was used: a user who never taps "Start Set"
+    // gets no warning.
+    const open = hasSetProgress(w) ? workoutUnits(w).filter(u => !unitDone(w, u)).length : 0;
+    const openLine = open === 0 ? "" : (open === 1 ? "1 exercise is" : `${open} exercises are`) + " not complete. Finish anyway?\n\n";
     openConfirm(
       "Finish Workout?",
-      "This moves today's workout into your history. The next queued workout becomes Today's Workout." + durationLine,
+      openLine + "This moves today's workout into your history. The next queued workout becomes Today's Workout." + durationLine,
       completeActiveWorkout,
       "Finish Workout",
       false
@@ -3290,6 +3355,8 @@
     if (!w || viewSource !== "queue") return;
     const done = { ...w, status: "completed", date: todayISO(), note: w.note || "" };
     delete done.order;
+    delete done.progress; // History never holds the set count
+    setUndo = null;
     // Stop the workout timer and keep its total (running time folded in).
     if (done.timer) {
       done.durationSec = Math.round(workoutTimerElapsedMs(done.timer) / 1000);
@@ -3334,6 +3401,7 @@
     delete w.note;
     delete w.durationSec; // restored workouts start with an idle timer
     delete w.timer;
+    delete w.progress;
     const q = sortedQueue();
     q.unshift(w);
     q.forEach((x, i) => { x.order = i; });

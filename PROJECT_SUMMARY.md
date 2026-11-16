@@ -1,5 +1,52 @@
 # GymLog — Project Summary
 
+## UI/UX overhaul, stop 4: set bar (v69, 16 November 2026)
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v69`. Not committed yet.
+v67 and v68 were earlier builds of this stop; v69 is the flow that the
+user specified after two tests. The old rest timer (Pause, Reset, ✕, set
+squares, "Start Rest Timer") is removed. Older sections that describe it
+describe the old screen.
+
+- **Data model (small change):** Today's Workout can hold
+  `progress: { activeId, done: { [exerciseId]: sets }, rest: { endAt, duration } | null }`
+  (a paused rest is `{ pausedLeft, duration }`). It is saved with the
+  queue. It is removed when the workout is finished, restored from History,
+  or stops being first in the queue (`clearStaleWorkoutTimers()`). History
+  never holds it. Old backups have no `progress` and need no migration.
+- **Bar** (`renderSetBar()`): one row above the tab bar, with one text
+  button and a small pause button to its left (shown only while a rest
+  time counts down or is paused). The button, in order:
+  1. "Start Workout": starts the workout clock only (`startWorkoutFromBar()`).
+  2. "Start Set 1", "Start Set 2", …: counts the set and starts the rest
+     time (`startSet()`). When the rest time is over it turns red and
+     counts up ("Over 5:00" cap).
+  3. After the last set is started: no rest time, button "Next Exercise"
+     (`startNextExercise()`). The tap gives the exercise its check mark
+     and makes the next unit with sets left active.
+  4. No unit with sets left: "All Done", button "Finish Workout".
+  "Undo" shows for 6 s after each "Start Set" tap. A tap on the text goes
+  to the active exercise.
+- **Active exercise** (`activeUnit()`): accent bar at the left edge. A
+  superset pair is one unit with one count. The app never changes the
+  active exercise by itself.
+- **Rows** show "2/5", then a check mark (after "Next Exercise", or when
+  no unit with sets left remains).
+- **"Start This Exercise"** (`requestStartExercise()`) shows in each open
+  row, also on the first exercise before the workout starts. It is hidden
+  only on the active exercise while it is in the middle of its sets. It
+  makes the unit active and starts its next set. On a completed exercise
+  the button is "Restart This Exercise": the count goes back to 0 (the
+  check mark is removed) and set 1 starts. If a different exercise is in
+  the middle of its sets, the "Replace set timer?" dialog comes first (old
+  text, kept at the user's request).
+- **Removed after the user's test:** the automatic move to the next
+  exercise (v67) and the "Sets Done − 2/5 +" control (v68).
+- **Finish Workout** dialog says how many exercises are not complete (only
+  if the set count was used).
+- **Tested** in the desktop browser at 375 px with the baseline: Start
+  Workout, Start Set, last set, Next Exercise, check marks, jump with the
+  dialog, Restart, Undo, pause. Not run on a phone.
+
 ## UI/UX overhaul, stop 3 feedback: Today screen changes (v66, 16 November 2026)
 Changes from the user's test of v65 (v65 was not committed or published).
 `CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v66`. No data model change.
@@ -161,7 +208,7 @@ no subscriptions.
 - Section headings below that say "session" were written at different
   times. Use `git log` for the real dates.
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v66` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v69` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
