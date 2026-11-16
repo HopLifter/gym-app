@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymLog UI Overhaul - Stop 5 Other Screens</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --raised: #1A1E1B;
+    --line: #343A35;
+    --control: #5E675F;
+    --text: #EDEEEA;
+    --text-2: #A3ABA3;
+    --accent: #C6FF3D;
+    --danger: #FF7566;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --r-control: 8px; --r-sheet: 16px;
+    --f-label: 13px; --f-body: 16px; --f-name: 18px; --f-title: 24px; --f-timer: 34px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #000; color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, "Segoe UI", sans-serif;
+    font-size: var(--f-body); line-height: 1.35;
+    padding: var(--s5) 0 64px;
+  }
+  svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* Mockup page furniture (not part of the app) */
+  .doc { max-width: 430px; margin: 0 auto; padding: 0 var(--s4); }
+  .doc h2 { font-size: 20px; margin: 48px 0 var(--s2); }
+  .doc h2:first-child { margin-top: 0; }
+  .doc p, .doc li { color: var(--text-2); font-size: 14px; margin: 0 0 var(--s3); }
+  .doc ul { padding-left: 20px; margin: 0 0 var(--s3); }
+  .doc b { color: var(--text); }
+  .phone { max-width: 430px; height: 780px; margin: 0 auto var(--s4); background: var(--bg); outline: 1px solid #222; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .screen { flex: 1; padding: 0 var(--s4); overflow: hidden; }
+
+  /* ---- App components ---- */
+  .label { font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+  .label.accent { color: var(--accent); }
+  .num { font-variant-numeric: tabular-nums; }
+  .title { font-size: var(--f-title); font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.2; }
+  .h1row { padding: var(--s4) 0 var(--s2); display: flex; align-items: center; min-height: 64px; }
+  .h1row .title { flex: 1; }
+
+  .row { display: flex; align-items: center; gap: var(--s3); min-height: 64px; padding: var(--s3) 0; border-bottom: 1px solid var(--line); position: relative; }
+  .row-main { flex: 1; min-width: 0; }
+  .row-name { font-size: var(--f-name); font-weight: 600; }
+  .row-sub { font-size: 14px; color: var(--text-2); }
+  .row-val { font-size: var(--f-body); color: var(--text-2); }
+  .row.next::before { content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .row.danger .row-name { color: var(--danger); font-weight: 600; font-size: var(--f-body); }
+  .row.action .row-name { font-size: var(--f-body); }
+  .row.short { min-height: 56px; }
+  .chev { color: var(--control); }
+  .more { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text-2); margin-right: -10px; }
+  .month { display: flex; align-items: baseline; padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .month .label:first-child { flex: 1; }
+  .section { padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .text-btn { min-height: 56px; display: flex; align-items: center; gap: var(--s2); color: var(--text); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .prog { padding: var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+  .prog-name { font-size: var(--f-name); font-weight: 600; margin-top: 2px; }
+  .prog-sub { font-size: 14px; color: var(--text-2); }
+
+  /* Set bar (from stop 4, for context) */
+  .bar { background: var(--raised); border-top: 1px solid var(--line); padding: var(--s3) var(--s4); display: flex; align-items: center; gap: var(--s4); }
+  .bar-info { flex: 1; min-width: 0; }
+  .bar-time { font-size: var(--f-timer); font-weight: 700; line-height: 1.1; }
+  .bar-what { font-size: 14px; color: var(--text-2); }
+  .btn { height: 52px; border-radius: var(--r-control); display: flex; align-items: center; justify-content: center; font-size: var(--f-body); font-weight: 700; padding: 0 var(--s5); }
+  .btn.primary { background: var(--accent); color: #0B0D0C; }
+  .btn.secondary { border: 1.5px solid var(--control); color: var(--text); }
+  .btn.danger { background: var(--danger); color: #0B0D0C; }
+  .bar .btn { height: 56px; }
+
+  .tabs { display: flex; background: var(--bg); border-top: 1px solid var(--line); position: relative; z-index: 3; }
+  .tab { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.on { color: var(--accent); }
+
+  /* Bottom sheet: one component for menus AND confirm dialogs */
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.62); z-index: 4; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--raised); border-radius: var(--r-sheet) var(--r-sheet) 0 0; padding: var(--s2) var(--s4) var(--s4); }
+  .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--control); margin: 0 auto var(--s3); }
+  .sheet-title { font-size: var(--f-name); font-weight: 700; margin-bottom: 2px; }
+  .sheet-sub { font-size: 14px; color: var(--text-2); padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+  .sheet-text { font-size: var(--f-body); color: var(--text-2); margin: var(--s2) 0 var(--s5); }
+  .opt { min-height: 56px; display: flex; align-items: center; gap: var(--s3); font-size: var(--f-body); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .opt svg { color: var(--text-2); }
+  .opt.danger, .opt.danger svg { color: var(--danger); }
+  .opt.off { color: var(--control); }
+  .opt.off svg { color: var(--control); }
+  .opt.cancel { justify-content: center; border-bottom: 0; color: var(--text-2); }
+  .stack { display: flex; flex-direction: column; gap: var(--s3); }
+
+  /* Message bar: one place, just above the set bar / tab bar */
+  .msg { margin: 0 var(--s3) var(--s2); background: var(--raised); border-radius: var(--r-control); display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s2) 0 var(--s4); min-height: 52px; border: 1px solid var(--line); }
+  .msg span { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg b { font-weight: 600; }
+  .msg .act { min-width: 64px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 700; }
+  .float { position: absolute; left: 0; right: 0; bottom: 57px; z-index: 2; }
+  .float.over-bar { bottom: 138px; }
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="i-today" viewBox="0 0 24 24"><path d="M4 9v6M8 6v12M16 6v12M20 9v6M8 12h8"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+</svg>
+
+<div class="doc">
+  <h2>Stop 5: other screens</h2>
+  <p>All screens use the stop 3 tokens and the same flat row: name, one grey line below it, a divider line. No boxes, no pill buttons. Data: the baseline backup (36 workouts, program "Block 1 – Knee Rehab").</p>
+  <p><b>Three proposals for you to accept or reject:</b></p>
+  <ul>
+    <li><b>P1. Delete with Undo, not with a dialog.</b> "Delete from Queue", "Delete from History" and "Restore to Queue" do the action at once and show the message bar with Undo for 8 s. This is one tap fewer. Dialogs stay only for actions that Undo cannot easily reverse: End Current Program, Remove Next Program, Restore from Backup, Finish Workout.</li>
+    <li><b>P2. Dialogs become bottom sheets.</b> Menus and confirm dialogs use one component that comes up from the bottom, so your thumb reaches every button. The safe button (Cancel) is far from the edge of the screen; the red button is on top.</li>
+    <li><b>P3. The set bar keeps its own Undo.</b> "Set 2 Started · Undo" stays in the set bar, where your eyes are. The message bar is for all other messages. Alternative: move it to the message bar too, so there is exactly one Undo place. I recommend P3 as shown, because it is tested and two Undo bars cannot show at the same time over the set bar.</li>
+  </ul>
+  <p>No data model change in stop 5.</p>
+  <p><b>Decision (user, 16 Nov 2026):</b> P1 only for Restore to Queue. Delete from Queue and Delete from History keep their confirm dialog, because after the Undo time the workout is gone for good. P2 and P3 accepted. Built in v70.</p>
+
+  <h2>1. Queue</h2>
+  <p>The program is plain text at the top. The next workout has the accent bar at the left edge (the same marker as the active exercise). The ⋮ button opens a bottom sheet. "Add Workout" is the last row.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Queue</h1></div>
+    <div class="prog">
+      <span class="label">Current Program</span>
+      <div class="prog-name">Block 1 – Knee Rehab</div>
+      <div class="prog-sub">2 workouts left · No next program</div>
+    </div>
+    <div class="row next">
+      <div class="row-main"><span class="label accent">Next</span><div class="row-name">Wk4 D3 · Squat + Incline Bench + Arms/Delts</div><div class="row-sub">6 exercises</div></div>
+      <span class="more"><svg><use href="#i-more"/></svg></span>
+    </div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Wk4 D4 · Squat + DB Push/Pull</div><div class="row-sub">6 exercises</div></div>
+      <span class="more"><svg><use href="#i-more"/></svg></span>
+    </div>
+    <div class="text-btn"><svg><use href="#i-plus"/></svg>Add Workout</div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab on"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>2. History with month headings</h2>
+  <p>Newest first. Each month heading shows the number of workouts. The second line shows the day, the number of exercises and "Ad-hoc" when the workout is not from a program. A tap on a row opens the workout; the ⋮ button opens the sheet.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">History</h1></div>
+    <div class="month"><span class="label">November 2026</span><span class="label num">2</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk4 D2 · Deadlift + Back</div><div class="row-sub">Mon 2 Nov · 5 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk4 D1 · Squat + Heavy Bench</div><div class="row-sub">Sun 1 Nov · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="month"><span class="label">October 2026</span><span class="label num">15</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D4 · Squat + DB Push/Pull</div><div class="row-sub">Thu 29 Oct · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D3 · Squat + Incline Bench + Arms/Delts</div><div class="row-sub">Wed 28 Oct · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D2 · Deadlift + Back</div><div class="row-sub">Mon 26 Oct · 5 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D1 · Squat + Heavy Bench</div><div class="row-sub">Sun 25 Oct · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk2 D4 · Squat + DB Push/Pull</div><div class="row-sub">Thu 22 Oct · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Vacation Workout (Ting's House)</div><div class="row-sub">Mon 10 Aug · 4 exercises · Ad-hoc</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+  </div>
+  <div class="tabs">
+    <div class="tab on"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <p>(The last row is from August, shown here only to show the "Ad-hoc" line.)</p>
+
+  <h2>3. Settings</h2>
+  <p>Sections with a heading and flat rows. Rows that open a screen or a file have a chevron. Red text is for actions that end or remove something. "About" moves to the bottom, because you rarely need it. Stop 7 adds "Last backup: …" below Backup All Data.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Settings</h1></div>
+    <div class="section"><span class="label">Program</span></div>
+    <div class="row short"><div class="row-main"><div class="row-sub">Current Program</div><div class="row-name">Block 1 – Knee Rehab</div></div></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Add Next Program</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short danger"><div class="row-main"><div class="row-name">End Current Program</div></div></div>
+
+    <div class="section"><span class="label">Data</span></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Backup All Data</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Restore from Backup</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Export Gym Log</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+
+    <div class="section"><span class="label">Exercises</span></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Exercise List</div></div><span class="row-val num">58</span><svg class="chev"><use href="#i-chev"/></svg></div>
+
+    <div class="section"><span class="label">About</span></div>
+    <div class="row short"><div class="row-main"><div class="row-name" style="font-size:16px">GymLog <span class="row-val">· v70</span></div><div class="row-sub">Offline. Your data stays on this phone only.</div></div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab on"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>4. Bottom sheet: a menu</h2>
+  <p>The ⋮ button on a History row. The sheet names the workout, so you know what you act on. Each option is 56 px high. A tap on the dark area or on Cancel closes it. The Queue rows, the workout ⋮ menu and the exercise ⋮ menu use the same sheet. "Move Up" is grey when the row is already first.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">History</h1></div>
+    <div class="month"><span class="label">November 2026</span><span class="label num">2</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk4 D2 · Deadlift + Back</div><div class="row-sub">Mon 2 Nov · 5 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk4 D1 · Squat + Heavy Bench</div><div class="row-sub">Sun 1 Nov · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="month"><span class="label">October 2026</span><span class="label num">15</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D4 · Squat + DB Push/Pull</div><div class="row-sub">Thu 29 Oct · 6 exercises</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D3 · Squat + Incline Bench + Arms/Delts</div><div class="row-sub">Wed 28 Oct · 6 exercises</div></div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab on"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-title">Wk4 D2 · Deadlift + Back</div>
+    <div class="sheet-sub">Mon 2 Nov 2026 · 5 exercises</div>
+    <div class="opt"><svg><use href="#i-restore"/></svg>Restore to Queue</div>
+    <div class="opt danger"><svg><use href="#i-trash"/></svg>Delete from History</div>
+    <div class="opt cancel">Cancel</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>5. Bottom sheet: a confirm dialog (P2)</h2>
+  <p>The same sheet holds a question. Full-width buttons, one above the other: the action on top, Cancel below it. The dialog text says what happens and what does not happen.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Settings</h1></div>
+    <div class="section"><span class="label">Program</span></div>
+    <div class="row short"><div class="row-main"><div class="row-sub">Current Program</div><div class="row-name">Block 1 – Knee Rehab</div></div></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Add Next Program</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+    <div class="row short danger"><div class="row-main"><div class="row-name">End Current Program</div></div></div>
+    <div class="section"><span class="label">Data</span></div>
+    <div class="row short action"><div class="row-main"><div class="row-name">Backup All Data</div></div><svg class="chev"><use href="#i-chev"/></svg></div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab on"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-title">End This Program?</div>
+    <div class="sheet-text">"Block 1 – Knee Rehab" has 2 workouts left in the Queue. They will be removed. Your History stays as it is.</div>
+    <div class="stack">
+      <div class="btn danger">End Program</div>
+      <div class="btn secondary">Cancel</div>
+    </div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>6. Message bar on a list screen (P1)</h2>
+  <p>After "Delete from History": the row is gone at once and the bar shows above the tab bar for 8 s. It replaces the old banner below the header, which your thumb cannot reach. Only one message shows at a time; a new message replaces the old one.</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">History</h1></div>
+    <div class="month"><span class="label">November 2026</span><span class="label num">1</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk4 D1 · Squat + Heavy Bench</div><div class="row-sub">Sun 1 Nov · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="month"><span class="label">October 2026</span><span class="label num">15</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D4 · Squat + DB Push/Pull</div><div class="row-sub">Thu 29 Oct · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D3 · Squat + Incline Bench + Arms/Delts</div><div class="row-sub">Wed 28 Oct · 6 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk3 D2 · Deadlift + Back</div><div class="row-sub">Mon 26 Oct · 5 exercises</div></div><span class="more"><svg><use href="#i-more"/></svg></span></div>
+  </div>
+  <div class="float"><div class="msg"><span><b>Wk4 D2 · Deadlift + Back</b> deleted</span><span class="act">Undo</span></div></div>
+  <div class="tabs">
+    <div class="tab on"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc">
+  <h2>7. Message bar on the Workout screen</h2>
+  <p>After you delete an exercise during a workout: the bar shows directly above the set bar, so it never covers the "Start Set" button. The set bar keeps its own Undo for sets (P3).</p>
+</div>
+
+<div class="phone">
+  <div class="screen">
+    <div class="h1row" style="border-bottom:1px solid var(--line)"><div><span class="label">Today · 16 Nov</span><h1 class="title">Wk4 D3 · Squat + Incline Bench + Arms/Delts</h1></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Squats</div><div class="row-sub">5 × 5 · 100 kg</div></div><span class="row-val num">5/5</span></div>
+    <div class="row next"><div class="row-main"><div class="row-name">Incline Bench Press</div><div class="row-sub">4 × 8 · 60 kg</div></div><span class="row-val num">2/4</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">EZ-Bar Curl</div><div class="row-sub">3 × 12 · 25 kg</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Lateral Raise</div><div class="row-sub">3 × 15 · 8 kg</div></div></div>
+  </div>
+  <div class="float over-bar"><div class="msg"><span><b>Cable Fly</b> deleted</span><span class="act">Undo</span></div></div>
+  <div class="bar" style="position:relative;z-index:3">
+    <span class="more" style="margin:0"><svg><use href="#i-pause"/></svg></span>
+    <div class="bar-info"><div class="bar-time num">1:24</div><div class="bar-what">Incline Bench Press · rest</div></div>
+    <div class="btn primary">Start Set 3</div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab on"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+</body>
+</html>

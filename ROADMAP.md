@@ -230,17 +230,17 @@ Potential features:
 
 ### 2.3 UI/UX Overhaul Epic
 
-**Status:** In progress. Stops 1 to 3 are done (v64 and v66). Stop 4 is built (v69) and in test with the user.
+**Status:** In progress. Stops 1 to 5 are done (v64, v66, v69, v70). Stop 6 (exercise picker) is next.
 
-**Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html`.
+**Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html` (stops 2 to 4) and `docs/mockups/GymLog UI Overhaul - Stop 5 Other Screens.html` (stop 5).
 
 **Stops:**
 
 1. Protect the data: safe storage helpers, failed-save rollback, text escaping (done, v64).
 2. Mockups for the Workout screen, the bottom bar and the History list (done).
 3. New Workout screen: flat rows with one open row, − and + buttons, history button, superset pair opens as one, timer bar tap goes to its exercise (done, v66).
-4. Set bar that replaces the rest timer bar: one button ("Start Workout", "Start Set 1" …, "Next Exercise", "Finish Workout") and a small pause button, saved rest time and set count, active exercise, "Start This Exercise" and "Restart This Exercise" in the rows (built, v69; in test). This stop replaces feature 1.2's set squares and prepares feature 1.8.
-5. Other screens: Queue, History with month headings, Settings, dialogs, bottom sheets, one message bar.
+4. Set bar that replaces the rest timer bar: one button ("Start Workout", "Start Set 1" …, "Next Exercise", "Finish Workout") and a small pause button, saved rest time and set count, active exercise, "Start This Exercise" and "Restart This Exercise" in the rows (done, v69). This stop replaces feature 1.2's set squares and prepares feature 1.8.
+5. Other screens: Queue, History with month headings, Settings, Exercise List, dialogs and menus as bottom sheets, one message bar for Undo, Restore to Queue with Undo instead of a dialog (deletes keep their dialog) (done, v70).
 6. Exercise picker: full screen, search, recent exercises, values from the last session.
 7. Backup and restore: last backup date and reminder, file summary before restore, undo copy.
 8. Import preview and a progress screen for each exercise.
@@ -259,7 +259,7 @@ An initial suggested sequence, subject to further exploration:
 4. Workout Description and Comment (done).
 5. Superset Import (done).
 6. Program Builder Epic, Phases 1 to 3 (Phase 1 done; Phase 2 steps 1 to 4 done, steps 5 to 7 left).
-   The UI/UX Overhaul Epic (2.3) is in progress now, stops 1 to 3 done; it comes before the items below.
+   The UI/UX Overhaul Epic (2.3) is in progress now, stops 1 to 5 done; it comes before the items below.
 7. Set-by-Set Logging.
 8. Planned vs. Actual Tracking.
 9. Missed Reps Logging.

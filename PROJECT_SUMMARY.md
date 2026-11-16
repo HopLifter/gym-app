@@ -1,7 +1,70 @@
 # GymLog — Project Summary
 
+## UI/UX overhaul, stop 5: other screens (v70, 16 November 2026)
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v70`. Approved by the user,
+committed and published. No data model change. Mockups:
+`docs/mockups/GymLog UI Overhaul - Stop 5 Other Screens.html`.
+
+- **Decisions (user, after the mockups):** P1 only in part: Restore to
+  Queue acts at once with Undo, but Delete from Queue and Delete from
+  History keep their confirm dialog (after the Undo time the workout is
+  gone for good). P2 yes: menus and dialogs are bottom sheets. P3 yes: the
+  set bar keeps its own Undo for sets.
+- **Bottom sheet menus** (`openSheet({ title, sub, options })`,
+  `closeSheet()`): one sheet replaces every ⋮ dropdown (workout header,
+  exercise row, Queue row, History row). The sheet names the item; options
+  are 56 px; Move Up / Move Down are grey when they cannot move. Old state
+  (`openMenuId`, `headerMenuOpen`, `openItemMenuId`) and the dropdown CSS
+  are removed. Header menu: `headerMenuOptions()` + `runHeaderAction()`;
+  exercise menu: `openExerciseMenu()` + `runExerciseAction()`.
+- **Dialogs** (`openConfirm`, `openNotice`, Import, Export Gym Log) use the
+  same sheet look: they come up from the bottom, buttons are full width,
+  the action on top and Cancel below (`.modal-actions` is
+  `column-reverse`). No change to their JavaScript.
+- **Message bar** (`showMessage(text, actionLabel, onAction)`,
+  `hideMessage()`, `positionMessageBar()`): one message at a time for 8 s,
+  just above the set bar (or the tab bar). It replaces the old Undo banner
+  below the header (`showUndo`, `positionUndoBanner`, `lastDeleted` are
+  removed). Used for "Deleted: …" (exercise) and "Restored to Today: …".
+  `renderSetBar()` calls `positionMessageBar()`.
+- **Restore to Queue with Undo** (`restoreWithUndo(id, after)`): no
+  dialog. Undo puts the original History entry back at the same index,
+  removes the workout from the queue, puts the old queue order back, and
+  gives the old Today's Workout back the `timer` and `progress` that the
+  restore cleared. History is saved first, so a workout is never in
+  neither place. Undo does nothing if the workout was finished or deleted
+  since, and it is blocked while the workout timer runs.
+  `restoreWorkoutToQueue()` now returns `true`/`false`;
+  `restoreConfirmText()` is removed.
+- **Queue:** program block at the top ("2 workouts left · No next
+  program"), flat rows, the next workout has the accent bar and a "Next"
+  label, "Add Workout" is the last row. The second line is "6 exercises"
+  (plus "Ad-hoc"); the workout description no longer shows in the list.
+- **History:** a heading for each month with the number of workouts
+  (`monthHeading()`); rows show "Mon 2 Nov · 5 exercises · Ad-hoc"
+  (`workoutListSub()`, `formatDayShort()`). Ad-hoc is still
+  `programId === null`.
+- **Settings:** sections Program, Data, Exercises, About (About moved to
+  the bottom, version shown as "v70"). Rows with a chevron open a screen,
+  a sheet or a file; red rows end or remove something.
+- **Exercise List:** back button "‹ Settings", flat add row, flat rows with
+  a grey "Remove" (the confirm sheet has the red button).
+- **Shared list CSS:** `.list-row`, `.list-main`, `.list-name`,
+  `.list-sub`, `.list-head`, `.list-block`, `.label`, `.screen-head`. The
+  old `.history-item`, `.pill-btn`, `.program-bar*`, `.settings-*`,
+  `.add-btn` and the tokens `--surface`, `--surface-2`, `--accent-dim`,
+  `--done` are removed. `--text-dim` and `--hist-superset` remain for the
+  condensed Past Workout table.
+- **Tested** in the desktop browser at 375 px with the restored baseline:
+  Queue, History (5 month groups, 2 Ad-hoc rows), Settings, Exercise List,
+  all four sheets, Move Up/Down, the delete dialog, Restore to Queue and
+  Undo (from the list and from the Past Workout view, with the timer
+  running and paused), exercise delete and Undo above the set bar, Import
+  and Export sheets, HTML in a workout name. Not run on a phone.
+
 ## UI/UX overhaul, stop 4: set bar (v69, 16 November 2026)
-`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v69`. Not committed yet.
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v69`. Committed (8c176ff)
+and published.
 v67 and v68 were earlier builds of this stop; v69 is the flow that the
 user specified after two tests. The old rest timer (Pause, Reset, ✕, set
 squares, "Start Rest Timer") is removed. Older sections that describe it

@@ -23,12 +23,8 @@
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --tab-h: calc(56px + var(--safe-bottom));
-    /* Old names: still used by the screens that stop 5 restyles. */
-    --surface: #161917;
-    --surface-2: #1F2320;
+    /* Old names: still used by the condensed Past Workout table. */
     --text-dim: var(--text-2);
-    --accent-dim: #7A9A2E;
-    --done: #3A4A2E;
     --hist-superset: #4B524C;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -87,7 +83,6 @@
     background: var(--bg);
     padding-top: calc(var(--safe-top) + var(--s3));
   }
-  .sticky-header--gap { padding-bottom: var(--s4); }
   #workoutStickyHeader { padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
   #settingsScreen, #exerciseListScreen { padding-top: calc(var(--safe-top) + 20px); }
 
@@ -138,41 +133,49 @@
     flex-shrink: 0;
   }
   .header-action-btn:active { border-color: var(--accent); }
-  .header-menu-dropdown button[data-action="reset-timer"],
-  .header-menu-dropdown button[data-action="delete-from-history"],
-  .header-menu-dropdown button[data-action="delete-queue-workout"],
-  .header-menu-dropdown button[data-action="end-program"] { color: var(--danger); }
-  .header-menu-dropdown button[data-action="restore-to-queue"],
-  .item-menu-dropdown button[data-action="restore-to-queue"] { color: var(--accent); font-weight: 700; }
   input:disabled, textarea:disabled { opacity: 0.7; cursor: default; }
-  .header-menu-dropdown, .menu-dropdown {
-    display: none;
-    position: absolute;
-    top: 48px; right: 0;
+
+  /* ---- Bottom sheet (stop 5): one component for menus (openSheet) and
+     for confirm dialogs (openConfirm) and the Import/Export forms. It
+     comes up from the bottom, so the thumb reaches every button. */
+  .sheet-overlay, .modal-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,0.62);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .sheet, .modal-box {
+    width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto;
     background: var(--raised);
-    border: 1px solid var(--line);
-    border-radius: var(--r-control);
-    overflow: hidden;
-    z-index: 30;
-    min-width: 220px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    border-radius: var(--r-sheet) var(--r-sheet) 0 0;
+    padding: var(--s2) var(--s4) calc(var(--s4) + var(--safe-bottom));
   }
-  .header-menu-dropdown.open, .menu-dropdown.open { display: block; }
-  .header-menu-dropdown button, .menu-dropdown button {
-    display: block;
-    width: 100%;
-    min-height: 48px;
-    text-align: left;
-    background: none;
-    border: none;
-    color: var(--text);
-    font-size: var(--f-body);
-    padding: 0 var(--s4);
-    cursor: pointer;
+  .sheet::before, .modal-box::before {
+    content: ""; display: block; width: 36px; height: 4px; border-radius: 2px;
+    background: var(--control); margin: 0 auto var(--s3);
   }
-  .header-menu-dropdown button:not(:last-child),
-  .menu-dropdown button:not(:last-child) { border-bottom: 1px solid var(--line); }
-  .menu-dropdown button[data-action="delete"] { color: var(--danger); }
+  .sheet-title, .modal-title { font-size: var(--f-name); font-weight: 700; overflow-wrap: anywhere; }
+  .sheet-sub { font-size: 14px; color: var(--text-2); margin-top: 2px; }
+  .sheet-head { padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+  .sheet-opt {
+    display: flex; align-items: center; gap: var(--s3); width: 100%; min-height: 56px;
+    background: none; border: none; border-bottom: 1px solid var(--line);
+    color: var(--text); font: inherit; font-weight: 600; text-align: left; padding: 0; cursor: pointer;
+  }
+  .sheet-opt .icon { color: var(--text-2); }
+  .sheet-opt.danger, .sheet-opt.danger .icon { color: var(--danger); }
+  .sheet-opt:disabled, .sheet-opt:disabled .icon { color: var(--control); cursor: default; }
+  .sheet-opt.cancel { justify-content: center; border-bottom: none; color: var(--text-2); }
+  .modal-text { font-size: var(--f-body); color: var(--text-2); margin: var(--s2) 0 var(--s5); line-height: 1.4; white-space: pre-line; overflow-wrap: anywhere; }
+  /* Buttons stack: the action on top, Cancel below it (column-reverse,
+     because Cancel comes first in the markup). */
+  .modal-actions { display: flex; flex-direction: column-reverse; gap: var(--s3); }
+  .modal-btn-cancel, .modal-btn-danger, .modal-btn-primary {
+    width: 100%; height: 52px; border-radius: var(--r-control);
+    font-family: inherit; font-size: var(--f-body); font-weight: 700; cursor: pointer;
+  }
+  .modal-btn-cancel { background: none; border: 1.5px solid var(--control); color: var(--text); }
+  .modal-btn-danger { background: var(--danger); border: none; color: var(--bg); }
+  .modal-btn-primary { background: var(--accent); border: none; color: var(--bg); }
 
   .title-row { display: flex; align-items: flex-start; gap: 10px; }
   h1 {
@@ -211,7 +214,7 @@
   }
   textarea.title-input:focus { border-bottom-color: var(--accent); }
   .date-input {
-    background: var(--surface-2);
+    background: var(--bg);
     border: 1px solid var(--control);
     border-radius: var(--r-control);
     color: var(--text);
@@ -431,19 +434,6 @@
   }
   .exercise.selectable { outline: 2px dashed var(--accent); outline-offset: -2px; cursor: pointer; }
 
-  /* Queue screen "Add Workout" button (old style, restyled in stop 5). */
-  .add-btn {
-    width: 100%;
-    background: var(--surface);
-    border: 1px dashed var(--accent-dim);
-    border-radius: 14px;
-    color: var(--accent);
-    font-size: 15px;
-    font-weight: 700;
-    padding: 14px;
-    cursor: pointer;
-    margin-top: 6px;
-  }
   .status { text-align: center; font-size: 13px; color: var(--text-2); margin-top: 24px; }
 
   /* Set bar: one row above the tab bar, with one button. The line
@@ -489,268 +479,108 @@
     padding: 14px 8px; margin: -14px -8px; cursor: pointer;
   }
 
-  /* Positioned by positionUndoBanner(), just under the sticky header. */
-  .undo-banner {
-    position: fixed;
-    top: 76px; left: 16px; right: 16px;
-    max-width: 448px; margin: 0 auto;
+  /* ---- Message bar (stop 5): the one place for messages with Undo.
+     It sits just above the set bar, or above the tab bar when the set
+     bar is hidden (positionMessageBar()). One message at a time. */
+  .msg-bar {
+    position: fixed; left: 0; right: 0;
+    bottom: calc(var(--tab-h) + var(--s2));
+    max-width: 456px; margin: 0 auto;
     background: var(--raised);
     border: 1px solid var(--line);
     border-radius: var(--r-control);
-    padding: 4px 16px;
-    display: none;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 26;
+    min-height: 52px;
+    padding: 0 var(--s2) 0 var(--s4);
+    display: none; align-items: center; gap: var(--s3);
+    z-index: 44;
   }
-  .undo-banner.visible { display: flex; }
-  .undo-banner button {
+  @media (max-width: 480px) { .msg-bar { left: var(--s3); right: var(--s3); } }
+  .msg-bar.visible { display: flex; }
+  .msg-text { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-action {
+    min-width: 64px; height: 44px; flex-shrink: 0;
     background: none; border: none; color: var(--accent);
-    font-weight: 700; font-size: var(--f-body); cursor: pointer; min-height: 44px;
+    font: inherit; font-weight: 700; cursor: pointer;
   }
 
-  /* History / Queue screens */
-  .history-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 20px;
+  /* ---- List screens (stop 5): Queue, History, Settings, Exercise List.
+     Flat rows with a divider line, no boxes. */
+  .screen-head { min-height: 64px; display: flex; align-items: center; padding-bottom: var(--s2); }
+  .screen-head h1 { flex: 1; }
+  .label {
+    font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--text-2);
   }
+  .label.accent { color: var(--accent); }
+  .list-row { display: flex; align-items: center; gap: var(--s2); border-bottom: 1px solid var(--line); position: relative; }
+  .list-row.next::before {
+    content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0;
+    width: 3px; background: var(--accent);
+  }
+  .list-main {
+    flex: 1; min-width: 0; min-height: 64px; padding: var(--s3) 0;
+    display: flex; flex-direction: column; justify-content: center;
+    background: none; border: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  }
+  .list-row.short .list-main { min-height: 56px; }
+  .list-row .menu-btn { margin-right: -10px; }
+  .list-row .chev { color: var(--control); margin-right: -4px; }
+  .list-name { font-size: var(--f-name); font-weight: 600; overflow-wrap: anywhere; }
+  .list-row.action .list-name { font-size: var(--f-body); }
+  .list-row.danger .list-name { color: var(--danger); font-size: var(--f-body); }
+  .list-sub { font-size: 14px; color: var(--text-2); overflow-wrap: anywhere; }
+  .list-val { font-size: var(--f-body); color: var(--text-2); flex-shrink: 0; }
+  .list-head {
+    display: flex; align-items: baseline; gap: var(--s3);
+    padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line);
+  }
+  .list-head .label:first-child { flex: 1; }
+  .list-block { padding: var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+  .list-block .list-name { margin-top: 2px; }
+  .list-empty { color: var(--text-2); font-size: var(--f-body); padding: var(--s5) 0; border-bottom: 1px solid var(--line); }
+  .list-row .text-btn { flex: 1; }
+  .list-row .text-btn.row-act { flex: 0 0 auto; width: auto; color: var(--text-2); padding: 0 var(--s2); margin-right: calc(var(--s2) * -1); }
   .back-btn {
-    background: var(--surface-2);
-    border: 1px solid var(--accent-dim);
-    border-radius: 8px;
-    color: var(--accent);
-    font-size: 13px;
-    font-weight: 700;
-    padding: 6px 12px;
-    cursor: pointer;
-    white-space: nowrap;
+    display: flex; align-items: center; gap: var(--s1);
+    min-height: 44px; margin-left: -8px; padding: 0 var(--s2) 0 0;
+    background: none; border: none; color: var(--text-2);
+    font: inherit; font-weight: 600; cursor: pointer;
   }
-  .back-btn:active { border-color: var(--accent); }
-  .history-item {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 14px 16px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    position: relative;
+  .add-row { display: flex; align-items: center; gap: var(--s3); border-bottom: 1px solid var(--line); }
+  .add-row input {
+    flex: 1; min-width: 0; height: 56px;
+    background: none; border: none; border-radius: 0;
+    color: var(--text); font-family: inherit; font-size: var(--f-body);
   }
-  .history-item:active { border-color: var(--accent); }
-  .history-item.next { border-color: var(--accent); }
-  .history-name { font-weight: 700; font-size: 16px; padding-right: 30px; }
-  .history-date { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-  .history-tag {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--accent);
-    background: var(--surface-2);
-    border: 1px solid var(--accent-dim);
-    border-radius: 5px;
-    padding: 2px 6px;
-    margin-top: 6px;
-  }
-  .history-empty { text-align: center; color: var(--text-dim); font-size: 14px; margin-top: 40px; }
-  .item-menu-btn {
-    position: absolute; top: 10px; right: 10px;
-    background: none; border: none; color: var(--text-dim);
-    font-size: 20px; cursor: pointer; padding: 2px 8px; line-height: 1;
-  }
-  .item-menu-dropdown {
-    display: none;
-    position: absolute;
-    top: 34px; right: 8px;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    overflow: hidden;
-    z-index: 15;
-    min-width: 160px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-  }
-  .item-menu-dropdown.open { display: block; }
-  .item-menu-dropdown button {
-    display: block; width: 100%; text-align: left;
-    background: none; border: none; color: var(--text);
-    font-size: 14px; padding: 10px 14px; cursor: pointer;
-  }
-  .item-menu-dropdown button:not(:last-child) { border-bottom: 1px solid var(--line); }
-  .item-menu-dropdown button[data-action="delete-queue-workout"],
-  .item-menu-dropdown button[data-action="delete-from-history"] { color: var(--danger); }
+  .add-row input:focus { outline: none; }
+  .add-row:focus-within { border-bottom-color: var(--accent); }
+  .add-row .text-btn { width: auto; flex-shrink: 0; color: var(--accent); }
 
-  .program-bar {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 14px 16px;
-    margin-bottom: 18px;
-  }
-  .program-bar-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; font-weight: 700; }
-  .program-bar-name { font-weight: 700; font-size: 15px; margin-bottom: 8px; overflow-wrap: anywhere; }
-  .settings-title { margin-bottom: 18px; }
-  .settings-section {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 14px 16px;
-    margin-bottom: 12px;
-  }
-  .settings-section-title {
-    font-size: 11px; color: var(--text-dim); text-transform: uppercase;
-    letter-spacing: 0.05em; margin-bottom: 8px; font-weight: 700;
-  }
-  .settings-about-name { font-weight: 800; font-size: 17px; }
-  .settings-about-version { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-  .settings-about-desc { font-size: 13px; color: var(--text-dim); margin-top: 8px; line-height: 1.4; }
-  .program-bar-empty { font-size: 13px; color: var(--text-dim); margin-bottom: 10px; }
-  .program-bar-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  .pill-btn {
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 13px;
-    font-weight: 600;
-    padding: 8px 12px;
-    cursor: pointer;
-  }
-  .pill-btn.accent { border-color: var(--accent-dim); color: var(--accent); }
-  .pill-btn.danger { border-color: var(--danger); color: var(--danger); }
+  .empty-state { text-align: center; padding: 60px 0; color: var(--text-2); }
+  .empty-state h2 { color: var(--text); font-size: var(--f-name); margin-bottom: var(--s2); }
+  .empty-state-actions { display: flex; flex-direction: column; gap: var(--s3); margin-top: var(--s5); }
 
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--text-dim);
-  }
-  .empty-state h2 { color: var(--text); font-size: 18px; margin-bottom: 8px; }
-  .empty-state-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
-
-  /* Modals */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 50;
-    padding: 20px;
-  }
-  .modal-box {
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 20px;
-    max-width: 340px;
-    width: 100%;
-    max-height: 85vh;
-    overflow-y: auto;
-  }
-  .modal-title { font-weight: 800; font-size: 17px; margin-bottom: 8px; }
-  .modal-text { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.4; white-space: pre-line; }
-  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
-  .modal-btn-cancel {
-    background: none;
-    border: 1px solid var(--line);
-    color: var(--text);
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-  }
-  .modal-btn-danger {
-    background: var(--danger);
-    border: none;
-    color: #1a0a08;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-  }
-  .modal-btn-primary {
-    background: var(--accent);
-    border: none;
-    color: var(--bg);
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-weight: 700;
-    font-size: 14px;
-    cursor: pointer;
-  }
+  /* Import / Export sheets: fields */
   .import-textarea {
-    width: 100%;
-    min-height: 120px;
-    background: var(--surface);
+    width: 100%; min-height: 120px;
+    background: var(--bg);
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--r-control);
     color: var(--text);
-    font-size: 12px;
-    font-family: monospace;
-    padding: 8px 10px;
-    margin-bottom: 10px;
+    font-size: 13px; font-family: monospace;
+    padding: var(--s2) 10px;
+    margin-bottom: var(--s3);
   }
   .import-file-label {
-    display: block;
-    text-align: center;
-    background: var(--surface);
-    border: 1px dashed var(--accent-dim);
-    border-radius: 8px;
-    color: var(--accent);
-    font-size: 13px;
-    font-weight: 600;
-    padding: 10px;
-    margin-bottom: 12px;
-    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    height: 52px; margin-bottom: var(--s3);
+    border: 1.5px solid var(--control); border-radius: var(--r-control);
+    color: var(--text); font-weight: 700; cursor: pointer;
   }
   .import-error {
     color: var(--danger);
-    font-size: 13px;
-    margin-bottom: 10px;
-  }
-  .exercise-list-add-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .exercise-list-add-row input {
-    flex: 1;
-    min-width: 0;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    color: var(--text);
     font-size: 14px;
-    padding: 10px 12px;
-  }
-  .exercise-list-add-row input:focus { outline: none; border-color: var(--accent); }
-  .exercise-list-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    font-size: 14px;
-  }
-  .exercise-list-remove-btn {
-    background: none;
-    border: none;
-    color: var(--danger);
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    padding: 4px 6px;
-    flex-shrink: 0;
+    margin: var(--s2) 0;
   }
 
   /* ================= Condensed History (Past Workout) view =================
@@ -858,6 +688,14 @@
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 6l10 6-10 6z"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-set" viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.5-5.8"/><path d="M4 4v4h4"/></symbol>
+  <symbol id="i-swap" viewBox="0 0 24 24"><path d="M5 8h13l-3-3M19 16H6l3 3"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
 </svg>
 
 <!-- WORKOUT SCREEN (queue item, history item, or empty state) -->
@@ -874,7 +712,6 @@
           <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
         </svg>
         <button class="header-menu-btn" id="headerMenuBtn" aria-label="Workout menu"><svg class="icon"><use href="#i-more"/></svg></button>
-        <div class="header-menu-dropdown" id="headerMenuDropdown"></div>
       </div>
     </div>
     <div class="title-row" id="titleRow">
@@ -908,8 +745,8 @@
     <h2>No workout queued</h2>
     <p>Add a one-off workout or import a program to get started.</p>
     <div class="empty-state-actions">
-      <button class="pill-btn accent" id="emptyAddAdhocBtn">Add Workout</button>
-      <button class="pill-btn" id="emptyImportBtn">Start New Program</button>
+      <button class="btn primary" id="emptyAddAdhocBtn">Add Workout</button>
+      <button class="btn secondary" id="emptyImportBtn">Start New Program</button>
     </div>
   </div>
 
@@ -918,38 +755,35 @@
 
 <!-- QUEUE SCREEN -->
 <div id="queueScreen" class="hidden">
-  <div class="sticky-header" id="queueStickyHeader">
-    <h1>Queue</h1>
-    <div class="program-bar" id="programBar"></div>
+  <div class="sticky-header">
+    <div class="screen-head"><h1>Queue</h1></div>
   </div>
-  <button class="add-btn" id="addAdhocBtn">Add Workout</button>
-  <div style="height:16px"></div>
+  <div id="programBar"></div>
   <div id="queueList"></div>
+  <div class="list-row"><button class="text-btn" id="addAdhocBtn"><svg class="icon"><use href="#i-plus"/></svg>Add Workout</button></div>
 </div>
 
 <!-- HISTORY SCREEN -->
 <div id="historyScreen" class="hidden">
-  <div class="sticky-header sticky-header--gap" id="historyStickyHeader">
-    <h1>History</h1>
+  <div class="sticky-header">
+    <div class="screen-head"><h1>History</h1></div>
   </div>
   <div id="historyList"></div>
 </div>
 
 <!-- SETTINGS SCREEN -->
 <div id="settingsScreen" class="hidden">
-  <h1 class="settings-title">Settings</h1>
+  <div class="screen-head"><h1>Settings</h1></div>
   <div id="settingsList"></div>
 </div>
 
 <!-- EXERCISE LIST SCREEN (Settings sub-page) -->
 <div id="exerciseListScreen" class="hidden">
-  <div class="history-header">
-    <button class="back-btn" id="backFromExerciseListBtn">Back to Settings</button>
-  </div>
-  <h1>Exercise List</h1>
-  <div class="exercise-list-add-row">
-    <input type="text" id="exerciseListNewInput" placeholder="New exercise name" maxlength="60">
-    <button class="pill-btn accent" id="exerciseListAddBtn">Add</button>
+  <button class="back-btn" id="backFromExerciseListBtn"><svg class="icon"><use href="#i-back"/></svg>Settings</button>
+  <div class="screen-head"><h1>Exercise List</h1></div>
+  <div class="add-row">
+    <input type="text" id="exerciseListNewInput" placeholder="New exercise name" maxlength="60" aria-label="New exercise name">
+    <button class="text-btn" id="exerciseListAddBtn"><svg class="icon"><use href="#i-plus"/></svg>Add</button>
   </div>
   <div class="import-error hidden" id="exerciseListError"></div>
   <div id="exerciseListItems"></div>
@@ -975,9 +809,14 @@
   <button class="btn primary" type="button" id="setDoneBtn"></button>
 </div>
 
-<div class="undo-banner" id="undoBanner">
-  <span id="undoText">Exercise deleted</span>
-  <button id="undoBtn">Undo</button>
+<div class="msg-bar" id="msgBar" role="status">
+  <span class="msg-text" id="msgText"></span>
+  <button class="msg-action" type="button" id="msgAction">Undo</button>
+</div>
+
+<!-- Bottom sheet for menus (openSheet) -->
+<div class="sheet-overlay hidden" id="sheetOverlay">
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
 </div>
 
 <div class="select-banner" id="selectBanner">
@@ -1026,7 +865,7 @@
     <div class="modal-title">Import Program</div>
     <div class="modal-text">Paste the program JSON, or choose a file. Ask Claude to convert your spreadsheet into this format.</div>
     <div class="import-error hidden" id="importError"></div>
-    <label class="import-file-label" for="importFileInput">Choose JSON file…</label>
+    <label class="import-file-label" for="importFileInput">Choose JSON File</label>
     <input type="file" id="importFileInput" accept="application/json" class="hidden">
     <textarea class="import-textarea" id="importTextarea" placeholder='{"program": {"name": "..."}, "workouts": [...]}'></textarea>
     <div class="modal-actions">
@@ -1038,7 +877,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v69";
+  const APP_VERSION = "gym-app-cache-v70";
 
   const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
   const PROGRAMS_KEY = "gymapp_programs_v1";
@@ -1274,13 +1113,8 @@
   let editMode = false;      // only meaningful for history items
   let currentScreen = "workout"; // "workout" | "queue" | "history"
 
-  let lastDeleted = null;
-  let undoTimer = null;
-  let openMenuId = null;
   let expandedHistoryIds = new Set(); // exercise ids with the "Recent" panel open
   let backNavTarget = null; // "queue" | "history" | null — where the contextual back button on the Workout screen goes
-  let headerMenuOpen = false;
-  let openItemMenuId = null; // queue list item ⋮ menu
   let supersettingId = null;
   let customNameEditingIds = new Set(); // exercise ids currently showing the free-text name input instead of the dropdown
   // Set bar (see the set progress section).
@@ -1625,13 +1459,6 @@
           ${count}
           <button class="menu-btn hist-btn${expandedHistoryIds.has(ex.id) ? " on" : ""}" type="button" data-action="toggle-history" aria-label="Last 3 sessions" aria-pressed="${expandedHistoryIds.has(ex.id)}"><svg class="icon"><use href="#i-hist"/></svg></button>
           <button class="menu-btn" type="button" data-action="menu" aria-label="Exercise menu"><svg class="icon"><use href="#i-more"/></svg></button>
-          <div class="menu-dropdown${openMenuId === ex.id ? " open" : ""}">
-            <button type="button" data-action="rename">Change Exercise</button>
-            <button type="button" data-action="move-up">Move Up</button>
-            <button type="button" data-action="move-down">Move Down</button>
-            <button type="button" data-action="superset">${ex.supersetId ? "Remove Superset" : "Superset"}</button>
-            <button type="button" data-action="delete">Delete</button>
-          </div>
         </div>
         ${expandedHistoryIds.has(ex.id) ? recentPanelHTML(ex) : ""}
         <div class="ex-fields">
@@ -1847,24 +1674,25 @@
     }
   }
 
-  function renderHeaderMenu() {
-    const dropdown = document.getElementById("headerMenuDropdown");
-    dropdown.classList.toggle("open", headerMenuOpen);
-    let items = [];
-    const isNextWorkout = viewSource === "queue" && sortedQueue()[0] && getActiveWorkout() && sortedQueue()[0].id === getActiveWorkout().id;
-    if (viewSource === "queue" && isNextWorkout) {
-      if (getActiveWorkout().timer) {
-        items.push(`<button data-action="reset-timer">Reset Workout Timer</button>`);
-      }
+  // The workout ⋮ menu (bottom sheet). Its options depend on what shows.
+  function headerMenuOptions() {
+    const w = getActiveWorkout();
+    const items = [];
+    if (!w) return items;
+    const isNextWorkout = viewSource === "queue" && sortedQueue()[0] && sortedQueue()[0].id === w.id;
+    if (isNextWorkout && w.timer) {
+      items.push({ label: "Reset Workout Timer", icon: "restore", action: "reset-timer" });
     }
     if (viewSource === "queue") {
-      items.push(`<button data-action="delete-queue-workout">Delete from Queue</button>`);
+      items.push({ label: "Delete from Queue", icon: "trash", danger: true, action: "delete-queue-workout" });
     } else if (viewSource === "history") {
-      items.push(`<button data-action="restore-to-queue">Restore to Queue</button>`);
-      items.push(`<button data-action="delete-from-history">Delete from History</button>`);
+      items.push({ label: "Restore to Queue", icon: "restore", action: "restore-to-queue" });
+      items.push({ label: "Delete from History", icon: "trash", danger: true, action: "delete-from-history" });
     }
-    dropdown.innerHTML = items.join("");
-    document.getElementById("headerMenuBtn").classList.toggle("hidden", items.length === 0);
+    return items;
+  }
+  function renderHeaderMenu() {
+    document.getElementById("headerMenuBtn").classList.toggle("hidden", headerMenuOptions().length === 0);
   }
 
   function renderExercises() {
@@ -1986,59 +1814,88 @@
     if (!condensed) document.getElementById("condensedComment").classList.add("hidden");
   }
 
+  // ---- List screens (stop 5): flat rows, ⋮ opens a bottom sheet ----
+
+  // Second line of a workout row: "Mon 2 Nov · 5 exercises · Ad-hoc".
+  // History rows show the day (the month heading has the year).
+  function workoutListSub(w, withDate) {
+    const n = Array.isArray(w.exercises) ? w.exercises.length : 0;
+    const parts = [];
+    if (withDate && w.date) parts.push(formatDayShort(w.date));
+    parts.push(`${n} exercise${n === 1 ? "" : "s"}`);
+    if (w.programId === null) parts.push("Ad-hoc");
+    return parts.join(" · ");
+  }
+  function formatDayShort(iso) {
+    if (!iso || typeof iso !== "string") return "";
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (isNaN(dt)) return "";
+    return `${WEEKDAY_ABBR[dt.getDay()]} ${d} ${MONTH_ABBR[m - 1]}`;
+  }
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function monthHeading(iso) {
+    const m = /^(\d{4})-(\d{2})/.exec(iso || "");
+    if (!m || Number(m[2]) < 1 || Number(m[2]) > 12) return "No Date";
+    return `${MONTH_NAMES[Number(m[2]) - 1]} ${m[1]}`;
+  }
+
+  function workoutRowHTML(w, opts) {
+    return `
+      <div class="list-row${opts.next ? " next" : ""}" data-id="${escapeAttr(w.id)}">
+        <button class="list-main" type="button">
+          ${opts.next ? `<span class="label accent">Next</span>` : ""}
+          <span class="list-name">${escapeHtml(w.label || "Workout")}</span>
+          <span class="list-sub num">${escapeHtml(workoutListSub(w, opts.withDate))}</span>
+        </button>
+        <button class="menu-btn" type="button" data-action="item-menu" aria-label="Workout menu"><svg class="icon"><use href="#i-more"/></svg></button>
+      </div>`;
+  }
+
   function renderProgramBar() {
     const bar = document.getElementById("programBar");
     const cur = currentProgram();
     const nxt = nextProgram();
     if (!cur) {
-      bar.innerHTML = `<div class="program-bar-empty">No active program. Manage programs in Settings.</div>`;
+      bar.innerHTML = `<div class="list-block"><span class="label">Current Program</span><div class="list-sub">No active program. Start one in Settings.</div></div>`;
       return;
     }
-    bar.innerHTML = `<div class="program-bar-label">Current Program</div>
-      <div class="program-bar-name">${escapeHtml(cur.name)}</div>` +
-      (nxt ? `<div class="program-bar-label">Next Program</div>
-      <div class="program-bar-name">${escapeHtml(nxt.name)}</div>` : "");
+    const left = queuedCountFor(cur.id);
+    bar.innerHTML = `<div class="list-block">
+      <span class="label">Current Program</span>
+      <div class="list-name">${escapeHtml(cur.name)}</div>
+      <div class="list-sub">${left} workout${left === 1 ? "" : "s"} left · ${nxt ? `Next: ${escapeHtml(nxt.name)}` : "No next program"}</div>
+    </div>`;
   }
 
   function renderQueueList() {
     const list = document.getElementById("queueList");
     const q = sortedQueue();
     if (q.length === 0) {
-      list.innerHTML = `<div class="history-empty">Queue is empty.</div>`;
+      list.innerHTML = `<div class="list-empty">The queue is empty.</div>`;
       return;
     }
-    list.innerHTML = q.map((w, idx) => `
-      <div class="history-item${idx === 0 ? " next" : ""}" data-id="${escapeAttr(w.id)}">
-        <div class="history-name">${escapeHtml(w.label || "Workout")}${idx === 0 ? " · Next" : ""}</div>
-        <div class="history-date">${escapeHtml((typeof w.description === "string" && w.description.trim()) || (w.programId ? "Program workout" : "Ad-hoc"))}</div>
-        <button class="item-menu-btn" data-action="item-menu">⋮</button>
-        <div class="item-menu-dropdown${openItemMenuId === w.id ? " open" : ""}">
-          <button data-action="move-up">Move Up</button>
-          <button data-action="move-down">Move Down</button>
-          <button data-action="delete-queue-workout">Delete from Queue</button>
-        </div>
-      </div>
-    `).join("");
+    list.innerHTML = q.map((w, idx) => workoutRowHTML(w, { next: idx === 0 })).join("");
   }
 
   function renderHistoryList() {
     const list = document.getElementById("historyList");
     const sorted = [...history].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
     if (sorted.length === 0) {
-      list.innerHTML = `<div class="history-empty">No completed workouts yet.</div>`;
+      list.innerHTML = `<div class="list-empty">No completed workouts yet.</div>`;
       return;
     }
-    list.innerHTML = sorted.map(w => `
-      <div class="history-item" data-id="${escapeAttr(w.id)}">
-        <div class="history-name">${escapeHtml(w.label || "Workout")}</div>
-        <div class="history-date">${formatDateDisplay(w.date)}</div>
-        ${w.programId === null ? `<span class="history-tag">Ad-hoc</span>` : ""}
-        <button class="item-menu-btn" data-action="item-menu">⋮</button>
-        <div class="item-menu-dropdown${openItemMenuId === w.id ? " open" : ""}">
-          <button data-action="restore-to-queue">Restore to Queue</button>
-          <button data-action="delete-from-history">Delete from History</button>
-        </div>
-      </div>
+    // One heading for each month, with the number of workouts in it.
+    const groups = [];
+    sorted.forEach(w => {
+      const heading = monthHeading(w.date);
+      const last = groups[groups.length - 1];
+      if (last && last.heading === heading) last.items.push(w);
+      else groups.push({ heading, items: [w] });
+    });
+    list.innerHTML = groups.map(g => `
+      <div class="list-head"><span class="label">${escapeHtml(g.heading)}</span><span class="label num">${g.items.length}</span></div>
+      ${g.items.map(w => workoutRowHTML(w, { withDate: true })).join("")}
     `).join("");
   }
 
@@ -2046,43 +1903,36 @@
     const list = document.getElementById("settingsList");
     const cur = currentProgram();
     const nxt = nextProgram();
+    const row = (id, label, cls, val) => `
+      <div class="list-row short ${cls}">
+        <button class="list-main" type="button" id="${id}"><span class="list-name">${label}</span></button>
+        ${val !== undefined ? `<span class="list-val num">${val}</span>` : ""}
+        ${cls === "action" ? `<svg class="icon chev"><use href="#i-chev"/></svg>` : ""}
+      </div>`;
+    const info = (label, name) => `
+      <div class="list-row short"><div class="list-main"><span class="list-sub">${label}</span><span class="list-name">${escapeHtml(name)}</span></div></div>`;
     list.innerHTML = `
-      <div class="settings-section">
-        <div class="settings-section-title">About</div>
-        <div class="settings-about-name">GymLog</div>
-        <div class="settings-about-version">Version: ${APP_VERSION}</div>
-        <div class="settings-about-desc">A free, offline-first workout tracker. Data stays on this device only — no accounts, no cloud sync.</div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Program Management</div>
-        ${cur
-          ? `<div class="program-bar-label">Current Program</div><div class="program-bar-name">${escapeHtml(cur.name)}</div>`
-          : `<div class="program-bar-empty">No active program.</div>`}
-        ${nxt
-          ? `<div class="program-bar-label">Next Program</div><div class="program-bar-name">${escapeHtml(nxt.name)}</div>`
-          : ""}
-        <div class="program-bar-actions">
-          ${!cur ? `<button class="pill-btn accent" id="settingsStartProgramBtn">Start New Program</button>` : ""}
-          ${cur && !nxt ? `<button class="pill-btn accent" id="settingsStartProgramBtn">Add Next Program</button>` : ""}
-          ${nxt ? `<button class="pill-btn danger" id="settingsRemoveNextBtn">Remove Next Program</button>` : ""}
-          ${cur ? `<button class="pill-btn danger" id="settingsEndProgramBtn">End Current Program</button>` : ""}
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Data</div>
-        <div class="program-bar-actions">
-          <button class="pill-btn" id="settingsExportGymLogBtn">Export Gym Log</button>
-          <button class="pill-btn accent" id="settingsExportAllDataBtn">Backup All Data</button>
-          <button class="pill-btn" id="settingsImportAllDataBtn">Restore from Backup</button>
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="settings-section-title">Exercise List</div>
-        <div class="program-bar-empty">${exerciseList.length} standardized exercise${exerciseList.length === 1 ? "" : "s"}.</div>
-        <div class="program-bar-actions">
-          <button class="pill-btn" id="settingsExerciseListBtn">Manage Exercise List</button>
-        </div>
-      </div>
+      <div class="list-head"><span class="label">Program</span></div>
+      ${cur ? info("Current Program", cur.name) : `<div class="list-row short"><div class="list-main"><span class="list-sub">No active program.</span></div></div>`}
+      ${nxt ? info("Next Program", nxt.name) : ""}
+      ${!cur ? row("settingsStartProgramBtn", "Start New Program", "action") : ""}
+      ${cur && !nxt ? row("settingsStartProgramBtn", "Add Next Program", "action") : ""}
+      ${nxt ? row("settingsRemoveNextBtn", "Remove Next Program", "danger") : ""}
+      ${cur ? row("settingsEndProgramBtn", "End Current Program", "danger") : ""}
+
+      <div class="list-head"><span class="label">Data</span></div>
+      ${row("settingsExportAllDataBtn", "Backup All Data", "action")}
+      ${row("settingsImportAllDataBtn", "Restore from Backup", "action")}
+      ${row("settingsExportGymLogBtn", "Export Gym Log", "action")}
+
+      <div class="list-head"><span class="label">Exercises</span></div>
+      ${row("settingsExerciseListBtn", "Exercise List", "action", exerciseList.length)}
+
+      <div class="list-head"><span class="label">About</span></div>
+      <div class="list-row short"><div class="list-main">
+        <span class="list-name" style="font-size:var(--f-body)">GymLog <span class="list-sub">· ${escapeHtml(APP_VERSION.replace("gym-app-cache-", ""))}</span></span>
+        <span class="list-sub">Offline. Your data stays on this phone only. No account, no cloud.</span>
+      </div></div>
     `;
     const startBtn = document.getElementById("settingsStartProgramBtn");
     if (startBtn) startBtn.addEventListener("click", openImportModal);
@@ -2229,13 +2079,13 @@
   function renderExerciseList() {
     const list = document.getElementById("exerciseListItems");
     if (exerciseList.length === 0) {
-      list.innerHTML = `<div class="history-empty">No exercises yet — add one above.</div>`;
+      list.innerHTML = `<div class="list-empty">No exercises yet. Add one above.</div>`;
       return;
     }
     list.innerHTML = exerciseList.map(name => `
-      <div class="exercise-list-item" data-name="${escapeAttr(name)}">
-        <span>${escapeHtml(name)}</span>
-        <button class="exercise-list-remove-btn" data-action="remove-exercise">Remove</button>
+      <div class="list-row short" data-name="${escapeAttr(name)}">
+        <div class="list-main"><span class="list-name" style="font-size:var(--f-body);font-weight:400">${escapeHtml(name)}</span></div>
+        <button class="text-btn row-act" type="button" data-action="remove-exercise">Remove</button>
       </div>
     `).join("");
   }
@@ -2525,6 +2375,7 @@
     const w = todaysWorkout();
     const show = setBarVisible(w);
     bar.classList.toggle("visible", show);
+    positionMessageBar();
     let tick = false;
     if (show) {
       const now = Date.now();
@@ -2610,7 +2461,6 @@
       const u = activeUnit(w);
       openForWorkoutId = w.id;
       if (u) openExerciseId = u[0].id;
-      openMenuId = null;
       if (here) renderExercises(); else goHome();
       if (!u) return;
       const row = document.querySelector(`#workout .exercise[data-id="${CSS.escape(u[0].id)}"]`);
@@ -2900,7 +2750,6 @@
     if (action === "toggle-open") {
       // The class, not the id: both rows of a superset pair are open.
       openExerciseId = card.classList.contains("open") ? null : id;
-      openMenuId = null;
       renamingIds.delete(id);
       renderExercises();
       return;
@@ -2913,13 +2762,6 @@
       const input = card.querySelector(`input[data-field="${field}"]`);
       if (input) input.value = next;
       saveActiveWorkout();
-      return;
-    }
-
-    if (action === "rename") {
-      openMenuId = null;
-      renamingIds.add(id);
-      renderExercises();
       return;
     }
 
@@ -2949,30 +2791,64 @@
     }
 
     if (action === "menu") {
-      e.stopPropagation();
-      openMenuId = openMenuId === id ? null : id;
+      openExerciseMenu(ex);
+      return;
+    }
+  });
+
+  // Exercise ⋮ menu (bottom sheet). Move Up / Move Down are grey when the
+  // exercise (or its superset pair) is already first / last.
+  function openExerciseMenu(ex) {
+    const exs = getActiveWorkout().exercises;
+    const idxs = [];
+    exs.forEach((x, i) => { if (x.id === ex.id || (ex.supersetId && x.supersetId === ex.supersetId)) idxs.push(i); });
+    const first = Math.min(...idxs), last = Math.max(...idxs);
+    const run = (action) => () => runExerciseAction(ex.id, action);
+    openSheet({
+      title: ex.name || "New Exercise",
+      sub: exerciseSummary(ex),
+      options: [
+        { label: "Change Exercise", icon: "swap", onSelect: run("rename") },
+        { label: "Move Up", icon: "up", disabled: first === 0, onSelect: run("move-up") },
+        { label: "Move Down", icon: "down", disabled: last === exs.length - 1, onSelect: run("move-down") },
+        { label: ex.supersetId ? "Remove Superset" : "Superset", icon: "link", onSelect: run("superset") },
+        { label: "Delete", icon: "trash", danger: true, onSelect: run("delete") }
+      ]
+    });
+  }
+
+  function runExerciseAction(id, action) {
+    const w = getActiveWorkout();
+    const ex = findExercise(id);
+    if (!w || !ex) return;
+
+    if (action === "rename") {
+      renamingIds.add(id);
       renderExercises();
       return;
     }
 
     if (action === "delete") {
-      openMenuId = null;
-      const exs = getActiveWorkout().exercises;
+      const exs = w.exercises;
       const index = exs.findIndex(x => x.id === id);
-      lastDeleted = { exercise: ex, index };
       exs.splice(index, 1);
       customNameEditingIds.delete(id);
       renamingIds.delete(id);
       if (openExerciseId === id) openExerciseId = null;
       saveActiveWorkout();
       renderExercises();
-      showUndo(ex.name || "Exercise");
+      // Undo puts the exercise back only while the same workout is shown.
+      showMessage(`Deleted: "${ex.name || "Exercise"}"`, "Undo", () => {
+        if (getActiveWorkout() !== w) return;
+        w.exercises.splice(Math.min(index, w.exercises.length), 0, ex);
+        saveActiveWorkout();
+        renderExercises();
+      });
       return;
     }
 
     if (action === "move-up" || action === "move-down") {
-      openMenuId = null;
-      const exs = getActiveWorkout().exercises;
+      const exs = w.exercises;
       if (ex.supersetId) {
         moveSupersetGroup(exs, ex.supersetId, action === "move-up" ? -1 : 1);
       } else {
@@ -2989,7 +2865,6 @@
     }
 
     if (action === "superset") {
-      openMenuId = null;
       if (ex.supersetId) {
         // Clear the relationship on BOTH members — previously only the
         // clicked exercise's supersetId was cleared, leaving the partner
@@ -3007,7 +2882,7 @@
       }
       return;
     }
-  });
+  }
 
   function pairSuperset(idA, idB) {
     const exs = getActiveWorkout().exercises;
@@ -3079,20 +2954,71 @@
     renderExercises();
   });
 
-  document.addEventListener("click", (e) => {
-    if (openMenuId && !e.target.closest(".menu-btn") && !e.target.closest(".menu-dropdown")) {
-      openMenuId = null;
-      renderExercises();
-    }
-    if (headerMenuOpen && !e.target.closest("#headerMenuBtn") && !e.target.closest("#headerMenuDropdown")) {
-      headerMenuOpen = false;
-      renderHeaderMenu();
-    }
-    if (openItemMenuId && !e.target.closest(".item-menu-btn") && !e.target.closest(".item-menu-dropdown")) {
-      openItemMenuId = null;
-      if (currentScreen === "queue") renderQueueList();
-      else if (currentScreen === "history") renderHistoryList();
-    }
+  // ---- Bottom sheet menu (stop 5) ----
+  // openSheet({ title, sub, options: [{ label, icon, danger, disabled, onSelect }] })
+  // A tap on an option closes the sheet first, then runs onSelect (which
+  // can open a confirm sheet). A tap on the dark area or Cancel closes it.
+  let sheetOptions = [];
+  function openSheet({ title, sub, options }) {
+    sheetOptions = options;
+    document.getElementById("sheet").innerHTML = `
+      <div class="sheet-head">
+        <div class="sheet-title">${escapeHtml(title)}</div>
+        ${sub ? `<div class="sheet-sub">${escapeHtml(sub)}</div>` : ""}
+      </div>
+      ${options.map((o, i) => `<button type="button" class="sheet-opt${o.danger ? " danger" : ""}" data-index="${i}"${o.disabled ? " disabled" : ""}>${o.icon ? `<svg class="icon"><use href="#i-${o.icon}"/></svg>` : ""}${escapeHtml(o.label)}</button>`).join("")}
+      <button type="button" class="sheet-opt cancel" data-index="-1">Cancel</button>`;
+    document.getElementById("sheetOverlay").classList.remove("hidden");
+  }
+  function closeSheet() {
+    document.getElementById("sheetOverlay").classList.add("hidden");
+    sheetOptions = [];
+  }
+  document.getElementById("sheetOverlay").addEventListener("click", (e) => {
+    const btn = e.target.closest(".sheet-opt");
+    if (!btn && e.target.closest(".sheet")) return; // a tap on the title
+    const opt = btn ? sheetOptions[Number(btn.dataset.index)] : null;
+    closeSheet();
+    if (opt && !opt.disabled) opt.onSelect();
+  });
+
+  // ---- Message bar (stop 5) ----
+  // showMessage(text, actionLabel, onAction): one message at a time, for
+  // 8 s, just above the set bar (or the tab bar). A new message replaces
+  // the old one; its Undo can then no longer be used.
+  const MESSAGE_MS = 8000;
+  let messageTimer = null;
+  let messageAction = null;
+  function showMessage(text, actionLabel, onAction) {
+    const bar = document.getElementById("msgBar");
+    document.getElementById("msgText").textContent = text;
+    const btn = document.getElementById("msgAction");
+    btn.textContent = actionLabel || "";
+    btn.classList.toggle("hidden", !actionLabel);
+    messageAction = onAction || null;
+    bar.classList.add("visible");
+    positionMessageBar();
+    clearTimeout(messageTimer);
+    messageTimer = setTimeout(hideMessage, MESSAGE_MS);
+  }
+  function hideMessage() {
+    clearTimeout(messageTimer);
+    messageAction = null;
+    document.getElementById("msgBar").classList.remove("visible");
+  }
+  function positionMessageBar() {
+    const bar = document.getElementById("msgBar");
+    if (!bar.classList.contains("visible")) return;
+    const setBar = document.getElementById("setBar");
+    const nav = document.getElementById("bottomNav");
+    const below = (setBar.classList.contains("visible") ? setBar.offsetHeight : 0)
+      + (nav.classList.contains("hidden") ? 0 : nav.offsetHeight);
+    bar.style.bottom = `${below + 8}px`;
+  }
+  document.getElementById("msgAction").addEventListener("click", () => {
+    const fn = messageAction;
+    hideMessage();
+    if (fn) fn();
   });
 
   container.addEventListener("input", (e) => {
@@ -3138,53 +3064,7 @@
     saveActiveWorkout();
   });
 
-  // Maps each top-level screen to the sticky header it should sit just
-  // below. The undo banner is currently only ever shown from the
-  // Workout screen (deleting an exercise), but this is written to cover
-  // Queue/History too in case a future undo-able action is added there.
-  const STICKY_HEADER_ID_BY_SCREEN = {
-    workout: "workoutStickyHeader",
-    queue: "queueStickyHeader",
-    history: "historyStickyHeader"
-  };
-  // The sticky header's own margin/padding trick (see .sticky-header CSS)
-  // keeps it pinned at the very top of the viewport from the start, not
-  // just once scrolled — so its rendered height alone (not scroll
-  // position) tells us exactly where content starts underneath it. This
-  // is what lets the undo banner sit right under the header without
-  // tracking scroll at all.
-  function positionUndoBanner() {
-    const banner = document.getElementById("undoBanner");
-    const headerId = STICKY_HEADER_ID_BY_SCREEN[currentScreen];
-    const header = headerId ? document.getElementById(headerId) : null;
-    const gap = 12;
-    banner.style.top = `${(header ? header.offsetHeight : 64) + gap}px`;
-  }
-  window.addEventListener("resize", () => {
-    if (document.getElementById("undoBanner").classList.contains("visible")) positionUndoBanner();
-  });
-
-  function showUndo(name) {
-    const banner = document.getElementById("undoBanner");
-    document.getElementById("undoText").textContent = `"${name}" deleted`;
-    positionUndoBanner();
-    banner.classList.add("visible");
-    clearTimeout(undoTimer);
-    undoTimer = setTimeout(() => {
-      banner.classList.remove("visible");
-      lastDeleted = null;
-    }, 6000);
-  }
-
-  document.getElementById("undoBtn").addEventListener("click", () => {
-    if (!lastDeleted) return;
-    getActiveWorkout().exercises.splice(lastDeleted.index, 0, lastDeleted.exercise);
-    saveActiveWorkout();
-    renderExercises();
-    document.getElementById("undoBanner").classList.remove("visible");
-    clearTimeout(undoTimer);
-    lastDeleted = null;
-  });
+  window.addEventListener("resize", positionMessageBar);
 
   document.getElementById("addBtn").addEventListener("click", () => {
     const ex = { id: newId("ex"), name: "", sets: 3, reps: 10, weight: 0, rpe: "", rest: 60, notes: "", supersetId: null };
@@ -3277,17 +3157,17 @@
     if (e.key === "Enter") e.target.blur();
   });
 
-  document.getElementById("headerMenuBtn").addEventListener("click", (e) => {
-    e.stopPropagation();
-    headerMenuOpen = !headerMenuOpen;
-    renderHeaderMenu();
+  document.getElementById("headerMenuBtn").addEventListener("click", () => {
+    const w = getActiveWorkout();
+    if (!w) return;
+    openSheet({
+      title: w.label || "Workout",
+      sub: workoutListSub(w, viewSource === "history"),
+      options: headerMenuOptions().map(o => ({ ...o, onSelect: () => runHeaderAction(o.action) }))
+    });
   });
 
-  document.getElementById("headerMenuDropdown").addEventListener("click", (e) => {
-    const action = e.target.dataset.action;
-    if (!action) return;
-    headerMenuOpen = false;
-
+  function runHeaderAction(action) {
     if (action === "reset-timer") {
       const timed = getActiveWorkout();
       if (!timed || !timed.timer) return;
@@ -3305,19 +3185,10 @@
         true
       );
     } else if (action === "restore-to-queue") {
-      if (blockIfTimerRunning()) return;
-      const workout = getActiveWorkout();
-      openConfirm(
-        "Restore to queue?",
-        restoreConfirmText(workout),
-        () => {
-          restoreWorkoutToQueue(viewId);
-          setActiveToNextQueued();
-          showScreen("workout");
-        },
-        "Restore",
-        false
-      );
+      restoreWithUndo(viewId, () => {
+        setActiveToNextQueued();
+        showScreen("workout");
+      });
     } else if (action === "delete-from-history") {
       confirmDeleteFromHistory(viewId, () => {
         setActiveToNextQueued();
@@ -3328,10 +3199,8 @@
         setActiveToNextQueued();
         showScreen("workout");
       });
-    } else {
-      renderHeaderMenu();
     }
-  });
+  }
 
   function confirmFinishWorkout() {
     const w = getActiveWorkout();
@@ -3381,12 +3250,38 @@
     showScreen("workout");
   }
 
-  function restoreConfirmText(w) {
-    const name = `"${(w && w.label) || "This workout"}"`;
-    const current = todaysWorkout();
-    if (!current) return `${name} will become Today's Workout.`;
-    const timerNote = current.timer ? " Its paused workout timer will be reset." : "";
-    return `${name} will become Today's Workout. "${current.label || "The current workout"}" moves to second in the queue.${timerNote}`;
+  // Restore to Queue acts at once (no dialog) and shows Undo (stop 5).
+  // Undo puts the original History entry back at its place, takes the
+  // workout out of the queue, and gives the old Today's Workout back its
+  // paused timer and set count (the restore cleared them).
+  function restoreWithUndo(id, after) {
+    if (blockIfTimerRunning()) return;
+    const idx = history.findIndex(w => w.id === id);
+    if (idx === -1) return;
+    const original = history[idx];
+    const orders = new Map(queue.map(w => [w.id, w.order]));
+    const prevToday = todaysWorkout();
+    const prevState = prevToday ? { timer: prevToday.timer, progress: prevToday.progress } : null;
+    if (!restoreWorkoutToQueue(id)) return;
+    after();
+    showMessage(`Restored to Today: "${original.label || "Workout"}"`, "Undo", () => {
+      const restored = queue.find(w => w.id === id);
+      if (!restored || history.some(w => w.id === id)) return; // finished or deleted since
+      if (blockIfTimerRunning()) return;
+      // History first: if that save fails, nothing changes.
+      history.splice(Math.min(idx, history.length), 0, original);
+      if (!saveHistory()) { history.splice(history.indexOf(original), 1); return; }
+      queue = queue.filter(w => w.id !== id);
+      queue.forEach(w => { if (orders.has(w.id)) w.order = orders.get(w.id); });
+      sortedQueue().forEach((w, i) => { w.order = i; });
+      if (prevToday && prevState && queue.includes(prevToday)) {
+        if (prevState.timer) prevToday.timer = prevState.timer;
+        if (prevState.progress) prevToday.progress = prevState.progress;
+      }
+      saveQueue();
+      if (viewSource === "queue" && viewId === id) setActiveToNextQueued();
+      showScreen(currentScreen);
+    });
   }
 
   // Moves a completed workout back into the active queue, preserving all
@@ -3396,7 +3291,7 @@
   // blockIfTimerRunning(), since this changes Today's Workout.
   function restoreWorkoutToQueue(id) {
     const idx = history.findIndex(w => w.id === id);
-    if (idx === -1) return;
+    if (idx === -1) return false;
     const w = { ...history[idx], status: "queued", date: null };
     delete w.note;
     delete w.durationSec; // restored workouts start with an idle timer
@@ -3411,10 +3306,11 @@
     if (!saveQueue()) {
       queue = queue.filter(x => x !== w);
       queue.forEach((x, i) => { x.order = i; });
-      return;
+      return false;
     }
     history.splice(idx, 1);
     saveHistory();
+    return true;
   }
 
   // Shared "Delete from Queue" flow — used both from the Queue list's
@@ -3578,7 +3474,6 @@
 
   // Import
   function openImportModal() {
-    headerMenuOpen = false;
     renderHeaderMenu();
     document.getElementById("importError").classList.add("hidden");
     document.getElementById("importTextarea").value = "";
@@ -3782,7 +3677,6 @@
   }
 
   function openExportGymLogModal() {
-    headerMenuOpen = false;
     renderHeaderMenu();
     document.getElementById("exportGymLogFrom").value = "";
     document.getElementById("exportGymLogTo").value = "";
@@ -3923,99 +3817,83 @@
   document.getElementById("addAdhocBtn").addEventListener("click", addAdhocWorkout);
 
   document.getElementById("queueList").addEventListener("click", (e) => {
-    const item = e.target.closest(".history-item");
+    const item = e.target.closest(".list-row");
     if (!item) return;
     const id = item.dataset.id;
-    const action = e.target.dataset.action;
-
-    if (action === "item-menu") {
-      e.stopPropagation();
-      openItemMenuId = openItemMenuId === id ? null : id;
-      renderQueueList();
+    if (e.target.closest('[data-action="item-menu"]')) {
+      openQueueItemMenu(id);
       return;
     }
-    if (action === "move-up" || action === "move-down") {
-      openItemMenuId = null;
-      const q = sortedQueue();
-      const idx = q.findIndex(w => w.id === id);
-      const targetIdx = action === "move-up" ? idx - 1 : idx + 1;
-      if (targetIdx >= 0 && targetIdx < q.length) {
-        // Swapping with the first position would change Today's Workout.
-        if ((idx === 0 || targetIdx === 0) && blockIfTimerRunning()) {
-          renderQueueList();
-          return;
-        }
-        const tmp = q[idx].order;
-        q[idx].order = q[targetIdx].order;
-        q[targetIdx].order = tmp;
-        saveQueue();
-      }
-      renderQueueList();
-      return;
-    }
-    if (action === "delete-queue-workout") {
-      openItemMenuId = null;
-      confirmDeleteFromQueue(id, () => {
-        if (viewId === id) setActiveToNextQueued();
-        renderQueueList();
-      });
-      return;
-    }
-    if (!action) {
-      viewSource = "queue";
-      viewId = id;
-      showScreen("workout");
-    }
+    viewSource = "queue";
+    viewId = id;
+    showScreen("workout");
   });
+
+  function openQueueItemMenu(id) {
+    const q = sortedQueue();
+    const idx = q.findIndex(w => w.id === id);
+    if (idx === -1) return;
+    const w = q[idx];
+    openSheet({
+      title: w.label || "Workout",
+      sub: (idx === 0 ? "Next · " : "") + workoutListSub(w, false),
+      options: [
+        { label: "Move Up", icon: "up", disabled: idx === 0, onSelect: () => moveQueueItem(id, -1) },
+        { label: "Move Down", icon: "down", disabled: idx === q.length - 1, onSelect: () => moveQueueItem(id, 1) },
+        { label: "Delete from Queue", icon: "trash", danger: true, onSelect: () => confirmDeleteFromQueue(id, () => {
+          if (viewId === id) setActiveToNextQueued();
+          renderProgramBar();
+          renderQueueList();
+        }) }
+      ]
+    });
+  }
+
+  function moveQueueItem(id, dir) {
+    const q = sortedQueue();
+    const idx = q.findIndex(w => w.id === id);
+    const targetIdx = idx + dir;
+    if (idx === -1 || targetIdx < 0 || targetIdx >= q.length) return;
+    // Swapping with the first position would change Today's Workout.
+    if ((idx === 0 || targetIdx === 0) && blockIfTimerRunning()) return;
+    const tmp = q[idx].order;
+    q[idx].order = q[targetIdx].order;
+    q[targetIdx].order = tmp;
+    saveQueue();
+    renderQueueList();
+  }
 
   // History screen navigation
   document.getElementById("historyList").addEventListener("click", (e) => {
-    const item = e.target.closest(".history-item");
+    const item = e.target.closest(".list-row");
     if (!item) return;
     const id = item.dataset.id;
-    const action = e.target.dataset.action;
-
-    if (action === "item-menu") {
-      e.stopPropagation();
-      openItemMenuId = openItemMenuId === id ? null : id;
-      renderHistoryList();
+    if (e.target.closest('[data-action="item-menu"]')) {
+      openHistoryItemMenu(id);
       return;
     }
-    if (action === "restore-to-queue") {
-      openItemMenuId = null;
-      if (blockIfTimerRunning()) {
-        renderHistoryList();
-        return;
-      }
-      const w = history.find(x => x.id === id);
-      openConfirm(
-        "Restore to queue?",
-        restoreConfirmText(w),
-        () => {
-          restoreWorkoutToQueue(id);
-          renderHistoryList();
-        },
-        "Restore",
-        false
-      );
-      return;
-    }
-    if (action === "delete-from-history") {
-      openItemMenuId = null;
-      confirmDeleteFromHistory(id, () => {
-        if (viewSource === "history" && viewId === id) setActiveToNextQueued();
-        renderHistoryList();
-      });
-      return;
-    }
-    if (action) return;
-
     viewSource = "history";
     viewId = id;
     editMode = false;
     historyEditDraft = null;
     showScreen("workout");
   });
+
+  function openHistoryItemMenu(id) {
+    const w = history.find(x => x.id === id);
+    if (!w) return;
+    openSheet({
+      title: w.label || "Workout",
+      sub: [formatDateDisplay(w.date), workoutListSub(w, false)].filter(Boolean).join(" · "),
+      options: [
+        { label: "Restore to Queue", icon: "restore", onSelect: () => restoreWithUndo(id, renderHistoryList) },
+        { label: "Delete from History", icon: "trash", danger: true, onSelect: () => confirmDeleteFromHistory(id, () => {
+          if (viewSource === "history" && viewId === id) setActiveToNextQueued();
+          renderHistoryList();
+        }) }
+      ]
+    });
+  }
 
   document.getElementById("backFromExerciseListBtn").addEventListener("click", () => {
     showScreen("settings");
@@ -4044,7 +3922,7 @@
 
   document.getElementById("exerciseListItems").addEventListener("click", (e) => {
     if (e.target.dataset.action !== "remove-exercise") return;
-    const item = e.target.closest(".exercise-list-item");
+    const item = e.target.closest(".list-row");
     if (!item) return;
     const name = item.dataset.name;
     openConfirm(
