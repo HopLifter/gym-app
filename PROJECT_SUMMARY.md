@@ -1,5 +1,129 @@
 # GymLog — Project Summary
 
+**How to read this file:** the sections are a log, newest first. A newer
+section wins over an older one, and the code wins over both. "Live
+setup", "Why these tech choices" and "Known limitations" further down are
+kept current.
+
+## UI/UX overhaul, stop 9: clean-up (v74, 17 November 2026)
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v74`. Built directly
+after stop 8 (v73) at the user's request, before the phone test of v73;
+both are committed together and published at the user's request, and
+not yet tested on the phone. No data model change. This ends the UI/UX
+overhaul (Epic 2.3).
+
+- **Dead code removed:** `calcVolume()`, `formatDateBadge()`,
+  `buildGymLogExportText()` (no callers), and the unused `saved` class in
+  the edit-mode status line. Two comments that named the old rest timer
+  now name the set bar.
+- **Old token names removed:** `--text-dim` is now `--text-2` (it was the
+  same colour); `--hist-superset` (#4B524C) is now `--control` (#5E675F),
+  so the superset line in the condensed Past Workout table is a little
+  lighter. Only the design tokens are left in `:root`.
+- **Home-screen name, icon and theme colour:** new `manifest.json` (name
+  and short name "GymLog", `start_url` and `scope` "./", standalone,
+  portrait, background and theme colour #0B0D0C) and three PNG icons
+  (`icon-180.png` for iOS, `icon-192.png`, `icon-512.png`): the barbell of
+  the Today tab in the accent colour on the dark background, drawn inside
+  the safe zone so Android can mask it. `index.html` has `theme-color`,
+  `apple-mobile-web-app-title`, the manifest link, a favicon and
+  `apple-touch-icon`. `sw.js` caches the four new files (a missing file
+  would stop the service worker install, so they must stay in the repo
+  root).
+- **Caution (iOS):** an app that is already on the home screen keeps its
+  old icon; iOS reads the icon only when the app is added. A home-screen
+  app keeps its own data, so do not remove and re-add it before a backup
+  and a working restore on that phone (see "Known limitations").
+- **Documents:** this file (how to read it, cache version, repo layout,
+  limits), `docs/WORKFLOW.md` (snapshot contents), ROADMAP.md (stop 9 and
+  the epic done; the `.status.saved` item done).
+- **Tested** in the desktop browser at 375 px with the restored baseline:
+  start, Settings (v74), condensed Past Workout table with supersets,
+  progress screen, Export Gym Log, manifest and icons load (all 200). The
+  local test server cannot register the service worker (as before), so
+  the offline cache of the new files is checked only on the phone.
+
+## UI/UX overhaul, stop 8: import check and progress screen (v73, 17 November 2026)
+`CACHE_NAME` and `APP_VERSION` were `gym-app-cache-v73` (now v74, see stop
+9). Committed and published with v74; the user has not tested it yet. No data model change (the import file format
+and the saved data are the same; old backups work). Mockups:
+`docs/mockups/GymLog UI Overhaul - Stop 8 Import and Progress.html`.
+
+- **Decisions (user accepted I1 to I5, P1, P2 and option A):** a check
+  screen before every program import; names that differ only in spelling
+  use the list name; new names go on the Exercise List; values that are
+  not valid are shown, the import can still continue; Undo after import;
+  a progress screen for each exercise with a line chart of the heaviest
+  weight of each day. RPE is a whole number from 1 to 10 (user).
+- **v72 phone test (user):** backup download and the About line
+  ("protected by the browser") work; the reminder did not show (a backup
+  was recent); the restore check and Undo Last Restore are not tested,
+  because files are hard to pick on a corporate iPhone (roadmap
+  section 6).
+- **Import sheet:** paste field first, then "Choose File"; the button is
+  "Check File". Errors stay in the sheet. A waiting Next Program still
+  shows the notice.
+- **Check Import** (`#importCheckScreen`, z-index 47, under the picker):
+  `openImportCheck(data)`, `renderImportCheck()`, `closeImportCheck()`,
+  `importPlace()` ("current", "end-current", "next" or null; the current
+  program ends only when the user confirms), `checkImportValues()`,
+  `importNewNames()`. Program name field (`#importProgName`; empty means
+  the file name). "Names to Check": `kind` "same" (on the list ignoring
+  capitals: list spelling, no row), "near" (`nameNorm()`: lowercase,
+  only a–z and 0–9, no last "s"), "new" (with `similarListName()`, most
+  shared words). A tap opens the picker in a new mode `"import"`
+  (`openImportNamePicker(key)`: title 'Name for "…"', search starts with
+  the file name, first row 'Keep "…"'); the pick changes only the plan.
+  "Values to Check": RPE not a whole number 1 to 10, sets or reps not a
+  whole number 1 to 100, weight or rest not a number ≥ 0. Workouts: one
+  row each (description, exercise count, superset count); a tap shows the
+  exercises, changed names in the accent colour. Fixed footer button
+  "Start New Program" / "Add Next Program" with "N names will go on your
+  Exercise List."
+- **Import:** `doImport()` is unchanged; the confirm handler gives it a
+  copy of the file with the chosen program name and exercise names, then
+  adds the new names to the Exercise List. Before v73 an import did not
+  add names to the list.
+- **Undo after import:** the message bar "Added: Block 2 – Strength · 12
+  workouts" with Undo puts back the programs and the Queue (copies made
+  just before the import) and removes the added names. It is refused
+  ("Cannot undo") when the Queue or the programs changed since.
+- **Progress screen** (`#progressScreen`, z-index 48): `openProgress(name,
+  backLabel)`, `renderProgress()`, `progressDays()`,
+  `progressChartSVG()`, `closeProgress()`. Opens from the Exercise List
+  (tap a name; the rows now show "25 sessions · last 1 Nov" or "No
+  sessions yet") and from "All Sessions · 24" at the bottom of "Last 3
+  Sessions" in a workout row (`data-action="open-progress"`). Matched by
+  name like Recent. Top: Heaviest (first day with the top weight), Last,
+  Days (without any weight: Last date and Days only). Chart: SVG drawn at
+  the real width, time on the x axis, month names at the first day of
+  each month, 2 to 4 guide lines, filled dots for the last and the best
+  day; only with 2 or more days that have a weight. List: one entry for
+  each day, newest first, all rows of that day, the notes, "Best" on the
+  heaviest row.
+- **RPE field:** `inputmode="numeric"`; only a whole number from 1 to 10.
+  A key that makes the value invalid is ignored (the field shows the old
+  value). Old saved values such as 7.5 or 20 stay until the user types.
+- **Other:** `fullScreenOpen()` keeps the page from scrolling while any
+  full screen is open; Escape closes the progress screen or the check
+  screen (capture listener, after the picker).
+- **Program Builder** (no version bump): a target RPE and an RPE load
+  accept only a whole number from 1 to 10; an "add" pattern on RPE needs
+  a whole amount and stays between 1 and 10; the AI prompt says RPE is a
+  whole number. Old programs with half steps still open. RIR keeps half
+  steps.
+- **Documents:** `docs/Program Import Format.md` (check screen, RPE whole
+  number, examples), ROADMAP.md (stop 8 done; reminders for variant
+  names, file transfer on a managed iPhone, repeat a workout).
+- **Tested** in the desktop browser at 375 px with the restored baseline:
+  progress screens for Squats, Bench, Dips, Pullups (flat line) and an
+  exercise without sessions; the All Sessions link; the Exercise List
+  rows; RPE input (1, 10, 11, 0, 7.5, letters); a check with all name and
+  value kinds and HTML in a name; the picker in import mode; import as
+  Next Program and as Current Program; both Undos and the refused Undo;
+  the notice for a second waiting program; builder RPE checks. Not run on
+  a phone.
+
 ## UI/UX overhaul, stop 7: backup and restore (v72, 17 November 2026)
 `CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v72`. Committed and
 published at the user's request; the user has not tested it on the phone
@@ -375,14 +499,15 @@ no subscriptions.
   It holds both GymLog and the Program Builder. Git history and the repo
   files are the source of truth; the dated folders in OneDrive are only a
   read-only archive. Read `docs/WORKFLOW.md` for the working rules.
-- Repo layout: `index.html` (the whole app) + `sw.js` (offline caching);
-  `builder/` (Program Builder, own `PROJECT_SUMMARY.md`); `ROADMAP.md`;
+- Repo layout: `index.html` (the whole app) + `sw.js` (offline caching) +
+  `manifest.json` and `icon-180.png`, `icon-192.png`, `icon-512.png`
+  (home-screen name and icon, v74); `builder/` (Program Builder, own `PROJECT_SUMMARY.md`); `ROADMAP.md`;
   `PROJECT_SUMMARY.md` (this file); `CLAUDE.md`; `docs/` (`WORKFLOW.md`,
   `Program Import Format.md`, `specs/`, `reference/`, `mockups/`).
 - Section headings below that say "session" were written at different
   times. Use `git log` for the real dates.
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v69` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v74` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -1487,8 +1612,14 @@ green border via direct DOM class toggle (editable card view only).
   design, matches current scope.
 - Shared superset rest time is enforced by app code on every edit/pair
   action, not by the storage schema.
-- The rest timer doesn't survive the app being fully closed/killed. (The
-  global workout timer does.)
+- Since v69 the rest time and the set count are saved with Today's
+  Workout, so they survive a reload or a closed app, like the workout
+  timer.
+- Home-screen icon and name (v74): iOS reads them only when the app is
+  added to the home screen. An app that is already there keeps its old
+  icon. On iOS, a home-screen app keeps its own data: removing it can
+  delete that data, and a new one starts empty. Back up first, and make
+  sure that a restore works on that phone before you re-add the app.
 - Workout timer: no cap or warning if you forget to finish (it keeps
   running overnight; fix the total in History edit). It uses `Date.now()`,
   so changing the phone clock mid-workout distorts the time.
@@ -1511,9 +1642,6 @@ green border via direct DOM class toggle (editable card view only).
   inside the Workout screen's DOM — a save triggered while on Queue/
   History/Settings still fires, but isn't visible until returning to
   the Workout screen.
-- `.status.saved` (CSS) is now dead/unused, left in place from before
-  the save-indicator rework — harmless, but a candidate for cleanup if
-  the stylesheet is ever tidied up.
 
 ## Backlog / ideas not yet built
 The backlog now lives in `ROADMAP.md` (section 6, "Smaller ideas"), together

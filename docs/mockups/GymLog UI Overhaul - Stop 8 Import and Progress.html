@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GymLog UI Overhaul - Stop 8 Import and Progress</title>
+<style>
+  :root {
+    --bg: #0B0D0C;
+    --raised: #1A1E1B;
+    --line: #343A35;
+    --control: #5E675F;
+    --text: #EDEEEA;
+    --text-2: #A3ABA3;
+    --accent: #C6FF3D;
+    --danger: #FF7566;
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+    --r-control: 8px; --r-sheet: 16px;
+    --f-label: 13px; --f-body: 16px; --f-name: 18px; --f-title: 24px; --f-timer: 34px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #000; color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Roboto, "Segoe UI", sans-serif;
+    font-size: var(--f-body); line-height: 1.35;
+    padding: var(--s5) 0 64px;
+  }
+  svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* Mockup page furniture (not part of the app) */
+  .doc { max-width: 430px; margin: 0 auto; padding: 0 var(--s4); }
+  .doc h2 { font-size: 20px; margin: 48px 0 var(--s2); }
+  .doc h2:first-child { margin-top: 0; }
+  .doc p, .doc li { color: var(--text-2); font-size: 14px; margin: 0 0 var(--s3); }
+  .doc ul { padding-left: 20px; margin: 0 0 var(--s3); }
+  .doc b { color: var(--text); }
+  .phone { max-width: 430px; height: 812px; margin: 0 auto var(--s4); background: var(--bg); outline: 1px solid #222; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+  .screen { flex: 1; padding: 0 var(--s4); overflow: hidden; }
+
+  /* ---- App components ---- */
+  .label { font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); }
+  .label.accent { color: var(--accent); }
+  .num { font-variant-numeric: tabular-nums; }
+  .title { font-size: var(--f-title); font-weight: 700; letter-spacing: -0.01em; margin: 0; line-height: 1.2; }
+  .h1row { padding: var(--s4) 0 var(--s2); display: flex; align-items: center; min-height: 64px; }
+  .h1row .title { flex: 1; }
+  .back { min-height: 44px; display: flex; align-items: center; color: var(--accent); font-weight: 600; padding-top: var(--s2); margin-left: -4px; }
+  .back svg { transform: scaleX(-1); width: 20px; height: 20px; }
+
+  .row { display: flex; align-items: center; gap: var(--s3); min-height: 64px; padding: var(--s3) 0; border-bottom: 1px solid var(--line); position: relative; }
+  .row-main { flex: 1; min-width: 0; }
+  .row-name { font-size: var(--f-name); font-weight: 600; }
+  .row-sub { font-size: 14px; color: var(--text-2); }
+  .row-sub.warn { color: var(--danger); }
+  .row-sub.acc { color: var(--accent); }
+  .row-val { font-size: var(--f-body); color: var(--text-2); }
+  .row.short { min-height: 56px; }
+  .row.plain .row-name { font-size: var(--f-body); font-weight: 400; }
+  .row.next::before { content: ""; position: absolute; left: calc(var(--s4) * -1); top: 0; bottom: 0; width: 3px; background: var(--accent); }
+  .chev { color: var(--control); }
+  .more { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--text-2); margin-right: -10px; }
+  .section { padding: var(--s5) 0 var(--s2); border-bottom: 1px solid var(--line); display: flex; align-items: baseline; }
+  .section .label:first-child { flex: 1; }
+  .prog { padding: var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+  .prog-name { font-size: var(--f-name); font-weight: 600; margin-top: 2px; }
+  .prog-sub { font-size: 14px; color: var(--text-2); }
+  .grey-btn { min-height: 44px; display: flex; align-items: center; color: var(--text-2); font-weight: 600; padding: 0 var(--s1); }
+
+  .field { width: 100%; min-height: 52px; background: transparent; border: 0; border-bottom: 1.5px solid var(--control); color: var(--text); font-size: var(--f-name); font-weight: 600; padding: var(--s2) 0; font-family: inherit; }
+  .field-help { font-size: 14px; color: var(--text-2); padding: var(--s2) 0 var(--s3); border-bottom: 1px solid var(--line); }
+  .paste { width: 100%; height: 150px; background: var(--bg); border: 1.5px solid var(--control); border-radius: var(--r-control); color: var(--text-2); font-family: monospace; font-size: 12px; padding: var(--s3); margin: var(--s2) 0 var(--s4); }
+
+  .btn { height: 52px; border-radius: var(--r-control); display: flex; align-items: center; justify-content: center; font-size: var(--f-body); font-weight: 700; padding: 0 var(--s5); }
+  .btn.primary { background: var(--accent); color: #0B0D0C; }
+  .btn.secondary { border: 1.5px solid var(--control); color: var(--text); }
+  .foot { padding: var(--s3) var(--s4) var(--s4); border-top: 1px solid var(--line); background: var(--bg); }
+  .foot .btn { height: 56px; }
+  .foot-note { font-size: 14px; color: var(--text-2); text-align: center; padding-top: var(--s2); }
+
+  .bar { background: var(--raised); border-top: 1px solid var(--line); padding: var(--s3) var(--s4); display: flex; align-items: center; gap: var(--s4); }
+  .bar-info { flex: 1; min-width: 0; }
+  .bar-time { font-size: var(--f-timer); font-weight: 700; line-height: 1.1; }
+  .bar-what { font-size: 14px; color: var(--text-2); }
+  .bar .btn { height: 56px; }
+
+  .tabs { display: flex; background: var(--bg); border-top: 1px solid var(--line); position: relative; z-index: 3; }
+  .tab { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 600; color: var(--text-2); }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.on { color: var(--accent); }
+
+  .scrim { position: absolute; inset: 0; background: rgba(0,0,0,0.62); z-index: 4; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--raised); border-radius: var(--r-sheet) var(--r-sheet) 0 0; padding: var(--s2) var(--s4) var(--s4); }
+  .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--control); margin: 0 auto var(--s3); }
+  .sheet-title { font-size: var(--f-name); font-weight: 700; margin-bottom: 2px; }
+  .sheet-sub { font-size: 14px; color: var(--text-2); padding-bottom: var(--s3); border-bottom: 1px solid var(--line); }
+  .opt { min-height: 56px; display: flex; align-items: center; gap: var(--s3); font-size: var(--f-body); font-weight: 600; border-bottom: 1px solid var(--line); }
+  .opt svg { color: var(--text-2); }
+  .opt.cancel { justify-content: center; border-bottom: 0; color: var(--text-2); }
+  .stack { display: flex; flex-direction: column; gap: var(--s3); }
+
+  .msg { margin: 0 var(--s3) var(--s2); background: var(--raised); border-radius: var(--r-control); display: flex; align-items: center; gap: var(--s3); padding: 0 var(--s2) 0 var(--s4); min-height: 52px; border: 1px solid var(--line); }
+  .msg span { flex: 1; min-width: 0; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg .act { flex: 0 0 auto; min-width: 64px; height: 44px; display: flex; align-items: center; justify-content: center; color: var(--accent); font-weight: 700; }
+  .float { position: absolute; left: 0; right: 0; bottom: 57px; z-index: 2; }
+
+  /* Picker (stop 6) */
+  .search { display: flex; align-items: center; gap: var(--s2); min-height: 52px; border-bottom: 1.5px solid var(--accent); margin-bottom: var(--s1); }
+  .search span { flex: 1; font-size: var(--f-name); }
+  .search svg { color: var(--text-2); }
+  mark { background: none; color: var(--accent); }
+
+  /* Import check */
+  .ex-line { display: flex; gap: var(--s3); padding: 6px 0; font-size: 15px; }
+  .ex-line .n { flex: 1; min-width: 0; }
+  .ex-line .v { color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .ex-line .n.changed { color: var(--accent); }
+  .open-list { padding: 0 0 var(--s3); border-bottom: 1px solid var(--line); }
+
+  /* Progress */
+  .stats { display: flex; gap: var(--s5); padding: var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+  .stat-v { font-size: var(--f-name); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-l { font-size: 13px; color: var(--text-2); }
+  .chart { padding: var(--s3) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .chart svg { width: 100%; height: 160px; stroke-width: 1; }
+  .day { padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+  .day-head { display: flex; align-items: baseline; gap: var(--s2); }
+  .day-date { font-size: 14px; color: var(--text-2); width: 84px; flex-shrink: 0; }
+  .day-sets { flex: 1; font-variant-numeric: tabular-nums; }
+  .day-sets div { padding: 1px 0; }
+  .day-sets .r { color: var(--text-2); }
+  .day-note { font-size: 13px; color: var(--text-2); font-style: italic; padding-left: 92px; padding-top: 2px; }
+  .best { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase; margin-left: var(--s2); }
+  .hbar { height: 6px; background: var(--line); border-radius: 3px; margin: 6px 0 0 92px; }
+  .hbar i { display: block; height: 6px; border-radius: 3px; background: var(--text-2); }
+  .hbar i.top { background: var(--accent); }
+  .seg { display: flex; border-bottom: 1px solid var(--line); }
+  .seg div { flex: 1; min-height: 44px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; color: var(--text-2); }
+  .seg div.on { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+
+  /* Today row (stop 3), open with Last 3 Sessions */
+  .open-row { border-bottom: 1px solid var(--line); padding-bottom: var(--s3); }
+  .open-row::before { content: ""; }
+  .recent-title { font-size: var(--f-label); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2); padding: var(--s2) 0 var(--s1); }
+  .recent-row { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; }
+  .recent-row span:first-child { color: var(--text-2); }
+  .link-row { min-height: 44px; display: flex; align-items: center; justify-content: space-between; color: var(--accent); font-weight: 600; font-size: 15px; border-top: 1px solid var(--line); margin-top: var(--s2); }
+  .link-row svg { width: 20px; height: 20px; }
+  .steps { display: flex; align-items: center; gap: var(--s2); padding: var(--s2) 0; }
+  .step-l { font-size: 13px; color: var(--text-2); width: 56px; }
+  .step-b { width: 52px; height: 52px; border: 1.5px solid var(--control); border-radius: var(--r-control); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .step-v { flex: 1; text-align: center; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  pre { background: #121513; border: 1px solid var(--line); border-radius: 8px; padding: 10px; font-size: 12px; color: var(--text-2); overflow-x: auto; }
+</style>
+</head>
+<body>
+<svg style="display:none">
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 6v12M6 12h12"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+  <symbol id="i-hist" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="i-today" viewBox="0 0 24 24"><path d="M4 9v6M8 6v12M16 6v12M20 9v6M8 12h8"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h9"/></symbol>
+  <symbol id="i-set" viewBox="0 0 24 24"><path d="M5 8h14M5 16h14"/><circle cx="9" cy="8" r="2"/><circle cx="15" cy="16" r="2"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+</svg>
+
+<div class="doc">
+  <h2>Stop 8: import check and progress</h2>
+  <p>Today, Import adds the program at once. You cannot see what is in the file, and names in the file that are a little different from your Exercise List (for example "Conv. Deadlifts" and "Conv. Deadlift") go in as different exercises. Then History, Recent and the picker split one exercise into two.</p>
+  <p>Today, you can see only the last 3 sessions of an exercise. There is no screen that shows all sessions or the trend.</p>
+
+  <h2>Data model: no change</h2>
+  <p>The import file format stays the same. The app stores the same data as now. The check changes only <b>which names and which program name</b> the app writes at import. Old backups and saved data are not touched.</p>
+
+  <h2>Proposals (your OK first)</h2>
+  <ul>
+    <li><b>I1. Check screen before import.</b> After you choose a file or paste text, a full screen shows the program name (you can change it), where the program goes, names to check, values to check, and the workouts. Nothing changes until you tap "Add Next Program".</li>
+    <li><b>I2. Same name, other spelling.</b> When a file name is the same as a list name after the app ignores capitals, dots, spaces, dashes and a last "s", the app uses the list name. Example: "Conv. Deadlifts" becomes "Conv. Deadlift", "Face Pull" becomes "Face Pulls". You can change it.</li>
+    <li><b>I3. New names.</b> Other names stay as in the file and go on the Exercise List (the stop 6 rule). The row shows a similar list name, if there is one. Tap the row to choose a different name in the picker.</li>
+    <li><b>I4. Values to check.</b> RPE that is not 1 to 10, reps or sets that are 0 or more than 100, a weight that is not a number. The check shows them; the import can still continue.</li>
+    <li><b>I5. Undo.</b> After the import, the message bar shows "Added: Block 2 – Strength · 12 workouts" with Undo. Undo removes the program, its workouts and the new names it put on the Exercise List.</li>
+    <li><b>P1. Progress screen for each exercise.</b> It opens from the Exercise List (tap a name) and from "All Sessions" under "Last 3 Sessions" in a workout row. It shows every time you logged the exercise, newest first, with the notes.</li>
+    <li><b>P2. One measure: the heaviest weight of each day.</b> It is easy to understand. Estimated 1RM is possible later, but it mixes reps and weight and is less clear with RPE.</li>
+  </ul>
+  <p><b>Decision (user, 17 Nov 2026):</b> I1 to I5, P1, P2 and option A (screen 7) accepted. RPE is a whole number from 1 to 10, in GymLog and in the Program Builder. The limit below is a reminder in the roadmap. Built in v73.</p>
+  <p><b>Limit to know:</b> the progress screen finds sessions by name, as Recent does now. Your Squats list mixes high bar, paused and beltless sets, because the variant is only in the notes. The chart shows that as up-and-down lines. A separate name for each variant (for example "Squats – High Bar Paused") gives a clean line. I do not propose a data change for this.</p>
+</div>
+
+<!-- 1 -->
+<div class="doc"><h2>1. Import Program (Settings, Add Next Program)</h2>
+  <p>Same sheet as now, with the paste field first (better for your corporate iPhone). The button is now "Check File". An error stays in this sheet, in red.</p></div>
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Settings</h1></div>
+    <div class="section"><span class="label">Program</span></div>
+    <div class="row short"><div class="row-main"><div class="row-sub">Current Program</div><div class="row-name">Block 1 – Knee Rehab</div></div></div>
+  </div>
+  <div class="scrim"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-title">Import Program</div>
+    <div class="sheet-sub">Paste the program text, or choose a file.</div>
+    <textarea class="paste">{"program": {"name": "Block 2 – Strength"},
+ "workouts": [
+  {"label": "Wk1 D1", "description": "Squat + Heavy Bench",
+   "exercises": [
+    {"name": "Squats", "sets": 5, "reps": 5, "weight": 150, ...</textarea>
+    <div class="opt"><svg><use href="#i-file"/></svg>Choose File</div>
+    <div class="stack" style="margin-top:var(--s4)">
+      <div class="btn primary">Check File</div>
+      <div class="opt cancel">Cancel</div>
+    </div>
+  </div>
+</div>
+
+<!-- 2 -->
+<div class="doc"><h2>2. Check Import: top</h2>
+  <p>Full screen, like the picker. The button stays at the bottom. "Names to Check" lists each different name one time, with how many workouts use it.</p></div>
+<div class="phone">
+  <div class="screen">
+    <div class="back"><svg><use href="#i-chev"/></svg>Cancel</div>
+    <div class="h1row" style="min-height:48px;padding-top:0"><h1 class="title">Check Import</h1></div>
+    <div class="label">Program Name</div>
+    <input class="field" value="Block 2 – Strength">
+    <div class="field-help">12 workouts · 4 weeks. Goes after Block 1 – Knee Rehab (2 workouts left).</div>
+
+    <div class="section"><span class="label">Names to Check</span><span class="label num">3</span></div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Conv. Deadlifts</div><div class="row-sub acc">Uses: Conv. Deadlift</div><div class="row-sub">Same name on your list · 4 workouts</div></div>
+      <svg class="chev"><use href="#i-chev"/></svg>
+    </div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Paused Bench</div><div class="row-sub">New name · similar: Bench · 4 workouts</div></div>
+      <svg class="chev"><use href="#i-chev"/></svg>
+    </div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Face Pull</div><div class="row-sub acc">Uses: Face Pulls</div><div class="row-sub">Same name on your list · 8 workouts</div></div>
+      <svg class="chev"><use href="#i-chev"/></svg>
+    </div>
+
+    <div class="section"><span class="label">Values to Check</span><span class="label num">1</span></div>
+    <div class="row short">
+      <div class="row-main"><div class="row-name" style="font-size:var(--f-body)">Hip Adduction · Wk2 D1</div><div class="row-sub warn">RPE 20. RPE is 1 to 10.</div></div>
+    </div>
+  </div>
+  <div class="foot">
+    <div class="btn primary">Add Next Program</div>
+    <div class="foot-note">2 names will go on your Exercise List.</div>
+  </div>
+</div>
+
+<!-- 3 -->
+<div class="doc"><h2>3. Check Import: workouts</h2>
+  <p>Below the checks: one row for each workout. Tap a row to see its exercises (one row open at a time). Changed names show in the accent colour.</p></div>
+<div class="phone">
+  <div class="screen">
+    <div class="section" style="padding-top:var(--s4)"><span class="label">Workouts</span><span class="label num">12</span></div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Wk1 D1</div><div class="row-sub">Squat + Heavy Bench · 5 exercises</div></div>
+      <svg class="chev" style="transform:rotate(90deg)"><use href="#i-chev"/></svg>
+    </div>
+    <div class="open-list">
+      <div class="ex-line"><span class="n">Squats</span><span class="v">5 × 5 · 150 kg · RPE 7</span></div>
+      <div class="ex-line"><span class="n">Bench</span><span class="v">1 × 3 · 125 kg · RPE 8</span></div>
+      <div class="ex-line"><span class="n">Paused Bench</span><span class="v">3 × 5 · 100 kg · RPE 7</span></div>
+      <div class="ex-line"><span class="n changed">Face Pulls</span><span class="v">3 × 15 · 24 kg</span></div>
+      <div class="ex-line"><span class="n">Hanging Leg Raise</span><span class="v">3 × 10</span></div>
+    </div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Wk1 D2</div><div class="row-sub">Deadlift + Back · 5 exercises</div></div>
+      <svg class="chev"><use href="#i-chev"/></svg>
+    </div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Wk1 D3</div><div class="row-sub">Squat + Incline Bench + Arms · 6 exercises · 1 superset</div></div>
+      <svg class="chev"><use href="#i-chev"/></svg>
+    </div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Wk2 D1</div><div class="row-sub">Squat + Heavy Bench · 6 exercises</div></div>
+      <svg class="chev"><use href="#i-chev"/></svg>
+    </div>
+    <div class="row">
+      <div class="row-main"><div class="row-name">Wk2 D2</div><div class="row-sub">Deadlift + Back · 5 exercises</div></div>
+      <svg class="chev"><use href="#i-chev"/></svg>
+    </div>
+  </div>
+  <div class="foot">
+    <div class="btn primary">Add Next Program</div>
+    <div class="foot-note">2 names will go on your Exercise List.</div>
+  </div>
+</div>
+
+<!-- 4 -->
+<div class="doc"><h2>4. Tap a name: the picker</h2>
+  <p>The stop 6 picker, with the file name in the search field. The first row keeps the name from the file. Your choice changes the name in all 4 workouts of this import.</p></div>
+<div class="phone">
+  <div class="screen">
+    <div class="back"><svg><use href="#i-chev"/></svg>Check Import</div>
+    <div class="h1row" style="min-height:48px;padding-top:0"><h1 class="title">Name for "Paused Bench"</h1></div>
+    <div class="search"><svg><use href="#i-search"/></svg><span>Paused Bench</span><svg><use href="#i-x"/></svg></div>
+    <div class="row short"><div class="row-main"><div class="row-name" style="font-size:var(--f-body)">Keep "Paused Bench"</div><div class="row-sub">New name on your Exercise List</div></div></div>
+    <div class="section"><span class="label">Similar Names</span></div>
+    <div class="row"><div class="row-main"><div class="row-name"><mark>Bench</mark></div><div class="row-sub">1 × 3 · 132.5 kg · RPE 8 · 1 Nov</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Close-Grip <mark>Bench</mark></div><div class="row-sub">3 × 8 · 80 kg · RPE 8 · 30 Oct</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Incline <mark>Bench</mark></div><div class="row-sub">3 × 8 · 70 kg · RPE 7 · 29 Oct</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">DB <mark>Bench</mark></div><div class="row-sub">3 × 10 · 32 kg · RPE 8 · 12 Oct</div></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Incline DB <mark>Bench</mark></div><div class="row-sub">3 × 10 · 26 kg · RPE 8 · 8 Oct</div></div></div>
+  </div>
+</div>
+
+<!-- 5 -->
+<div class="doc"><h2>5. After the import</h2>
+  <p>The app opens the Queue and shows the message with Undo for 8 seconds.</p></div>
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Queue</h1></div>
+    <div class="prog"><div class="label">Current Program</div><div class="prog-name">Block 1 – Knee Rehab</div><div class="prog-sub">2 workouts left · Next: Block 2 – Strength</div></div>
+    <div class="row next"><div class="row-main"><div class="label accent">Next</div><div class="row-name">Wk4 D3 · Squat + Incline Bench + Arms/Delts</div><div class="row-sub">6 exercises</div></div><div class="more"><svg><use href="#i-more"/></svg></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk4 D4 · Deadlift + Back</div><div class="row-sub">5 exercises</div></div><div class="more"><svg><use href="#i-more"/></svg></div></div>
+    <div class="section"><span class="label">Block 2 – Strength</span><span class="label num">12</span></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk1 D1</div><div class="row-sub">5 exercises</div></div><div class="more"><svg><use href="#i-more"/></svg></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk1 D2</div><div class="row-sub">5 exercises</div></div><div class="more"><svg><use href="#i-more"/></svg></div></div>
+    <div class="row"><div class="row-main"><div class="row-name">Wk1 D3</div><div class="row-sub">6 exercises</div></div><div class="more"><svg><use href="#i-more"/></svg></div></div>
+  </div>
+  <div class="float"><div class="msg"><span>Added: <b>Block 2 – Strength</b> · 12 workouts</span><div class="act">Undo</div></div></div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab on"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<!-- 6 -->
+<div class="doc"><h2>6. Where the progress screen opens</h2>
+  <p>In a workout: open the row, tap the history button, then "All Sessions" under the last 3 sessions. On the Exercise List: tap a name (the row shows how often you did it). "Remove" stays at the right.</p></div>
+<div class="phone">
+  <div class="screen">
+    <div class="h1row"><h1 class="title">Wk4 D3</h1></div>
+    <div class="row"><div class="row-main"><div class="row-name">Hamstring Curl Machine</div><div class="row-sub">3 × 12 · 45 kg</div></div></div>
+    <div class="open-row">
+      <div class="row" style="border-bottom:0;min-height:56px"><div class="row-main"><div class="row-name">Squats</div><div class="row-sub">5 × 5 · 150 kg · RPE 8</div></div><div class="more"><svg><use href="#i-more"/></svg></div></div>
+      <div class="recent-title">Last 3 Sessions</div>
+      <div class="recent-row"><span>Sun 1 Nov</span><span class="num">5 × 5 · 145 kg · RPE 8</span></div>
+      <div class="recent-row"><span>Thu 29 Oct</span><span class="num">5 × 5 · 140 kg · RPE 8</span></div>
+      <div class="recent-row"><span>Wed 28 Oct</span><span class="num">5 × 5 · 135 kg · RPE 7</span></div>
+      <div class="link-row">All Sessions · 24<svg><use href="#i-chev"/></svg></div>
+    </div>
+    <div class="row"><div class="row-main"><div class="row-name">Incline Bench</div><div class="row-sub">3 × 8 · 72.5 kg</div></div></div>
+  </div>
+  <div class="bar"><div class="bar-info"><div class="bar-time num">2:14</div><div class="bar-what">Squats · Set 2 of 5</div></div><div class="btn primary">Start Set 3</div></div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab on"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+<div class="phone">
+  <div class="screen">
+    <div class="back"><svg><use href="#i-chev"/></svg>Settings</div>
+    <div class="h1row" style="min-height:48px;padding-top:0"><h1 class="title">Exercise List</h1></div>
+    <div class="row short"><div class="row-main"><div class="row-name" style="font-size:var(--f-body);color:var(--accent)">Add Exercise</div></div><svg style="color:var(--accent)"><use href="#i-plus"/></svg></div>
+    <div class="row short plain"><div class="row-main"><div class="row-name">Ab Roller</div><div class="row-sub">3 sessions · last 25 Oct</div></div><div class="grey-btn">Remove</div></div>
+    <div class="row short plain"><div class="row-main"><div class="row-name">Alternating DB Curls</div><div class="row-sub">No sessions yet</div></div><div class="grey-btn">Remove</div></div>
+    <div class="row short plain"><div class="row-main"><div class="row-name">Back Extension</div><div class="row-sub">3 sessions · last 22 Oct</div></div><div class="grey-btn">Remove</div></div>
+    <div class="row short plain"><div class="row-main"><div class="row-name">Band Pull Apart</div><div class="row-sub">No sessions yet</div></div><div class="grey-btn">Remove</div></div>
+    <div class="row short plain"><div class="row-main"><div class="row-name">Barbell Lunges</div><div class="row-sub">No sessions yet</div></div><div class="grey-btn">Remove</div></div>
+    <div class="row short plain"><div class="row-main"><div class="row-name">Bench</div><div class="row-sub">25 sessions · last 1 Nov</div></div><div class="grey-btn">Remove</div></div>
+    <div class="row short plain"><div class="row-main"><div class="row-name">Bent Over Reverse DB Flye</div><div class="row-sub">No sessions yet</div></div><div class="grey-btn">Remove</div></div>
+    <div class="row short plain"><div class="row-main"><div class="row-name">Cable Bicep Curls</div><div class="row-sub">1 session · last 6 Sep</div></div><div class="grey-btn">Remove</div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab on"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<!-- 7 -->
+<div class="doc"><h2>7. Progress, option A: line chart and list</h2>
+  <p>Three numbers at the top, a line of the heaviest weight of each day (your real Squats data), then every session, newest first. Days with two entries (top set and back-off sets) show both lines. "Best" marks the heaviest day. No boxes; the chart has only 3 thin guide lines.</p></div>
+<div class="phone">
+  <div class="screen">
+    <div class="back"><svg><use href="#i-chev"/></svg>Exercise List</div>
+    <div class="h1row" style="min-height:48px;padding-top:0"><h1 class="title">Squats</h1></div>
+    <div class="stats">
+      <div><div class="stat-v">192.5 kg</div><div class="stat-l">Heaviest · 31 Jul</div></div>
+      <div><div class="stat-v">145 kg</div><div class="stat-l">Last · 1 Nov</div></div>
+      <div><div class="stat-v">20</div><div class="stat-l">Days</div></div>
+    </div>
+    <div class="chart">
+      <svg viewBox="0 0 398 166" preserveAspectRatio="none">
+        <g stroke="#343A35"><line x1="32" y1="10" x2="398" y2="10"/><line x1="32" y1="69" x2="398" y2="69"/><line x1="32" y1="128" x2="398" y2="128"/></g>
+        <g fill="#A3ABA3" stroke="none" font-size="11" font-family="sans-serif"><text x="0" y="14">200</text><text x="0" y="73">150</text><text x="0" y="132">100</text>
+          <text x="36" y="160">Aug</text><text x="146" y="160">Sep</text><text x="262" y="160">Oct</text><text x="372" y="160">Nov</text></g>
+        <polyline fill="none" stroke="#C6FF3D" stroke-width="2" points="32,18.9 43.5,75 155.2,104.5 178.3,33.6 189.8,92.7 205.2,33.6 216.8,80.9 232.1,30.7 259.1,104.5 270.6,80.9 309.1,128.2 320.7,122.3 324.5,116.4 336.1,110.5 347.6,104.5 351.5,98.6 363,92.7 374.6,86.8 378.4,80.9 390,75"/>
+        <g fill="#C6FF3D" stroke="none"><circle cx="32" cy="18.9" r="4"/><circle cx="390" cy="75" r="4"/></g>
+        <g fill="#0B0D0C" stroke="#C6FF3D" stroke-width="1.5"><circle cx="43.5" cy="75" r="2.5"/><circle cx="155.2" cy="104.5" r="2.5"/><circle cx="178.3" cy="33.6" r="2.5"/><circle cx="189.8" cy="92.7" r="2.5"/><circle cx="205.2" cy="33.6" r="2.5"/><circle cx="216.8" cy="80.9" r="2.5"/><circle cx="232.1" cy="30.7" r="2.5"/><circle cx="259.1" cy="104.5" r="2.5"/><circle cx="270.6" cy="80.9" r="2.5"/><circle cx="309.1" cy="128.2" r="2.5"/><circle cx="320.7" cy="122.3" r="2.5"/><circle cx="324.5" cy="116.4" r="2.5"/><circle cx="336.1" cy="110.5" r="2.5"/><circle cx="347.6" cy="104.5" r="2.5"/><circle cx="351.5" cy="98.6" r="2.5"/><circle cx="363" cy="92.7" r="2.5"/><circle cx="374.6" cy="86.8" r="2.5"/><circle cx="378.4" cy="80.9" r="2.5"/></g>
+      </svg>
+      <div class="row-sub" style="padding-top:var(--s1)">Heaviest weight of each day, kg</div>
+    </div>
+    <div class="section" style="padding-top:var(--s4)"><span class="label">All Sessions</span><span class="label num">24</span></div>
+    <div class="day"><div class="day-head"><span class="day-date">Sun 1 Nov</span><div class="day-sets"><div>5 × 5 · 145 kg <span class="r">· RPE 8</span></div></div></div><div class="day-note">Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Thu 29 Oct</span><div class="day-sets"><div>5 × 5 · 140 kg <span class="r">· RPE 8</span></div></div></div><div class="day-note">Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Wed 28 Oct</span><div class="day-sets"><div>5 × 5 · 135 kg <span class="r">· RPE 7</span></div></div></div><div class="day-note">Beltless</div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab on"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+<div class="doc"><p>Option A, further down the same screen (scrolled):</p></div>
+<div class="phone" style="height:520px">
+  <div class="screen">
+    <div class="day"><div class="day-head"><span class="day-date">Thu 1 Oct</span><div class="day-sets"><div>2 × 5 · 140 kg <span class="r">· RPE 6</span></div><div>1 × 2 · 140 kg <span class="r">· RPE 7</span></div></div></div><div class="day-note">Pain under left kneecap after each rep. · Sharp pain under left kneecap; set aborted.</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Mon 28 Sep</span><div class="day-sets"><div>2 × 5 · 120 kg <span class="r">· RPE 8</span></div></div></div><div class="day-note">High Bar, Paused, Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Mon 21 Sep</span><div class="day-sets"><div>4 × 5 · 147.5 kg <span class="r">· RPE 7</span></div><div>1 × 5 · 182.5 kg <span class="r">· RPE 8</span></div></div></div><div class="day-note">Supposed to do 192,5…</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Thu 17 Sep</span><div class="day-sets"><div>3 × 5 · 140 kg <span class="r">· RPE 8</span></div></div></div><div class="day-note">High Bar, Paused, Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Fri 31 Jul</span><div class="day-sets"><div>2 × 5 · 140 kg <span class="r">· RPE 7</span></div><div>1 × 5 · 192.5 kg <span class="r">· RPE 10</span><span class="best">Best</span></div></div></div><div class="day-note">Beltless · Reattempt of last week’s top set.</div></div>
+  </div>
+</div>
+
+<!-- 8 -->
+<div class="doc"><h2>8. Progress, option B: list with a bar for each day</h2>
+  <p>No chart. Each day has a thin bar: its length is the heaviest weight of that day, compared with the best day (green). Less code and easy to read with one look, but the time between days does not show.</p></div>
+<div class="phone">
+  <div class="screen">
+    <div class="back"><svg><use href="#i-chev"/></svg>Exercise List</div>
+    <div class="h1row" style="min-height:48px;padding-top:0"><h1 class="title">Squats</h1></div>
+    <div class="stats">
+      <div><div class="stat-v">192.5 kg</div><div class="stat-l">Heaviest · 31 Jul</div></div>
+      <div><div class="stat-v">145 kg</div><div class="stat-l">Last · 1 Nov</div></div>
+      <div><div class="stat-v">20</div><div class="stat-l">Days</div></div>
+    </div>
+    <div class="section" style="padding-top:var(--s4)"><span class="label">All Sessions</span><span class="label num">24</span></div>
+    <div class="day"><div class="day-head"><span class="day-date">Sun 1 Nov</span><div class="day-sets"><div>5 × 5 · 145 kg <span class="r">· RPE 8</span></div></div></div><div class="hbar"><i style="width:75%"></i></div><div class="day-note">Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Thu 29 Oct</span><div class="day-sets"><div>5 × 5 · 140 kg <span class="r">· RPE 8</span></div></div></div><div class="hbar"><i style="width:73%"></i></div><div class="day-note">Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Wed 28 Oct</span><div class="day-sets"><div>5 × 5 · 135 kg <span class="r">· RPE 7</span></div></div></div><div class="hbar"><i style="width:70%"></i></div><div class="day-note">Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Sun 25 Oct</span><div class="day-sets"><div>5 × 5 · 130 kg <span class="r">· RPE 7</span></div></div></div><div class="hbar"><i style="width:68%"></i></div><div class="day-note">Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Thu 22 Oct</span><div class="day-sets"><div>5 × 5 · 125 kg <span class="r">· RPE 7</span></div></div></div><div class="hbar"><i style="width:65%"></i></div><div class="day-note">Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Wed 21 Oct</span><div class="day-sets"><div>5 × 5 · 120 kg <span class="r">· RPE 7</span></div></div></div><div class="hbar"><i style="width:62%"></i></div><div class="day-note">Beltless</div></div>
+    <div class="day"><div class="day-head"><span class="day-date">Sun 18 Oct</span><div class="day-sets"><div>5 × 5 · 115 kg <span class="r">· RPE 6</span></div></div></div><div class="hbar"><i style="width:60%"></i></div><div class="day-note">Beltless; pain 1/10</div></div>
+  </div>
+  <div class="tabs">
+    <div class="tab"><svg><use href="#i-hist"/></svg>History</div>
+    <div class="tab"><svg><use href="#i-today"/></svg>Today</div>
+    <div class="tab"><svg><use href="#i-queue"/></svg>Queue</div>
+    <div class="tab on"><svg><use href="#i-set"/></svg>Settings</div>
+  </div>
+</div>
+
+</body>
+</html>

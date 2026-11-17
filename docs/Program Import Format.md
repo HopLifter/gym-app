@@ -2,7 +2,7 @@
 
 How to format a program so GymLog can import it. You can give this document to Claude along with your spreadsheet and ask for the JSON. The Program Builder's "Export for GymLog" button writes this format for you.
 
-**Applies to:** the app as of v62, including the `description` field (v60) and the `superset` field (v62).
+**Applies to:** the app as of v73, including the `description` field (v60), the `superset` field (v62) and the import check (v73).
 
 ## 1. How to import
 
@@ -11,6 +11,15 @@ Go to Settings → Program Management, then open the import screen. Either paste
 - With no current program, the button is `Start New Program`, and the import becomes your Current Program.
 - With a current program, the button is `Add Next Program`, and your current program is kept. The import waits behind it as the Next Program. If the current program has no queued workouts left, the import ends it and becomes the Current Program instead.
 - With a Next Program already waiting, the button is hidden until you remove it.
+
+**Check Import (v73).** After "Check File", a full screen shows the file before anything changes:
+
+- The program name. You can change it.
+- **Names to Check.** A name on your Exercise List (capitals ignored) uses the list spelling. A name that is the same as a list name when capitals, dots, spaces, dashes and a last "s" are ignored uses the list name ("Conv. Deadlifts" → "Conv. Deadlift"). Other names stay as in the file and go on the Exercise List at import. Tap a name to choose a different one.
+- **Values to Check.** RPE that is not a whole number from 1 to 10, sets or reps that are not a whole number from 1 to 100, and a weight or rest that is not a number. The import can still continue.
+- The workouts. Tap one to see its exercises.
+
+After the import, the message bar shows Undo for 8 seconds. Undo removes the program, its workouts and the names that the import put on the Exercise List.
 
 ## 2. Basic structure
 
@@ -25,7 +34,7 @@ The file is one JSON object with two parts: `program` and `workouts`.
       "description": "Squat + Heavy Bench",
       "exercises": [
         { "name": "Back Squat", "sets": 4, "reps": 5, "weight": 140, "rpe": 8, "rest": 240, "notes": "Keep the bar speed up." },
-        { "name": "Bench Press", "sets": 3, "reps": 5, "weight": 97.5, "rpe": 7.5, "rest": 180, "notes": "" },
+        { "name": "Bench Press", "sets": 3, "reps": 5, "weight": 97.5, "rpe": 7, "rest": 180, "notes": "" },
         { "name": "Pull Ups", "sets": 3, "reps": 8, "rest": 90 }
       ]
     },
@@ -33,7 +42,7 @@ The file is one JSON object with two parts: `program` and `workouts`.
       "label": "Block 2 - Wk1 D2",
       "description": "Deadlift + Volume Bench",
       "exercises": [
-        { "name": "Deadlift", "sets": 3, "reps": 3, "weight": 170, "rpe": 8.5, "rest": 300, "notes": "" }
+        { "name": "Deadlift", "sets": 3, "reps": 3, "weight": 170, "rpe": 8, "rest": 300, "notes": "" }
       ]
     }
   ]
@@ -68,7 +77,7 @@ The file needs at least one workout. An empty list is rejected.
 | `sets` | Recommended | Whole number | `3` |
 | `reps` | Recommended | Whole number | `10` |
 | `weight` | No | Number, in kg | `0` |
-| `rpe` | No | Number | Blank |
+| `rpe` | No | Whole number from 1 to 10 | Blank |
 | `rest` | No | Number, in **seconds** | `60` |
 | `notes` | No | Text | Blank |
 | `superset` | No | Text, such as `"A"` | Not part of a superset. |

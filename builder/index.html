@@ -1048,8 +1048,9 @@ function groupsEqual(a, b) {
 function nextLoad(load, pattern) {
   if (pattern.kind === 'add') {
     var next = cleanNum(load + pattern.amount);
-    // RPE tops out at 10 and RIR cannot go below 0 (both stay between 0 and 10).
-    return (pattern.type === 'rpe' || pattern.type === 'rir') ? Math.min(10, Math.max(0, next)) : next;
+    // RPE stays a whole number from 1 to 10 (GymLog v73); RIR stays between 0 and 10.
+    if (pattern.type === 'rpe') return Math.min(10, Math.max(1, Math.round(next)));
+    return pattern.type === 'rir' ? Math.min(10, Math.max(0, next)) : next;
   }
   if (pattern.kind === 'percent') {
     // e.g. +5% rounded to the nearest 2.5 kg: round(previous x 1.05 / 2.5) x 2.5.
@@ -2160,7 +2161,7 @@ var AI_PROMPT_LINES = [
   '- If an exercise has several set groups, create a separate exercise entry for each, in order.',
   '- "weight" is always in kg. "rest" is always in seconds.',
   '- Use a period for decimals.',
-  '- "rpe" is the target RPE, or the load if the load type is "rpe". Leave it out if there is neither. Never use "rpe" for RIR.',
+  '- "rpe" is the target RPE, or the load if the load type is "rpe". It is a whole number from 1 to 10 (GymLog shows other values as a problem). Leave it out if there is neither. Never use "rpe" for RIR.',
   '- "reps" is the lower number of a rep range.',
   '- Put these in "notes", in this order, separated by " · ", before any notes I wrote: the set type (Warm-up, Top set, Back-off, AMRAP or Drop set), "RIR n" (the RIR target, or the load if the load type is "rir"), "a–b reps" for a rep range, "Tempo t" and "n s pause". Leave out anything that is not set. If an exercise has more than one set group in a workout, put the notes I wrote on its first entry only.',
   '- For two set groups with the same value in their exercises\' "supersets" list (the same pair id), give both entries the same "superset" letter if both exercises are included that week and both have that set group. Each pair gets its own letter. Letters restart in each workout. Put the two entries next to each other, at the position of the earlier one. An exercise with several paired set groups therefore appears several times.',
@@ -2556,10 +2557,13 @@ function progressionRows(ex, k) {
   amount.className = 'rest-input';
   amount.addEventListener('change', function () {
     var n = kind === 'percent' ? parseNumber(amount.value) : parseSigned(amount.value);
-    var bad = n === null || isNaN(n) || (kind === 'percent' ? (n <= 0 || n > PERCENT_LIMIT) : Math.abs(n) > ADD_LIMIT[type]);
+    var wholeOnly = kind === 'add' && type === 'rpe';
+    var bad = n === null || isNaN(n) || (kind === 'percent' ? (n <= 0 || n > PERCENT_LIMIT) : Math.abs(n) > ADD_LIMIT[type])
+      || (wholeOnly && Math.floor(n) !== n);
     if (bad) {
       showNotice(kind === 'percent'
         ? 'The percentage must be a number above 0, up to ' + PERCENT_LIMIT + '.'
+        : wholeOnly ? 'The RPE change must be a whole number from -10 to 10.'
         : 'The amount must be a number from -' + ADD_LIMIT[type] + ' to ' + ADD_LIMIT[type] + '.');
       amount.value = formatNum(p.amount);
       return;
@@ -4585,6 +4589,10 @@ function hasEffortTarget(loadType, hasValue) { return loadType === 'kg' || !!has
 // Returns { value } (a number or null) or { error }.
 function readLoad(text, loadType) {
   var n = parseNumber(text);
+  // An RPE is a whole number from 1 to 10 (GymLog v73).
+  if (loadType === 'rpe' && n !== null && (isNaN(n) || Math.floor(n) !== n || n < 1 || n > 10)) {
+    return { error: 'RPE must be a whole number from 1 to 10, or left blank.' };
+  }
   if (n !== null && (isNaN(n) || n > LOAD_LIMITS[loadType])) {
     return { error: 'Load must be a number from 0 to ' + LOAD_LIMITS[loadType] + ' (' + LOAD_LABELS[loadType] + '), or left blank.' };
   }
@@ -4604,9 +4612,13 @@ function readReps(text) {
   return { reps: reps, repsMax: max };
 }
 
-// An effort target: a number from 0 to 10 (half steps allowed), or blank. `name` is "RPE" or "RIR".
+// An effort target, or blank. `name` is "RPE" or "RIR". RPE: a whole number from 1 to 10 (GymLog
+// v73). RIR: a number from 0 to 10 (half steps allowed).
 function readEffortTarget(text, name) {
   var n = parseNumber(text);
+  if (name === 'RPE' && n !== null && (isNaN(n) || Math.floor(n) !== n || n < 1 || n > 10)) {
+    return { error: 'Target RPE must be a whole number from 1 to 10, or left blank.' };
+  }
   if (n !== null && (isNaN(n) || n > 10)) return { error: 'Target ' + name + ' must be a number from 0 to 10, or left blank.' };
   return { value: n };
 }

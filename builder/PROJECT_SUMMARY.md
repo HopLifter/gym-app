@@ -9,6 +9,8 @@ Spec: `../docs/specs/Feature Spec 2.1 Program Builder Phase 1.md`. The GymLog ro
 
 **How to read this file:** the sections after "Key functions" are a log in the order the work happened. Steps 2 to 6 contain choices that later rounds changed (for example fixed `+2.5 kg` options, per-exercise `pattern`, `rest` and `supersetId`). The latest round wins; the Data model section below is current.
 
+**RPE whole numbers (17 November 2026, with GymLog v73):** a target RPE and an RPE load accept only a whole number from 1 to 10 (`readEffortTarget`, `readLoad`). An "add" pattern on RPE needs a whole amount, and `nextLoad` keeps RPE between 1 and 10. The AI prompt says RPE is a whole number. No data model change: old programs with half steps still open and show their values. RIR keeps half steps.
+
 ## Current status (15 November 2026): read this first
 Phase 1 (core builder) and Phase 2 steps 1 to 4 are built, tested by the user and committed. A UI/UX overhaul followed on 15 November 2026 (stops 1 to 5 and a new Library; see "UI overhaul" at the end of this file). Stop 6 of the overhaul (code cleanup) is built and published (commit 896ff83). Spec for Phase 2: `../docs/specs/Feature Spec 2.1 Program Builder Phase 2.md`. The sections further down are a dated log; the LATEST section on a topic wins, and the code wins over both.
 

@@ -28,7 +28,7 @@ Rules for working on GymLog and the Program Builder. Claude Code follows these e
 ## Build snapshots in OneDrive (archive)
 After a build the user has approved, copy it to a dated folder under `C:\Users\cjroy\OneDrive\Personal Projects\GymLog\` as a read-only archive:
 - Name: `YYYYMMDD`, or `YYYYMMDD_V2`, `_V3` for later builds the same day.
-- Contents: `index.html`, `sw.js`, `builder/`, `PROJECT_SUMMARY.md`, `ROADMAP.md`.
+- Contents: `index.html`, `sw.js`, `manifest.json`, the `icon-*.png` files, `builder/`, `PROJECT_SUMMARY.md`, `ROADMAP.md`.
 - Never edit a snapshot folder, and never work inside one. Older folders (up to `20261105`) stay as they are.
 - This is a backup. If a snapshot and the repo disagree, the repo is right.
 - Never copy `TestData\` or other personal data into the repo.

@@ -1,12 +1,16 @@
 // A "cache name" is just a label for a storage bucket in the browser.
 // Bump this number whenever you update index.html, so the browser knows
 // to fetch and cache the new version instead of reusing the old one.
-const CACHE_NAME = "gym-app-cache-v72";
+const CACHE_NAME = "gym-app-cache-v74";
 
 const FILES_TO_CACHE = [
   "./",
   "index.html",
-  "sw.js"
+  "sw.js",
+  "manifest.json",
+  "icon-180.png",
+  "icon-192.png",
+  "icon-512.png"
 ];
 
 // "install" runs once, when the service worker is first registered.

@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover">
 <title>GymLog</title>
+<meta name="theme-color" content="#0B0D0C">
+<meta name="apple-mobile-web-app-title" content="GymLog">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
 <style>
   /* ---- Design tokens (UI overhaul, v65) ----
      New work uses these tokens only: 8 colours, 5 font sizes, the
@@ -23,9 +28,6 @@
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --tab-h: calc(56px + var(--safe-bottom));
-    /* Old names: still used by the condensed Past Workout table. */
-    --text-dim: var(--text-2);
-    --hist-superset: #4B524C;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -288,7 +290,7 @@
   .condensed-comment { margin-top: 14px; }
   .condensed-comment-label {
     font-size: 11px;
-    color: var(--text-dim);
+    color: var(--text-2);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-bottom: 4px;
@@ -408,6 +410,60 @@
   .picker-row mark { background: none; color: var(--accent); }
   .picker-row.add-new { gap: var(--s3); }
   .picker-row.add-new > .icon, .picker-row.add-new .list-name { color: var(--accent); }
+
+  /* ---- Import check (stop 8): under the picker, so the picker can open
+     on top of it to change a name. */
+  .check-screen { z-index: 47; }
+  .check-screen .picker-inner { padding-bottom: calc(var(--safe-bottom) + 140px); }
+  .name-field {
+    width: 100%; min-height: 52px; margin-top: var(--s1);
+    background: none; border: none; border-bottom: 2px solid var(--control); border-radius: 0;
+    color: var(--text); font-family: inherit; font-size: var(--f-name); font-weight: 600;
+  }
+  .name-field:focus { outline: none; border-bottom-color: var(--accent); }
+  .field-help { font-size: 14px; color: var(--text-2); padding: var(--s2) 0 var(--s3); border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .check-foot {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 1;
+    max-width: 480px; margin: 0 auto;
+    padding: var(--s3) var(--s4) calc(var(--safe-bottom) + var(--s4));
+    background: var(--bg); border-top: 1px solid var(--line);
+  }
+  .check-foot .btn { height: 56px; }
+  .foot-note { font-size: 14px; color: var(--text-2); text-align: center; padding-top: var(--s2); }
+  .list-sub.acc { color: var(--accent); }
+  .check-ex { padding: 0 0 var(--s3); border-bottom: 1px solid var(--line); }
+  .check-ex-line { display: flex; gap: var(--s3); padding: 6px 0; font-size: 15px; }
+  .check-ex-line .n { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .check-ex-line .n.changed { color: var(--accent); }
+  .check-ex-line .v { color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; }
+  .list-row .chev.open { transform: rotate(90deg); }
+
+  /* ---- Progress screen (stop 8) ---- */
+  .prog-stats { display: flex; gap: var(--s5); padding: var(--s2) 0 var(--s4); border-bottom: 1px solid var(--line); }
+  .prog-stat-v { font-size: var(--f-name); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .prog-stat-l { font-size: var(--f-label); color: var(--text-2); }
+  .prog-chart { padding: var(--s3) 0 var(--s2); border-bottom: 1px solid var(--line); }
+  .prog-chart svg { display: block; width: 100%; height: 166px; }
+  .prog-chart .grid { stroke: var(--line); stroke-width: 1; }
+  .prog-chart .axis { fill: var(--text-2); font-size: 11px; font-family: inherit; }
+  .prog-chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+  .prog-chart .dot { fill: var(--bg); stroke: var(--accent); stroke-width: 1.5; }
+  .prog-chart .dot.end { fill: var(--accent); stroke: none; }
+  .prog-chart-cap { font-size: 14px; color: var(--text-2); padding-top: var(--s1); }
+  .prog-day { padding: var(--s3) 0; border-bottom: 1px solid var(--line); }
+  .prog-day-head { display: flex; align-items: baseline; gap: var(--s2); }
+  .prog-day-date { font-size: 14px; color: var(--text-2); width: 84px; flex-shrink: 0; }
+  .prog-day-sets { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+  .prog-day-sets > div { padding: 1px 0; }
+  .prog-day-sets .r { color: var(--text-2); }
+  .prog-day-note { font-size: 13px; color: var(--text-2); font-style: italic; padding: 2px 0 0 92px; overflow-wrap: anywhere; }
+  .prog-best { font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase; margin-left: var(--s2); }
+  .recent-link {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+    min-height: 44px; margin-top: var(--s1); padding: 0;
+    background: none; border: none; border-top: 1px solid var(--line);
+    color: var(--accent); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
 
   .recent-panel { padding-bottom: var(--s3); font-size: 14px; }
   .recent-panel-title {
@@ -645,7 +701,7 @@
     font-size: 9px;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: var(--text-dim);
+    color: var(--text-2);
     font-weight: 700;
     line-height: 1.25;
     text-align: left;
@@ -668,7 +724,7 @@
     text-align: left;
     color: var(--text);
   }
-  .condensed-missing { color: var(--text-dim); }
+  .condensed-missing { color: var(--text-2); }
   .condensed-wt { font-weight: 700; }
   /* The note is nested INSIDE its own exercise's .condensed-entry,
      directly after the stat row in the same block — never a sibling
@@ -679,7 +735,7 @@
   .condensed-note-text {
     display: block;
     font-size: 11px;
-    color: var(--text-dim);
+    color: var(--text-2);
     font-style: italic;
     text-align: left;
   }
@@ -696,12 +752,12 @@
     position: absolute;
     top: 2px; bottom: 2px; right: -9px;
     width: 3px;
-    background: var(--hist-superset);
+    background: var(--control);
     border-radius: 2px;
   }
   .condensed-empty {
     text-align: center;
-    color: var(--text-dim);
+    color: var(--text-2);
     font-size: 13px;
     padding: 24px 0;
   }
@@ -845,6 +901,31 @@
   </div>
 </div>
 
+<!-- IMPORT CHECK (stop 8): full screen, under the picker -->
+<div class="picker check-screen hidden" id="importCheckScreen" role="dialog" aria-modal="true" aria-labelledby="importCheckTitle">
+  <div class="picker-inner">
+    <button class="back-btn" type="button" id="importCheckCancelBtn"><svg class="icon"><use href="#i-back"/></svg>Cancel</button>
+    <div class="screen-head"><h1 id="importCheckTitle">Check Import</h1></div>
+    <label class="label" for="importProgName">Program Name</label>
+    <input type="text" class="name-field" id="importProgName" maxlength="80" autocomplete="off" autocapitalize="words" enterkeyhint="done">
+    <div class="field-help" id="importCheckWhere"></div>
+    <div id="importCheckBody"></div>
+  </div>
+  <div class="check-foot">
+    <button class="btn primary" type="button" id="importCheckConfirmBtn">Add Next Program</button>
+    <div class="foot-note hidden" id="importCheckNote"></div>
+  </div>
+</div>
+
+<!-- PROGRESS (stop 8): every session of one exercise -->
+<div class="picker hidden" id="progressScreen" role="dialog" aria-modal="true" aria-labelledby="progressTitle">
+  <div class="picker-inner">
+    <button class="back-btn" type="button" id="progressBackBtn"><svg class="icon"><use href="#i-back"/></svg><span id="progressBackLabel">Back</span></button>
+    <div class="screen-head"><h1 id="progressTitle"></h1></div>
+    <div id="progressBody"></div>
+  </div>
+</div>
+
 <input type="file" id="importAllDataFileInput" accept="application/json" class="hidden">
 
 <div class="bottom-nav" id="bottomNav">
@@ -920,21 +1001,21 @@
 <div class="modal-overlay hidden" id="importOverlay">
   <div class="modal-box">
     <div class="modal-title">Import Program</div>
-    <div class="modal-text">Paste the program JSON, or choose a file. Ask Claude to convert your spreadsheet into this format.</div>
+    <div class="modal-text">Paste the program text, or choose a file. The next screen shows what is in it before anything changes.</div>
     <div class="import-error hidden" id="importError"></div>
-    <label class="import-file-label" for="importFileInput">Choose JSON File</label>
-    <input type="file" id="importFileInput" accept="application/json" class="hidden">
     <textarea class="import-textarea" id="importTextarea" placeholder='{"program": {"name": "..."}, "workouts": [...]}'></textarea>
+    <label class="import-file-label" for="importFileInput">Choose File</label>
+    <input type="file" id="importFileInput" accept="application/json" class="hidden">
     <div class="modal-actions">
       <button class="modal-btn-cancel" id="importCancelBtn">Cancel</button>
-      <button class="modal-btn-primary" id="importConfirmBtn">Import</button>
+      <button class="modal-btn-primary" id="importConfirmBtn">Check File</button>
     </div>
   </div>
 </div>
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v72";
+  const APP_VERSION = "gym-app-cache-v74";
 
   const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
   const PROGRAMS_KEY = "gymapp_programs_v1";
@@ -1330,12 +1411,6 @@
     e.target.classList.remove("flashing");
   });
 
-  function calcVolume(ex) {
-    const s = Number(ex.sets) || 0;
-    const r = Number(ex.reps) || 0;
-    const w = Number(ex.weight) || 0;
-    return s * r * w;
-  }
 
   // Rest is stored internally in seconds (matches import/export format
   // and any future timer use). The UI displays and edits it in minutes.
@@ -1459,7 +1534,7 @@
         </div>
         <div class="ex-fields">
           ${plainFieldHTML("sets", "Sets", ex.sets, "numeric")}
-          ${plainFieldHTML("rpe", "RPE", ex.rpe, "decimal")}
+          ${plainFieldHTML("rpe", "RPE", ex.rpe, "numeric")}
           ${plainFieldHTML("rest", "Rest (min)", restSecondsToMinutes(ex.rest), "decimal")}
         </div>
         <textarea placeholder="Notes" rows="2" data-field="notes" aria-label="Notes">${escapeHtml(ex.notes)}</textarea>
@@ -1651,7 +1726,7 @@
     const status = document.getElementById("status");
     if (viewSource === "history" && editMode) {
       status.textContent = "Editing — press Save to keep changes";
-      status.classList.remove("saved", "hidden");
+      status.classList.remove("hidden");
     } else if (status.textContent === "Editing — press Save to keep changes") {
       status.textContent = "";
       status.classList.add("hidden");
@@ -1958,13 +2033,6 @@
     return `${WEEKDAY_ABBR[dt.getDay()]}, ${d} ${MONTH_ABBR[m - 1]} ${y}`;
   }
 
-  // Informational, read-only date shown on the active workout screen.
-  // Queued workouts have no stored date yet, so this falls back to
-  // today's date without writing anything to the workout object.
-  function formatDateBadge(iso) {
-    const dt = (iso && typeof iso === "string") ? (() => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); })() : new Date();
-    return isoToDMY(`${dt.getFullYear()}-${pad2(dt.getMonth() + 1)}-${pad2(dt.getDate())}`);
-  }
 
   // ---- Custom dd/mm/yyyy date fields ----
   // Native <input type="date"> pickers display in whatever format the
@@ -2082,12 +2150,28 @@
       list.innerHTML = `<div class="list-empty">No exercises yet. Add one above.</div>`;
       return;
     }
-    list.innerHTML = exerciseList.map(name => `
+    // name key -> { count, last } over all of History (stop 8).
+    const stats = new Map();
+    for (const w of history) {
+      if (!w || !Array.isArray(w.exercises)) continue;
+      for (const ex of w.exercises) {
+        const key = (ex.name || "").trim().toLowerCase();
+        if (!key) continue;
+        const s = stats.get(key) || { count: 0, last: "" };
+        s.count++;
+        if (typeof w.date === "string" && w.date > s.last) s.last = w.date;
+        stats.set(key, s);
+      }
+    }
+    list.innerHTML = exerciseList.map(name => {
+      const s = stats.get(name.trim().toLowerCase());
+      const sub = s ? `${s.count} session${s.count === 1 ? "" : "s"}${s.last ? " · last " + formatDateShort(s.last) : ""}` : "No sessions yet";
+      return `
       <div class="list-row short" data-name="${escapeAttr(name)}">
-        <div class="list-main"><span class="list-name" style="font-size:var(--f-body);font-weight:400">${escapeHtml(name)}</span></div>
+        <button class="list-main" type="button" data-action="progress"><span class="list-name" style="font-size:var(--f-body);font-weight:400">${escapeHtml(name)}</span><span class="list-sub">${escapeHtml(sub)}</span></button>
         <button class="text-btn row-act" type="button" data-action="remove-exercise">Remove</button>
-      </div>
-    `).join("");
+      </div>`;
+    }).join("");
   }
 
   // Makes any value safe to put into HTML text or an attribute. Every
@@ -2135,7 +2219,9 @@
       ${r.notes ? `<div class="recent-panel-notes">"${escapeHtml(r.notes)}"</div>` : ""}
     `;
     }).join("");
-    return `<div class="recent-panel"><div class="recent-panel-title">Last 3 Sessions</div>${rows}</div>`;
+    const total = getRecentPerformance(ex.name, Infinity).length;
+    return `<div class="recent-panel"><div class="recent-panel-title">Last 3 Sessions</div>${rows}
+      <button class="recent-link" type="button" data-action="open-progress">All Sessions · ${total}<svg class="icon"><use href="#i-chev"/></svg></button></div>`;
   }
 
   function findExercise(id) {
@@ -2496,7 +2582,7 @@
   });
 
   // ---- Global Workout Timer ----
-  // Total time spent on Today's Workout, independent of the rest timer.
+  // Total time spent on Today's Workout, independent of the rest time in the set bar.
   // State lives on the queued workout itself as
   //   timer: { status: "running" | "paused", startedAt, accumulatedMs }
   // (absent = idle) and is saved only on Start/Pause/Resume/Finish. The
@@ -2631,7 +2717,7 @@
     toggleWorkoutTimer(false);
   });
 
-  // Same pattern as the rest timer: the interval is throttled while the
+  // Same pattern as the set bar: the interval is throttled while the
   // app is backgrounded, so refresh immediately when it comes back.
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
@@ -2698,6 +2784,11 @@
 
     if (action === "rename") {
       openPicker("change", ex);
+      return;
+    }
+
+    if (action === "open-progress") {
+      openProgress(ex.name, "Back");
       return;
     }
 
@@ -2976,7 +3067,19 @@
     } else if (field === "sets" || field === "reps") {
       const n = parseInt(e.target.value, 10);
       ex[field] = isNaN(n) ? "" : n;
-    } else if (field === "weight" || field === "rpe") {
+    } else if (field === "rpe") {
+      // RPE is a whole number from 1 to 10 (stop 8). A key that makes the
+      // value invalid is ignored: the field shows the old value again.
+      // Old saved values (for example 7.5) stay until the user types.
+      const digits = e.target.value.replace(/\D/g, "");
+      const n = digits === "" ? "" : parseInt(digits, 10);
+      if (n !== "" && (n < 1 || n > 10)) {
+        e.target.value = hasValue(ex.rpe) ? String(ex.rpe) : "";
+        return;
+      }
+      if (e.target.value !== String(n)) e.target.value = n === "" ? "" : String(n);
+      ex.rpe = n;
+    } else if (field === "weight") {
       ex[field] = parseDecimalInput(e.target.value);
     } else {
       ex[field] = e.target.value;
@@ -3040,13 +3143,37 @@
     document.body.style.overflow = "hidden";
   }
 
+  // Import check (stop 8): choose the name that the import uses for one
+  // name in the file. The search starts with the file name.
+  function openImportNamePicker(key) {
+    const entry = importCheck && importCheck.names.get(key);
+    if (!entry) return;
+    picker = { mode: "import", key, from: entry.from, index: lastSessionIndex() };
+    document.getElementById("pickerTitle").textContent = `Name for "${entry.from}"`;
+    const now = document.getElementById("pickerNow");
+    now.textContent = entry.to !== entry.from ? "Now: " + entry.to : "";
+    now.classList.toggle("hidden", entry.to === entry.from);
+    document.getElementById("pickerSearch").value = entry.from;
+    renderPicker();
+    const screen = document.getElementById("pickerScreen");
+    screen.classList.remove("hidden");
+    screen.scrollTop = 0;
+    document.body.style.overflow = "hidden";
+  }
+
+  // True while a full screen (picker, import check, progress) is open.
+  function fullScreenOpen() {
+    return ["pickerScreen", "importCheckScreen", "progressScreen"]
+      .some(id => !document.getElementById(id).classList.contains("hidden"));
+  }
+
   function closePicker() {
     picker = null;
     const search = document.getElementById("pickerSearch");
     search.blur();
     search.value = "";
     document.getElementById("pickerScreen").classList.add("hidden");
-    document.body.style.overflow = "";
+    document.body.style.overflow = fullScreenOpen() ? "hidden" : "";
   }
 
   function pickerSubText(last) {
@@ -3091,6 +3218,15 @@
       if (!isDuplicateExerciseName(last.name, names)) names.push(last.name);
     }
     let html = "";
+    // Import mode: the first row keeps the name from the file.
+    const keepRow = picker.mode === "import" ? `
+          <button type="button" class="list-row picker-row" data-name="${escapeAttr(picker.from)}">
+            <span class="list-main">
+              <span class="list-name">Keep "${escapeHtml(picker.from)}"</span>
+              <span class="list-sub">${isDuplicateExerciseName(picker.from, exerciseList) ? "On your Exercise List" : "New name on your Exercise List"}</span>
+            </span>
+          </button>` : "";
+    html += keepRow;
     if (!q) {
       const recent = [...index.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)).slice(0, PICKER_RECENT);
       if (recent.length) {
@@ -3123,7 +3259,8 @@
       });
       // The "Add" row is first when no name contains all the words, and
       // last otherwise, so a part of a name is not added by mistake.
-      const addRow = isDuplicateExerciseName(raw, names) ? "" : `
+      const keepSame = picker.mode === "import" && raw.toLowerCase() === picker.from.trim().toLowerCase();
+      const addRow = isDuplicateExerciseName(raw, names) || keepSame ? "" : `
           <button type="button" class="list-row picker-row add-new" data-name="${escapeAttr(raw)}" data-new="1">
             <svg class="icon"><use href="#i-plus"/></svg>
             <span class="list-main">
@@ -3142,6 +3279,13 @@
     const name = (rawName || "").trim();
     if (!p || !name) return;
     closePicker();
+    if (p.mode === "import") {
+      // Only the plan changes now; the list gets new names at import.
+      const entry = importCheck && importCheck.names.get(p.key);
+      if (entry) entry.to = name;
+      renderImportCheck();
+      return;
+    }
     const w = p.workout;
     if (getActiveWorkout() !== w) return;
     const addedToList = isNew ? addExerciseToList(name).ok : false;
@@ -3632,18 +3776,271 @@
       return;
     }
     document.getElementById("importOverlay").classList.add("hidden");
+    if (!importPlace()) {
+      openNotice("Next program already queued", "Remove the next program in Settings before adding another.");
+      return;
+    }
+    openImportCheck(data);
+  });
+
+  // ---- Import check (stop 8) ----
+  // A full screen between the file and the import. No data model change:
+  // the file format and the saved data are the same as before. The check
+  // changes only the program name and the exercise names that are saved.
+  // - A file name that is on the Exercise List (ignoring capitals) uses
+  //   the list spelling, without a row on the check screen.
+  // - A file name that is the same as a list name after ignoring
+  //   capitals, dots, spaces, dashes and a last "s" uses the list name
+  //   ("Conv. Deadlifts" -> "Conv. Deadlift"); the user can change it.
+  // - Other names stay as in the file; at import they go on the Exercise
+  //   List (the stop 6 rule).
+  // - Values to check (RPE not a whole number 1 to 10, sets or reps not
+  //   1 to 100, weight or rest not a number) are shown; the import can
+  //   still continue.
+  let importCheck = null; // { data, names: Map(key -> entry), issues, openIndex }
+
+  // Where the program goes: "current", "end-current" (the current program
+  // has no workouts left: it ends), "next", or null (a next program waits).
+  function importPlace() {
     const cur = currentProgram();
-    if (!cur) {
-      doImport(data, "current");
-    } else if (queuedCountFor(cur.id) === 0) {
+    if (!cur) return "current";
+    if (queuedCountFor(cur.id) === 0) return "end-current";
+    if (!nextProgram()) return "next";
+    return null;
+  }
+
+  function nameNorm(s) {
+    return (s || "").toLowerCase().replace(/[^a-z0-9]/g, "").replace(/s$/, "");
+  }
+  function nameWords(s) {
+    return (s || "").toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2).map(w => w.replace(/s$/, ""));
+  }
+  // The list name that shares the most words with `name` (ties: shorter).
+  function similarListName(name) {
+    const words = new Set(nameWords(name));
+    let best = null, bestN = 0;
+    for (const n of exerciseList) {
+      const k = nameWords(n).filter(w => words.has(w)).length;
+      if (k > bestN || (k === bestN && k > 0 && n.length < best.length)) { best = n; bestN = k; }
+    }
+    return best;
+  }
+
+  function importExerciseName(exDef) {
+    return typeof exDef.name === "string" ? exDef.name.trim() : "";
+  }
+
+  function checkImportValues(data) {
+    const issues = [];
+    const present = v => v !== undefined && v !== null && v !== "";
+    data.workouts.forEach((wDef, wi) => {
+      const where = (typeof wDef.label === "string" && wDef.label.trim()) || `Workout ${wi + 1}`;
+      (Array.isArray(wDef.exercises) ? wDef.exercises : []).forEach(exDef => {
+        const name = importExerciseName(exDef) || "Exercise";
+        const add = text => issues.push({ name, where, text });
+        if (present(exDef.rpe)) {
+          const n = Number(exDef.rpe);
+          if (!Number.isInteger(n) || n < 1 || n > 10) add(`RPE ${exDef.rpe}. RPE is a whole number from 1 to 10.`);
+        }
+        for (const f of ["sets", "reps"]) {
+          if (!present(exDef[f])) continue;
+          const n = Number(exDef[f]);
+          if (!Number.isInteger(n) || n < 1 || n > 100) add(`${f === "sets" ? "Sets" : "Reps"} ${exDef[f]}. Use a whole number from 1 to 100.`);
+        }
+        if (present(exDef.weight) && !(Number(exDef.weight) >= 0)) add(`Weight ${exDef.weight} is not a number of kg.`);
+        if (present(exDef.rest) && !(Number(exDef.rest) >= 0)) add(`Rest ${exDef.rest} is not a number of seconds.`);
+      });
+    });
+    return issues;
+  }
+
+  function openImportCheck(data) {
+    const names = new Map();
+    data.workouts.forEach((wDef, wi) => {
+      (Array.isArray(wDef.exercises) ? wDef.exercises : []).forEach(exDef => {
+        const from = importExerciseName(exDef);
+        if (!from) return;
+        const key = from.toLowerCase();
+        let entry = names.get(key);
+        if (!entry) {
+          const onList = exerciseList.find(n => n.trim().toLowerCase() === key);
+          const near = onList ? null : exerciseList.find(n => nameNorm(n) && nameNorm(n) === nameNorm(from));
+          entry = {
+            from,
+            to: onList || near || from,
+            auto: near,
+            kind: onList ? "same" : near ? "near" : "new",
+            similar: onList || near ? null : similarListName(from),
+            workouts: new Set()
+          };
+          names.set(key, entry);
+        }
+        entry.workouts.add(wi);
+      });
+    });
+    importCheck = { data, names, issues: checkImportValues(data), openIndex: null };
+    document.getElementById("importProgName").value = data.program.name;
+    renderImportCheck();
+    const screen = document.getElementById("importCheckScreen");
+    screen.classList.remove("hidden");
+    screen.scrollTop = 0;
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeImportCheck() {
+    importCheck = null;
+    document.getElementById("importProgName").blur();
+    document.getElementById("importCheckScreen").classList.add("hidden");
+    document.body.style.overflow = fullScreenOpen() ? "hidden" : "";
+  }
+
+  // The names that the import puts on the Exercise List.
+  function importNewNames() {
+    const out = [];
+    for (const e of importCheck.names.values()) {
+      if (!isDuplicateExerciseName(e.to, exerciseList) && !isDuplicateExerciseName(e.to, out)) out.push(e.to);
+    }
+    return out;
+  }
+
+  function renderImportCheck() {
+    if (!importCheck) return;
+    const { data, names, issues } = importCheck;
+    const place = importPlace();
+    const nW = data.workouts.length;
+    const cur = currentProgram();
+    const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+    let where = plural(nW, "workout") + ". ";
+    if (place === "next") where += `Goes after ${cur.name} (${plural(queuedCountFor(cur.id), "workout")} left).`;
+    else if (place === "end-current") where += `${cur.name} has no workouts left. It ends, and this program becomes your Current Program.`;
+    else where += "Becomes your Current Program.";
+    document.getElementById("importCheckWhere").textContent = where;
+    document.getElementById("importCheckConfirmBtn").textContent = place === "next" ? "Add Next Program" : "Start New Program";
+    const newNames = importNewNames();
+    const note = document.getElementById("importCheckNote");
+    note.textContent = newNames.length ? `${plural(newNames.length, "name")} will go on your Exercise List.` : "";
+    note.classList.toggle("hidden", !newNames.length);
+
+    let html = "";
+    const shown = [...names.entries()].filter(([, e]) => e.kind !== "same");
+    if (shown.length) {
+      html += `<div class="list-head"><span class="label">Names to Check</span><span class="label">${shown.length}</span></div>`;
+      html += shown.map(([key, e]) => {
+        const nWk = plural(e.workouts.size, "workout");
+        const onList = isDuplicateExerciseName(e.to, exerciseList);
+        let lines;
+        if (e.to === e.from) {
+          lines = `<span class="list-sub">New name${e.similar ? " · similar: " + escapeHtml(e.similar) : ""} · ${nWk}</span>`;
+        } else {
+          lines = `<span class="list-sub acc">Uses: ${escapeHtml(e.to)}</span>
+            <span class="list-sub">${onList ? (e.to === e.auto ? "Same name on your list" : "On your list") : "New name"} · ${nWk}</span>`;
+        }
+        return `
+          <div class="list-row" data-key="${escapeAttr(key)}">
+            <button class="list-main" type="button" data-action="import-name"><span class="list-name">${escapeHtml(e.from)}</span>${lines}</button>
+            <svg class="icon chev"><use href="#i-chev"/></svg>
+          </div>`;
+      }).join("");
+    }
+    if (issues.length) {
+      html += `<div class="list-head"><span class="label">Values to Check</span><span class="label">${issues.length}</span></div>`;
+      html += issues.map(i => `
+        <div class="list-row short"><div class="list-main" style="cursor:default">
+          <span class="list-name" style="font-size:var(--f-body)">${escapeHtml(i.name)} · ${escapeHtml(i.where)}</span>
+          <span class="list-sub warn">${escapeHtml(i.text)}</span>
+        </div></div>`).join("");
+    }
+    html += `<div class="list-head"><span class="label">Workouts</span><span class="label">${nW}</span></div>`;
+    html += data.workouts.map((wDef, wi) => {
+      const exDefs = Array.isArray(wDef.exercises) ? wDef.exercises : [];
+      const pairs = new Set(buildImportedExercises(exDefs).map(x => x.supersetId).filter(Boolean)).size;
+      const sub = [typeof wDef.description === "string" ? wDef.description.trim() : "", plural(exDefs.length, "exercise"), pairs ? plural(pairs, "superset") : ""].filter(Boolean).join(" · ");
+      const open = importCheck.openIndex === wi;
+      let body = "";
+      if (open) {
+        body = `<div class="check-ex">${exDefs.map(exDef => {
+          const from = importExerciseName(exDef);
+          const e = from ? names.get(from.toLowerCase()) : null;
+          const name = e ? e.to : (from || "Exercise");
+          const changed = !!e && e.to.toLowerCase() !== e.from.toLowerCase();
+          const vals = exerciseSummary({ sets: exDef.sets, reps: exDef.reps, weight: exDef.weight, rpe: exDef.rpe, notes: "" });
+          return `<div class="check-ex-line"><span class="n${changed ? " changed" : ""}">${escapeHtml(name)}</span><span class="v">${escapeHtml(vals)}</span></div>`;
+        }).join("") || `<div class="check-ex-line"><span class="v">No exercises</span></div>`}</div>`;
+      }
+      return `
+        <div class="list-row" data-index="${wi}"${open ? ' style="border-bottom:0"' : ""}>
+          <button class="list-main" type="button" data-action="import-workout"><span class="list-name">${escapeHtml((typeof wDef.label === "string" && wDef.label.trim()) || "Workout")}</span><span class="list-sub">${escapeHtml(sub)}</span></button>
+          <svg class="icon chev${open ? " open" : ""}"><use href="#i-chev"/></svg>
+        </div>${body}`;
+    }).join("");
+    document.getElementById("importCheckBody").innerHTML = html;
+  }
+
+  document.getElementById("importCheckBody").addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-action]");
+    const row = e.target.closest(".list-row");
+    if (!btn || !row || !importCheck) return;
+    if (btn.dataset.action === "import-name") {
+      openImportNamePicker(row.dataset.key);
+    } else if (btn.dataset.action === "import-workout") {
+      const i = Number(row.dataset.index);
+      importCheck.openIndex = importCheck.openIndex === i ? null : i;
+      renderImportCheck();
+    }
+  });
+  document.getElementById("importCheckCancelBtn").addEventListener("click", closeImportCheck);
+  document.getElementById("importProgName").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") e.target.blur();
+  });
+
+  document.getElementById("importCheckConfirmBtn").addEventListener("click", () => {
+    if (!importCheck) return;
+    const place = importPlace();
+    if (!place) {
+      closeImportCheck();
+      openNotice("Next program already queued", "Remove the next program in Settings before adding another.");
+      return;
+    }
+    const { data, names } = importCheck;
+    const progName = document.getElementById("importProgName").value.trim() || data.program.name;
+    const renamed = {
+      ...data,
+      program: { ...data.program, name: progName },
+      workouts: data.workouts.map(wDef => ({
+        ...wDef,
+        exercises: (Array.isArray(wDef.exercises) ? wDef.exercises : []).map(exDef => {
+          const from = importExerciseName(exDef);
+          const entry = from ? names.get(from.toLowerCase()) : null;
+          return entry ? { ...exDef, name: entry.to } : exDef;
+        })
+      }))
+    };
+    const newNames = importNewNames();
+    const before = { programs: JSON.stringify(programs), queue: JSON.stringify(queue) };
+    closeImportCheck();
+    if (place === "end-current") {
+      const cur = currentProgram();
       cur.status = "ended";
       cur.endedAt = todayISO();
-      doImport(data, "current");
-    } else if (!nextProgram()) {
-      doImport(data, "next");
-    } else {
-      openNotice("Next program already queued", "Remove the next program in Settings before adding another.");
     }
+    doImport(renamed, place === "next" ? "next" : "current");
+    const added = newNames.filter(n => addExerciseToList(n).ok);
+    const after = { programs: JSON.stringify(programs), queue: JSON.stringify(queue) };
+    // Undo puts the Queue, the programs and the Exercise List back, but
+    // only while nothing in the Queue or the programs changed since.
+    showMessage(`Added: ${progName} · ${renamed.workouts.length} workout${renamed.workouts.length === 1 ? "" : "s"}`, "Undo", () => {
+      if (JSON.stringify(programs) !== after.programs || JSON.stringify(queue) !== after.queue) {
+        openNotice("Cannot undo", "The Queue changed after the import. Use End Current Program or Remove Next Program in Settings.");
+        return;
+      }
+      programs = JSON.parse(before.programs);
+      queue = JSON.parse(before.queue);
+      savePrograms();
+      saveQueue();
+      for (const n of added) removeExerciseFromList(n);
+      setActiveToNextQueued();
+      showScreen("queue");
+    });
   });
 
   function buildImportedExercises(exerciseDefs) {
@@ -3714,6 +4111,148 @@
     showScreen("queue");
   }
 
+  // ---- Progress screen (stop 8) ----
+  // Every time one exercise was logged in History, newest first, grouped
+  // by day, with a line chart of the heaviest weight of each day. Matched
+  // by name (trimmed, case-insensitive), like Recent. Read-only.
+  let progressName = null;
+
+  function progressDays(name) {
+    const key = (name || "").trim().toLowerCase();
+    const byDate = new Map();
+    const workouts = history.filter(w => w && Array.isArray(w.exercises) && typeof w.date === "string" && w.date);
+    for (const w of workouts) {
+      for (const ex of w.exercises) {
+        if ((ex.name || "").trim().toLowerCase() !== key) continue;
+        if (!byDate.has(w.date)) byDate.set(w.date, []);
+        byDate.get(w.date).push(ex);
+      }
+    }
+    return [...byDate.entries()]
+      .map(([date, rows]) => ({ date, rows, top: Math.max(0, ...rows.map(r => Number(r.weight) || 0)) }))
+      .sort((a, b) => (a.date < b.date ? 1 : -1));
+  }
+
+  function isoDayNumber(iso) {
+    const [y, m, d] = iso.split("-").map(Number);
+    return Date.UTC(y, m - 1, d) / 86400000;
+  }
+
+  // Line chart (SVG, drawn at the real width so text and dots keep their
+  // shape). days: oldest first, each with top > 0.
+  function progressChartSVG(days, width) {
+    const H = 166, left = 34, right = 8, top = 10, bottom = 136;
+    const ws = days.map(d => d.top);
+    let lo = Math.min(...ws), hi = Math.max(...ws);
+    const raw = Math.max(hi - lo, hi * 0.1, 1) / 2;
+    const step = [1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200].find(s => s >= raw) || 500;
+    const flat = lo === hi;
+    lo = Math.max(0, Math.floor(lo / step) * step - (flat ? step : 0));
+    hi = Math.max(Math.ceil(hi / step) * step, lo + step) + (flat ? step : 0);
+    const d0 = isoDayNumber(days[0].date), d1 = isoDayNumber(days[days.length - 1].date);
+    const x = iso => left + (d1 === d0 ? 0.5 : (isoDayNumber(iso) - d0) / (d1 - d0)) * (width - left - right);
+    const y = v => bottom - (v - lo) / (hi - lo) * (bottom - top);
+    const r1 = n => Math.round(n * 10) / 10;
+    let svg = "";
+    for (let v = lo; v <= hi + 1e-9; v += step) {
+      svg += `<line class="grid" x1="${left}" y1="${r1(y(v))}" x2="${width}" y2="${r1(y(v))}"/>`;
+      svg += `<text class="axis" x="0" y="${r1(y(v) + 4)}">${escapeHtml(String(Math.round(v * 10) / 10))}</text>`;
+    }
+    // A month name at the first day of each month in the range.
+    // (When the range has no first day of a month, the start month shows
+    // at the left edge.)
+    const [y0, m0, dd0] = days[0].date.split("-").map(Number);
+    let mo = new Date(Date.UTC(y0, m0 - 1 + (dd0 > 10 && d1 - d0 >= 28 ? 1 : 0), 1));
+    let lastLabelX = -100;
+    while (mo.getTime() / 86400000 <= d1 || lastLabelX < 0) {
+      const iso = `${mo.getUTCFullYear()}-${pad2(mo.getUTCMonth() + 1)}-01`;
+      const lx = Math.min(isoDayNumber(iso) < d0 ? left : x(iso), width - 26);
+      if (lx - lastLabelX > 30) {
+        svg += `<text class="axis" x="${r1(lx)}" y="${H - 6}">${MONTH_ABBR[mo.getUTCMonth()]}</text>`;
+        lastLabelX = lx;
+      }
+      mo = new Date(Date.UTC(mo.getUTCFullYear(), mo.getUTCMonth() + 1, 1));
+    }
+    const pts = days.map(d => `${r1(x(d.date))},${r1(y(d.top))}`);
+    if (days.length > 1) svg += `<polyline class="line" points="${pts.join(" ")}"/>`;
+    const best = Math.max(...ws);
+    days.forEach((d, i) => {
+      const end = i === days.length - 1 || d.top === best;
+      svg += `<circle class="dot${end ? " end" : ""}" cx="${r1(x(d.date))}" cy="${r1(y(d.top))}" r="${end ? 4 : 2.5}"/>`;
+    });
+    return `<svg viewBox="0 0 ${width} ${H}" width="${width}" height="${H}" role="img" aria-label="Heaviest weight of each day">${svg}</svg>`;
+  }
+
+  function renderProgress() {
+    const name = progressName;
+    document.getElementById("progressTitle").textContent = name;
+    const body = document.getElementById("progressBody");
+    const days = progressDays(name);
+    if (!days.length) {
+      body.innerHTML = `<div class="list-empty">No sessions yet. Finish a workout with this exercise and it shows here.</div>`;
+      return;
+    }
+    const rowsCount = days.reduce((n, d) => n + d.rows.length, 0);
+    const best = days.reduce((b, d) => (d.top > b.top || (d.top === b.top && d.date < b.date) ? d : b), days[0]);
+    const kg = v => `${Math.round(v * 100) / 100} kg`;
+    let html = `<div class="prog-stats">`;
+    if (best.top > 0) {
+      html += `<div><div class="prog-stat-v">${kg(best.top)}</div><div class="prog-stat-l">Heaviest · ${formatDateShort(best.date)}</div></div>`;
+      html += `<div><div class="prog-stat-v">${days[0].top > 0 ? kg(days[0].top) : "–"}</div><div class="prog-stat-l">Last · ${formatDateShort(days[0].date)}</div></div>`;
+    } else {
+      html += `<div><div class="prog-stat-v">${formatDateShort(days[0].date)}</div><div class="prog-stat-l">Last</div></div>`;
+    }
+    html += `<div><div class="prog-stat-v">${days.length}</div><div class="prog-stat-l">Days</div></div></div>`;
+    const weighted = days.filter(d => d.top > 0).reverse();
+    if (weighted.length >= 2) {
+      const width = Math.max(240, Math.round(body.clientWidth || 343));
+      html += `<div class="prog-chart">${progressChartSVG(weighted, width)}<div class="prog-chart-cap">Heaviest weight of each day, kg</div></div>`;
+    }
+    html += `<div class="list-head"><span class="label">All Sessions</span><span class="label">${rowsCount}</span></div>`;
+    let bestMarked = false;
+    html += days.map(d => {
+      const lines = d.rows.map(r => {
+        const main = exerciseSummary({ sets: r.sets, reps: r.reps, weight: r.weight, rpe: "", notes: "" }) || "–";
+        const rpe = hasValue(r.rpe) ? ` <span class="r">· RPE ${escapeHtml(r.rpe)}</span>` : "";
+        let mark = "";
+        if (!bestMarked && d === best && best.top > 0 && (Number(r.weight) || 0) === best.top) {
+          mark = `<span class="prog-best">Best</span>`;
+          bestMarked = true;
+        }
+        return `<div>${escapeHtml(main)}${rpe}${mark}</div>`;
+      }).join("");
+      const notes = d.rows.map(r => (typeof r.notes === "string" ? r.notes.trim() : "")).filter(Boolean);
+      return `
+        <div class="prog-day">
+          <div class="prog-day-head"><span class="prog-day-date">${escapeHtml(formatDayShort(d.date))}</span><div class="prog-day-sets">${lines}</div></div>
+          ${notes.length ? `<div class="prog-day-note">${escapeHtml(notes.join(" · "))}</div>` : ""}
+        </div>`;
+    }).join("");
+    body.innerHTML = html;
+  }
+
+  function openProgress(name, backLabel) {
+    if (!name || !String(name).trim()) return;
+    progressName = String(name).trim();
+    document.getElementById("progressBackLabel").textContent = backLabel || "Back";
+    const screen = document.getElementById("progressScreen");
+    screen.classList.remove("hidden"); // first, so the chart can read the width
+    renderProgress();
+    screen.scrollTop = 0;
+    document.body.style.overflow = "hidden";
+  }
+  function closeProgress() {
+    progressName = null;
+    document.getElementById("progressScreen").classList.add("hidden");
+    document.body.style.overflow = fullScreenOpen() ? "hidden" : "";
+  }
+  document.getElementById("progressBackBtn").addEventListener("click", closeProgress);
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || picker) return;
+    if (progressName) closeProgress();
+    else if (importCheck) closeImportCheck();
+  }, true); // capture: runs before the picker's own Escape handler
+
   // ---- Export Gym Log ----
   // Produces tab-separated text matching the user's external Excel gym
   // log layout (Day, Lift, Sets, Reps, Weight, [blank — Volume is a
@@ -3768,9 +4307,6 @@
     return rows;
   }
 
-  function buildGymLogExportText() {
-    return buildGymLogExportRows().map(r => r.join("\t")).join("\n");
-  }
 
   function refreshExportGymLogPreview(autoCopy) {
     const from = parseDMYToISO(document.getElementById("exportGymLogFrom").value) || null;
@@ -4211,10 +4747,15 @@
   });
 
   document.getElementById("exerciseListItems").addEventListener("click", (e) => {
-    if (e.target.dataset.action !== "remove-exercise") return;
+    const actionEl = e.target.closest("[data-action]");
     const item = e.target.closest(".list-row");
-    if (!item) return;
+    if (!actionEl || !item) return;
     const name = item.dataset.name;
+    if (actionEl.dataset.action === "progress") {
+      openProgress(name, "Exercise List");
+      return;
+    }
+    if (actionEl.dataset.action !== "remove-exercise") return;
     openConfirm(
       "Remove this exercise?",
       `"${name}" will be removed from the standardized list and stop showing up as a suggestion. It won't affect any workouts that already use it.`,

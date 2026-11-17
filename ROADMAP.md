@@ -1,7 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
-**Last updated:** 15 November 2026 (Program Builder UI/UX overhaul; ideas "kg loads from a template" and "the Exercise List as a global list" added to Epic 2.1); 8 November 2026 (Program Builder Phase 2 steps 1 to 4 built; real use starts); 6 November 2026 (Program Builder Phase 2 spec drafted; coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
+**Last updated:** 17 November 2026 (GymLog UI/UX overhaul stops 8 and 9, v73 and v74, epic built; RPE whole numbers in GymLog and the builder; ideas "Get files onto a managed iPhone", "Exercise variants as their own names" and "Repeat a workout" added to section 6); 15 November 2026 (Program Builder UI/UX overhaul; ideas "kg loads from a template" and "the Exercise List as a global list" added to Epic 2.1); 8 November 2026 (Program Builder Phase 2 steps 1 to 4 built; real use starts); 6 November 2026 (Program Builder Phase 2 spec drafted; coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -230,9 +230,9 @@ Potential features:
 
 ### 2.3 UI/UX Overhaul Epic
 
-**Status:** In progress. Stops 1 to 7 are done (v64, v66, v69, v70, v71, v72). Stop 8 (import preview and progress screen) is next.
+**Status:** Built. Stops 1 to 9 are done (v64, v66, v69, v70, v71, v72, v73, v74). v73 and v74 wait for the user's phone test. Phone test of v72 (17 November 2026): the backup download and the storage line ("protected by the browser") work; the reminder did not show because a backup was recent; the restore check and Undo Last Restore are not tested (see "Get files onto a managed iPhone" in section 6).
 
-**Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html` (stops 2 to 4), `docs/mockups/GymLog UI Overhaul - Stop 5 Other Screens.html` (stop 5), `docs/mockups/GymLog UI Overhaul - Stop 6 Exercise Picker.html` (stop 6) and `docs/mockups/GymLog UI Overhaul - Stop 7 Backup and Restore.html` (stop 7).
+**Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html` (stops 2 to 4), `docs/mockups/GymLog UI Overhaul - Stop 5 Other Screens.html` (stop 5), `docs/mockups/GymLog UI Overhaul - Stop 6 Exercise Picker.html` (stop 6), `docs/mockups/GymLog UI Overhaul - Stop 7 Backup and Restore.html` (stop 7) and `docs/mockups/GymLog UI Overhaul - Stop 8 Import and Progress.html` (stop 8).
 
 **Stops:**
 
@@ -243,8 +243,8 @@ Potential features:
 5. Other screens: Queue, History with month headings, Settings, Exercise List, dialogs and menus as bottom sheets, one message bar for Undo, Restore to Queue with Undo instead of a dialog (deletes keep their dialog) (done, v70).
 6. Exercise picker: full screen, search, recent exercises, values from the last session; new names always go on the Exercise List; the row is made only after a pick (done, v71).
 7. Backup and restore: last backup date and reminder after Finish Workout (with ✕), file check before a restore (file next to phone), undo copy and Undo Last Restore, restore keeps data that is not in the file, backup metadata (_meta), storage protection request, reload when another open copy saves (done, v72).
-8. Import preview and a progress screen for each exercise.
-9. Clean-up: dead code, manifest and icon, documents.
+8. Import preview and a progress screen for each exercise: Check Import screen (program name, names to check with the list name for the same name in another spelling, values to check, workouts), new names go on the Exercise List, Undo after import; progress screen with a line chart of the heaviest weight of each day and every session, from the Exercise List and from "All Sessions" in a workout row; RPE is a whole number from 1 to 10 in GymLog and the Program Builder (done, v73).
+9. Clean-up: dead code (`calcVolume`, `formatDateBadge`, `buildGymLogExportText`, the `.status.saved` class), old token names (`--text-dim`, `--hist-superset`), web app manifest, home-screen icon, theme colour, documents (done, v74).
 
 **Complexity:** 4/5  
 **UX/UI Improvement:** 5/5
@@ -259,7 +259,7 @@ An initial suggested sequence, subject to further exploration:
 4. Workout Description and Comment (done).
 5. Superset Import (done).
 6. Program Builder Epic, Phases 1 to 3 (Phase 1 done; Phase 2 steps 1 to 4 done, steps 5 to 7 left).
-   The UI/UX Overhaul Epic (2.3) is in progress now, stops 1 to 7 done; it comes before the items below.
+   The UI/UX Overhaul Epic (2.3) is built (stops 1 to 9, v74); it came before the items below.
 7. Set-by-Set Logging.
 8. Planned vs. Actual Tracking.
 9. Missed Reps Logging.
@@ -323,4 +323,18 @@ Small or unscheduled ideas that came out of building GymLog. They are not ordere
   if not
 - Dedicated workout-sharing/export image, custom screenshot themes, or
   GymLog branding on top of the condensed History view
-- Remove the now-unused `.status.saved` CSS rule as routine cleanup
+- **Get files onto a managed iPhone** (idea, 17 November 2026): find a
+  better way to get program files, backups and other files into GymLog
+  when a corporate iPhone cannot easily pick files. Ideas to check: paste
+  the text (Import already has a paste field), a share-sheet target, or a
+  link. Because of this, the v72 restore check and Undo Last Restore are
+  not tested on the phone yet.
+- **Exercise variants as their own names** (reminder, 17 November 2026):
+  the progress screen and Recent find sessions by name. Variants that
+  are only in the notes (for example Squats high bar, paused, beltless)
+  mix into one line. Decide later if each variant gets its own name (for
+  example "Squats – High Bar Paused"), or if a variant field is worth a
+  data model change.
+- **Repeat a workout** (idea, 17 November 2026): copy a workout from
+  History or from the Queue and add the copy to the Queue, for example to
+  do the same workout again.
