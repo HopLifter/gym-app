@@ -329,7 +329,8 @@
   }
   .ex-head { display: flex; align-items: center; gap: var(--s2); min-height: 56px; position: relative; }
   .ex-title { flex: 1; min-width: 0; min-height: 48px; display: flex; align-items: center; }
-  .ex-head .hist-btn { margin-right: 0; }
+  /* Pulled toward the ⋮ button so the two icons read as a pair. */
+  .ex-head .hist-btn { margin-right: -16px; }
   .hist-btn.on { color: var(--accent); }
   .ex-fields { display: flex; gap: var(--s4); margin-bottom: var(--s3); }
   .ex-field { flex: 1; min-width: 0; }
@@ -358,7 +359,6 @@
   .ex-field > input { border-bottom: 2px solid var(--control); }
   .ex-field > input:focus { border-bottom-color: var(--accent); }
   .stepper input { flex: 1; height: 100%; font-size: 22px; font-weight: 700; }
-  .ex-actions { margin-top: var(--s3); }
 
   .btn {
     display: flex; align-items: center; justify-content: center; gap: var(--s2);
@@ -692,6 +692,7 @@
     align-items: center;
   }
   .condensed-thead {
+    padding-top: 14px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--line);
     margin-bottom: 2px;
@@ -798,7 +799,7 @@
       <span class="eyebrow" id="eyebrow">Today</span>
       <div class="timer-controls hidden" id="timerControls">
         <span class="timer-clock hidden" id="timerClock">0:00</span>
-        <button class="header-action-btn" id="timerToggleBtn">Start Workout</button>
+        <button class="header-action-btn hidden" id="timerToggleBtn"></button>
       </div>
       <div class="nav-right" id="navRight">
         <svg class="save-indicator" id="saveIndicator" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
@@ -826,8 +827,8 @@
       <textarea id="workoutComment" rows="1" aria-label="Workout comment" placeholder="Leave a comment about this workout…"></textarea>
     </div>
     <div id="workout"></div>
-    <div id="condensedTable" class="hidden"></div>
     <div class="condensed-comment hidden" id="condensedComment"></div>
+    <div id="condensedTable" class="hidden"></div>
     <button class="text-btn" id="addBtn"><svg class="icon"><use href="#i-plus"/></svg>Add Exercise</button>
     <div class="workout-end hidden" id="finishRow">
       <button class="btn secondary" id="finishBtn">Finish Workout</button>
@@ -1015,7 +1016,7 @@
 
 <script>
   // Keep this in sync with CACHE_NAME in sw.js when bumping versions.
-  const APP_VERSION = "gym-app-cache-v74";
+  const APP_VERSION = "gym-app-cache-v75";
 
   const PROGRAM_KEY = "gymapp_program_v1"; // legacy single program (pre-v59), migrated then removed
   const PROGRAMS_KEY = "gymapp_programs_v1";
@@ -1479,8 +1480,6 @@
   }
 
   // opts.open: a superset pair opens and closes as one (see renderExercises).
-  // opts.startBtn false: the first row of an open pair has no "Start This
-  // Exercise" button; the pair shares the button below the second row.
   // On Today's Workout each row shows its set count ("2/5", then a check
   // mark) and the active exercise gets the accent bar.
   function cardHTML(ex, opts = {}) {
@@ -1493,8 +1492,6 @@
     const total = setsTotal(ex), doneSets = tw ? setsDone(tw, ex) : 0;
     const unit = tw ? workoutUnits(tw).find(u => u.includes(ex)) : null;
     const unitComplete = !!unit && unitDone(tw, unit);
-    // The active unit is in the middle of its sets.
-    const running = isActive && !unitComplete && unitCount(tw, unit) > 0;
     // The check mark comes when the user moves on ("Next Exercise"), or
     // when no exercise with sets left remains.
     const checked = unitComplete && doneSets >= total && (!isActive || !nextUnit(tw, active));
@@ -1538,9 +1535,6 @@
           ${plainFieldHTML("rest", "Rest (min)", restSecondsToMinutes(ex.rest), "decimal")}
         </div>
         <textarea placeholder="Notes" rows="2" data-field="notes" aria-label="Notes">${escapeHtml(ex.notes)}</textarea>
-        ${!tw || running || opts.startBtn === false ? "" : `<div class="ex-actions">
-          <button class="btn secondary" type="button" data-action="start-exercise">${unitComplete ? "Restart This Exercise" : "Start This Exercise"}</button>
-        </div>`}
       </div>`;
   }
 
@@ -1556,7 +1550,7 @@
 
   // Editable comment box (Today's, peeked queued, History edit mode).
   // Hidden in the condensed Past Workout view, which shows it read-only
-  // below the table instead. Like dayTitle, the value is only written when
+  // above the table instead. Like dayTitle, the value is only written when
   // the box doesn't have focus, so typing is never interrupted.
   function renderCommentBox(workout) {
     const box = document.getElementById("commentBox");
@@ -1784,7 +1778,7 @@
         wrap.className = "superset-group";
         wrap.dataset.supersetId = ex.supersetId;
         const open = openExerciseId === ex.id || openExerciseId === next.id;
-        wrap.innerHTML = `<div class="superset-label">Superset</div>${cardHTML(ex, { open, startBtn: false })}${cardHTML(next, { open })}`;
+        wrap.innerHTML = `<div class="superset-label">Superset</div>${cardHTML(ex, { open })}${cardHTML(next, { open })}`;
         container.appendChild(wrap);
         i += 2;
       } else {
@@ -2536,6 +2530,17 @@
     }
   }
 
+  // Scrolls an exercise row (its whole superset pair, if paired) to just
+  // below the sticky header. Used by the set bar and when a row is opened.
+  function scrollExerciseToTop(id) {
+    const row = document.querySelector(`#workout .exercise[data-id="${CSS.escape(id)}"]`);
+    if (!row) return;
+    const target = row.closest(".superset-group") || row;
+    const header = document.getElementById("workoutStickyHeader");
+    const top = target.getBoundingClientRect().top + window.scrollY - header.offsetHeight - 8;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+  }
+
   // A tap on the bar (not on its buttons) goes to the active exercise:
   // Today's Workout shows, the row opens and scrolls to just below the
   // header.
@@ -2548,13 +2553,7 @@
       openForWorkoutId = w.id;
       if (u) openExerciseId = u[0].id;
       if (here) renderExercises(); else goHome();
-      if (!u) return;
-      const row = document.querySelector(`#workout .exercise[data-id="${CSS.escape(u[0].id)}"]`);
-      if (!row) return;
-      const target = row.closest(".superset-group") || row;
-      const header = document.getElementById("workoutStickyHeader");
-      const top = target.getBoundingClientRect().top + window.scrollY - header.offsetHeight - 8;
-      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      if (u) scrollExerciseToTop(u[0].id);
     };
     if (currentScreen === "workout" && isTodayView()) show(); else guardLeavingEdit(show);
   }
@@ -2630,9 +2629,11 @@
     // The clock needs room in the header row: the label is only the date
     // while a timer exists.
     if (w) document.getElementById("eyebrow").textContent = (t ? "" : "Today · ") + formatDateShort(todayISO());
+    // No header button before the workout starts: the set bar's "Start
+    // Workout" starts it. Once started, Hold to Pause / Resume show here.
+    btn.classList.toggle("hidden", !t);
     if (!t) {
       clock.classList.add("hidden");
-      btn.textContent = "Start Workout";
       return;
     }
     clock.classList.remove("hidden");
@@ -2762,8 +2763,10 @@
 
     if (action === "toggle-open") {
       // The class, not the id: both rows of a superset pair are open.
-      openExerciseId = card.classList.contains("open") ? null : id;
+      const opening = !card.classList.contains("open");
+      openExerciseId = opening ? id : null;
       renderExercises();
+      if (opening) scrollExerciseToTop(id);
       return;
     }
 
@@ -2774,11 +2777,6 @@
       const input = card.querySelector(`input[data-field="${field}"]`);
       if (input) input.value = next;
       saveActiveWorkout();
-      return;
-    }
-
-    if (action === "start-exercise") {
-      requestStartExercise(ex);
       return;
     }
 
@@ -2813,10 +2811,22 @@
     exs.forEach((x, i) => { if (x.id === ex.id || (ex.supersetId && x.supersetId === ex.supersetId)) idxs.push(i); });
     const first = Math.min(...idxs), last = Math.max(...idxs);
     const run = (action) => () => runExerciseAction(ex.id, action);
+    // Today's Workout only: start (or restart) this exercise, unless it is
+    // the active one and in the middle of its sets.
+    const start = [];
+    const tw = isTodayView() ? todaysWorkout() : null;
+    const unit = tw ? workoutUnits(tw).find(u => u.includes(ex)) : null;
+    if (unit) {
+      const active = activeUnit(tw);
+      const done = unitDone(tw, unit);
+      const running = !!active && active[0].id === unit[0].id && !done && unitCount(tw, unit) > 0;
+      if (!running) start.push({ label: done ? "Restart This Exercise" : "Start This Exercise", icon: "play", onSelect: () => requestStartExercise(ex) });
+    }
     openSheet({
       title: ex.name || "New Exercise",
       sub: exerciseSummary(ex),
       options: [
+        ...start,
         { label: "Change Exercise", icon: "swap", onSelect: run("rename") },
         { label: "Move Up", icon: "up", disabled: first === 0, onSelect: run("move-up") },
         { label: "Move Down", icon: "down", disabled: last === exs.length - 1, onSelect: run("move-down") },

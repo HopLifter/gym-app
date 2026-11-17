@@ -1,7 +1,7 @@
 # GymLog – Future Features & Epics Roadmap
 
 **Status:** Exploratory backlog  
-**Last updated:** 17 November 2026 (GymLog UI/UX overhaul stops 8 and 9, v73 and v74, epic built; RPE whole numbers in GymLog and the builder; ideas "Get files onto a managed iPhone", "Exercise variants as their own names" and "Repeat a workout" added to section 6); 15 November 2026 (Program Builder UI/UX overhaul; ideas "kg loads from a template" and "the Exercise List as a global list" added to Epic 2.1); 8 November 2026 (Program Builder Phase 2 steps 1 to 4 built; real use starts); 6 November 2026 (Program Builder Phase 2 spec drafted; coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
+**Last updated:** 17 November 2026 (v75: fixes from the v74 phone test; GymLog UI/UX overhaul stops 8 and 9, v73 and v74, epic built; RPE whole numbers in GymLog and the builder; ideas "Get files onto a managed iPhone", "Exercise variants as their own names" and "Repeat a workout" added to section 6); 15 November 2026 (Program Builder UI/UX overhaul; ideas "kg loads from a template" and "the Exercise List as a global list" added to Epic 2.1); 8 November 2026 (Program Builder Phase 2 steps 1 to 4 built; real use starts); 6 November 2026 (Program Builder Phase 2 spec drafted; coach feedback on the Program Builder added to Epic 2.1); 5 November 2026 (Program Builder Phase 1 implemented and moved into this repo; 1.7 implemented, v62; smaller ideas merged in as section 6)  
 **Purpose:** Capture future feature ideas, larger development initiatives (Epics), and their intended value before writing detailed requirements specifications.
 
 ## 1. Individual Features
@@ -230,7 +230,7 @@ Potential features:
 
 ### 2.3 UI/UX Overhaul Epic
 
-**Status:** Built. Stops 1 to 9 are done (v64, v66, v69, v70, v71, v72, v73, v74). v73 and v74 wait for the user's phone test. Phone test of v72 (17 November 2026): the backup download and the storage line ("protected by the browser") work; the reminder did not show because a backup was recent; the restore check and Undo Last Restore are not tested (see "Get files onto a managed iPhone" in section 6).
+**Status:** Built. Stops 1 to 9 are done (v64, v66, v69, v70, v71, v72, v73, v74). Phone test of v74 (17 November 2026): layout fixes done in v75 (Past Workout table header and comment above it, "Start This Exercise" in the ⋮ menu, row opens scroll to the top, no header "Start Workout"); v75 waits for the phone test. Phone test of v72 (17 November 2026): the backup download and the storage line ("protected by the browser") work; the reminder did not show because a backup was recent; the restore check and Undo Last Restore are not tested (see "Get files onto a managed iPhone" in section 6).
 
 **Purpose:** Make GymLog safe for the data and easy to use with one hand in the gym: flat screens with divider lines, large controls, design tokens, fewer taps for each set. Mockups: `docs/mockups/GymLog UI Overhaul - Workout Screen Options.html` (stops 2 to 4), `docs/mockups/GymLog UI Overhaul - Stop 5 Other Screens.html` (stop 5), `docs/mockups/GymLog UI Overhaul - Stop 6 Exercise Picker.html` (stop 6), `docs/mockups/GymLog UI Overhaul - Stop 7 Backup and Restore.html` (stop 7) and `docs/mockups/GymLog UI Overhaul - Stop 8 Import and Progress.html` (stop 8).
 

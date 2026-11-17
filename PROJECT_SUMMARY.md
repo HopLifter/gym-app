@@ -5,8 +5,39 @@ section wins over an older one, and the code wins over both. "Live
 setup", "Why these tech choices" and "Known limitations" further down are
 kept current.
 
+## Phone-test fixes after v74 (v75, 17 November 2026)
+`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v75`. Changes from the
+user's phone test of v74. No data model change. Committed and published
+at the user's request; snapshot `20261117_V3`. Waits for the phone test.
+
+- **Past Workout table:** the header row ("SETS × REPS" …) has 14 px
+  above it, so it no longer touches the line under the date. The workout
+  comment (`#condensedComment`) now sits **above** the table.
+- **"Start This Exercise" button removed** from open rows (it took too
+  much room). It is now the first item in the exercise ⋮ menu, on Today's
+  Workout only, with the same rules as the old button: "Restart This
+  Exercise" on a completed unit, hidden on the active unit while it is in
+  the middle of its sets, the "Replace set timer?" dialog when another
+  unit is mid-sets. `cardHTML()` lost its `startBtn` option.
+- **History (clock) button** sits closer to the ⋮ button
+  (`.ex-head .hist-btn` margin-right −16 px; the tap areas overlap a
+  little, and ⋮ wins the overlap).
+- **Opening a row scrolls it** to just below the sticky header, like a tap
+  on the set bar. Both use the new `scrollExerciseToTop(id)` (a superset
+  pair scrolls as one). Closing a row does not scroll.
+- **Header "Start Workout" button hidden** until the workout clock exists;
+  the set bar's "Start Workout" starts it. Once started, the clock and
+  "Hold to Pause" / "Resume" show in the header as before.
+- **Shake to undo (iOS "Undo Typing"):** not changed in code. It is an
+  iOS system feature that a web app cannot turn off; the user can turn it
+  off in iOS Settings → Accessibility → Touch → Shake to Undo.
+- **Tested** in the desktop browser at 375 px with the restored baseline:
+  row open and scroll, menu start (workout clock and Hold to Pause
+  appear), header with no button before the start, Past Workout table
+  with and without a comment.
+
 ## UI/UX overhaul, stop 9: clean-up (v74, 17 November 2026)
-`CACHE_NAME` and `APP_VERSION` are `gym-app-cache-v74`. Built directly
+`CACHE_NAME` and `APP_VERSION` were `gym-app-cache-v74` (now v75). Built directly
 after stop 8 (v73) at the user's request, before the phone test of v73;
 both are committed together and published at the user's request, and
 not yet tested on the phone. No data model change. This ends the UI/UX
@@ -329,7 +360,7 @@ describe the old screen.
   active exercise by itself.
 - **Rows** show "2/5", then a check mark (after "Next Exercise", or when
   no unit with sets left remains).
-- **"Start This Exercise"** (`requestStartExercise()`) shows in each open
+- **"Start This Exercise"** (`requestStartExercise()`; since v75 an item in the exercise ⋮ menu, before that a button) shows for each
   row, also on the first exercise before the workout starts. It is hidden
   only on the active exercise while it is in the middle of its sets. It
   makes the unit active and starts its next set. On a completed exercise
@@ -507,7 +538,7 @@ no subscriptions.
 - Section headings below that say "session" were written at different
   times. Use `git log` for the real dates.
 - No backend/server — all data lives in the browser's localStorage on the phone
-- Cache version: `gym-app-cache-v74` — **bump this every time `index.html`
+- Cache version: `gym-app-cache-v75` — **bump this every time `index.html`
   changes**, or the phone will keep serving the old cached copy. This is
   the single most common thing to forget when wrapping up a session.
   There's also an `APP_VERSION` constant near the top of `index.html`'s
@@ -682,7 +713,7 @@ Queue, unpublished at the time of this build).
   window resize; `resize: none`.
 - **Comment (Past Workout, viewing):** `#commentBox` is hidden in
   `isCondensedHistoryView()`; `renderCondensedExercises()` fills
-  `#condensedComment` below the table (also in the "No exercises logged."
+  `#condensedComment` above the table since v75 (also in the "No exercises logged."
   case), `pre-wrap`, via `escapeHtml()`; whitespace-only = hidden. It is a
   separate element so the table's `:last-child` border rule is unaffected.
 - **Testing limits:** scenarios run in a desktop browser against a local
