@@ -372,6 +372,11 @@
   .gl-title { padding: var(--s2) 0; border-bottom: 1px solid var(--line); }
   .gl-line { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--s3); padding: var(--s2) 0; border-bottom: 1px solid var(--hair); }
   .gl-notes { flex-basis: 100%; font-size: var(--f-xs); color: var(--text-dim); }
+  /* Send to phone: a QR code needs a light background with a quiet edge to scan well */
+  .phone-send { display: flex; gap: var(--s5); align-items: flex-start; }
+  .phone-send canvas { flex: none; background: #fff; border-radius: var(--r2); image-rendering: pixelated; }
+  .phone-send ol { margin: 0; padding-left: var(--s5); }
+  .phone-send li + li { margin-top: var(--s2); }
   .notice {
     position: fixed; bottom: var(--s5); left: 50%; transform: translateX(-50%);
     background: var(--surface); border: 1px solid var(--control); color: var(--text);
@@ -2089,6 +2094,7 @@ function exportForGymLog() {
     body: body,
     actions: [
       el('button', { text: 'Cancel', onclick: closeModal }),
+      el('button', { text: 'Send to phone', title: 'Show a QR code that opens the program on the phone', onclick: function () { sendToPhone(file); } }),
       el('button', {
         className: 'primary', text: cannot.length > 0 ? 'Export anyway' : 'Download file',
         onclick: function () {
@@ -2100,6 +2106,141 @@ function exportForGymLog() {
       })
     ]
   });
+}
+
+/* ==========================================================================
+   SEND TO PHONE
+   A managed phone cannot open a downloaded file in GymLog, and selecting a long text by hand is
+   slow. So the GymLog import file is packed into a link: JSON, deflate-raw, base64url, after
+   "#1." on phone.html. The part after "#" is never sent to a server. The phone camera scans a
+   QR code of the link, and phone.html has one Copy button for GymLog's Import paste box.
+   ========================================================================== */
+
+var PHONE_PAGE_URL = 'https://hoplifter.github.io/gym-app/builder/phone.html';
+var QR_LIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+var QR_LIB_SRI = 'sha384-mZT2gIty7ZDdOGkxfP6joZcYdMW1Jvj9dRlfpTmaJAKKXTqzygtB22k7FLe+KZC1';
+
+// Always the live phone page: a phone cannot open a "localhost" or file link of a local copy.
+function phonePageUrl() { return PHONE_PAGE_URL; }
+
+// Packs any JSON-able value into base64url text (a Promise).
+function packForLink(data) {
+  var bytes = new TextEncoder().encode(JSON.stringify(data));
+  var stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  return new Response(stream).arrayBuffer().then(function (buf) {
+    var arr = new Uint8Array(buf);
+    var bin = '';
+    for (var i = 0; i < arr.length; i += 0x8000) bin += String.fromCharCode.apply(null, arr.subarray(i, i + 0x8000));
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  });
+}
+
+// Loads the QR code library the first time it is needed (the rest of the builder needs no network).
+var qrLibPromise = null;
+function loadQrLib() {
+  if (window.qrcode) return Promise.resolve(window.qrcode);
+  if (qrLibPromise) return qrLibPromise;
+  qrLibPromise = new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = QR_LIB_URL;
+    s.integrity = QR_LIB_SRI;
+    s.crossOrigin = 'anonymous';
+    s.onload = function () { if (window.qrcode) resolve(window.qrcode); else reject(new Error('no qrcode')); };
+    s.onerror = function () { qrLibPromise = null; reject(new Error('load failed')); };
+    document.head.appendChild(s);
+  });
+  return qrLibPromise;
+}
+
+// Draws a QR code of `text` on a canvas, or returns null when the text is too long for one code.
+// Error correction "L" gives the fewest squares; a screen has no dirt or tears to correct.
+function drawQr(qrcode, text) {
+  var qr;
+  try { qr = qrcode(0, 'L'); qr.addData(text); qr.make(); } catch (err) { return null; }
+  var count = qr.getModuleCount();
+  var quiet = 4;                                              // the white edge a scanner needs
+  var cell = Math.max(3, Math.floor(300 / (count + quiet * 2)));
+  var size = (count + quiet * 2) * cell;
+  var canvas = el('canvas', { width: size, height: size, 'aria-label': 'QR code of the link' });
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#000';
+  for (var r = 0; r < count; r++) {
+    for (var c = 0; c < count; c++) {
+      if (qr.isDark(r, c)) ctx.fillRect((c + quiet) * cell, (r + quiet) * cell, cell, cell);
+    }
+  }
+  return canvas;
+}
+
+function copyText(text, doneText) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(
+      function () { showNotice(doneText); },
+      function () { showMessage('Could not copy', 'This browser did not allow copying.'); }
+    );
+  } else {
+    showMessage('Could not copy', 'This browser did not allow copying.');
+  }
+}
+
+// `file` is a GymLog import file: { program: { name }, workouts: [...] }.
+function sendToPhone(file) {
+  if (typeof CompressionStream === 'undefined') {
+    showMessage('Send to phone', 'This browser cannot pack the program into a link. Use a current Chrome or Edge.');
+    return;
+  }
+  var link;
+  packForLink(file).then(function (code) {
+    link = phonePageUrl() + '#1.' + code;
+    return loadQrLib();
+  }).then(function (qrcode) {
+    openPhoneDialog(file, link, drawQr(qrcode, link));
+  }, function () {
+    // Without the QR library (no internet) the link can still be copied and emailed.
+    if (link) openPhoneDialog(file, link, null);
+    else showMessage('Send to phone', 'The program could not be packed into a link.');
+  });
+}
+
+function openPhoneDialog(file, link, canvas) {
+  var name = file.program && file.program.name ? file.program.name : 'Program';
+  var steps = el('ol', null, [
+    el('li', { text: canvas ? 'Point the phone camera at the code, and open the link.' : 'Copy the link and send it to the phone (for example by email). Open it there.' }),
+    el('li', { text: 'On the page that opens, tap Copy Program.' }),
+    el('li', { text: 'In GymLog: Settings, Program Management, Import. Paste into the text box and tap Check File.' })
+  ]);
+  var side = el('div', null, [
+    el('p', null, [el('b', { text: name }), el('span', { className: 'dim', text: ' · ' + plural(file.workouts.length, 'workout') })]),
+    steps,
+    canvas ? null : el('p', { className: 'warn-text', text: link.length > 2900
+      ? 'The program is too large for one QR code. Use Copy link.'
+      : 'The QR code could not be made (no internet?). Use Copy link.' }),
+    el('p', { className: 'dim', text: 'The program is inside the link itself. It is not uploaded anywhere.' })
+  ].filter(Boolean));
+  openModal({
+    title: 'Send to phone',
+    wide: true,
+    body: el('div', { className: 'phone-send' }, [canvas, side].filter(Boolean)),
+    actions: [
+      el('button', { text: 'Copy link', onclick: function () { copyText(link, 'Link copied.'); } }),
+      el('button', { className: 'primary', text: 'Close', onclick: closeModal })
+    ]
+  });
+}
+
+// Library: send a GymLog import file made elsewhere (for example by the AI) to the phone.
+function sendFileToPhone() {
+  pickTextFile(2 * 1024 * 1024, function (text) {
+    var data;
+    try { data = JSON.parse(text); } catch (err) { data = null; }
+    if (!data || typeof data !== 'object' || !Array.isArray(data.workouts) || data.workouts.length === 0) {
+      showMessage('Send file to phone', 'This is not a GymLog import file. It must have a "workouts" list. (A .program.json file is for the builder: open it, then use Export for GymLog.)');
+      return;
+    }
+    sendToPhone(data);
+  }, function () { showMessage('Send file to phone', 'The file could not be read, or it is larger than 2 MB.'); });
 }
 
 /* ==========================================================================
@@ -4012,6 +4153,7 @@ function renderLibrary() {
     el('span', { className: 'title', text: 'Library' }),
     el('div', { className: 'spacer' }, [
       importBtn,
+      el('button', { text: 'Send file to phone', title: 'Send a GymLog import file (for example from the AI) to the phone', onclick: sendFileToPhone }),
       el('button', { text: 'Back up everything', title: 'Save templates, athletes and programs in one file', onclick: exportEverything })
     ])
   ]));

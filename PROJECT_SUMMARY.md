@@ -74,6 +74,13 @@ overhaul (Epic 2.3).
   local test server cannot register the service worker (as before), so
   the offline cache of the new files is checked only on the phone.
 
+## Builder "Send to phone" (18 November 2026, no GymLog change)
+GymLog is unchanged (still v75). To get a program onto the managed iPhone,
+the Program Builder shows a QR code of a link to `builder/phone.html` with
+the import file packed after `#`. That page has a Copy Program button; the
+user pastes into GymLog's existing Import box. See
+`builder/PROJECT_SUMMARY.md` ("Send to phone").
+
 ## UI/UX overhaul, stop 8: import check and progress screen (v73, 17 November 2026)
 `CACHE_NAME` and `APP_VERSION` were `gym-app-cache-v73` (now v74, see stop
 9). Committed and published with v74; the user has not tested it yet. No data model change (the import file format

@@ -325,10 +325,16 @@ Small or unscheduled ideas that came out of building GymLog. They are not ordere
   GymLog branding on top of the condensed History view
 - **Get files onto a managed iPhone** (idea, 17 November 2026): find a
   better way to get program files, backups and other files into GymLog
-  when a corporate iPhone cannot easily pick files. Ideas to check: paste
-  the text (Import already has a paste field), a share-sheet target, or a
-  link. Because of this, the v72 restore check and Undo Last Restore are
-  not tested on the phone yet.
+  when a corporate iPhone cannot easily pick files.
+  - Program files: done in the Program Builder (18 November 2026,
+    "Send to phone"): a QR code holds a link to `builder/phone.html` with
+    the program packed after `#`; the page has one Copy button for
+    GymLog's Import paste box. Awaiting the phone test. A share-sheet
+    target is not possible for an iPhone web app.
+  - Still open: backups (too large for one QR code). Because of this, the
+    v72 restore check and Undo Last Restore are not tested on the phone
+    yet. A "Paste" button in GymLog's Import box is a small possible
+    extra.
 - **Exercise variants as their own names** (reminder, 17 November 2026):
   the progress screen and Recent find sessions by name. Variants that
   are only in the notes (for example Squats high bar, paused, beltless)
