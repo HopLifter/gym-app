@@ -329,12 +329,29 @@ Small or unscheduled ideas that came out of building GymLog. They are not ordere
   - Program files: done in the Program Builder (18 November 2026,
     "Send to phone"): a QR code holds a link to `builder/phone.html` with
     the program packed after `#`; the page has one Copy button for
-    GymLog's Import paste box. Awaiting the phone test. A share-sheet
+    GymLog's Import paste box. Tested on the phone. A share-sheet
     target is not possible for an iPhone web app.
-  - Still open: backups (too large for one QR code). Because of this, the
-    v72 restore check and Undo Last Restore are not tested on the phone
-    yet. A "Paste" button in GymLog's Import box is a small possible
-    extra.
+  - Still open: backups. Because of this, the v72 restore check and Undo
+    Last Restore are not tested on the phone yet. Plan (18 November 2026,
+    not specified yet):
+    - Size: the baseline backup is 42 KB; packed, its link is about
+      6,900 characters. That is too large for one QR code (about 2,900),
+      but fine as a link sent by email. A backup grows with every logged
+      workout.
+    - Recommended: reuse Send to phone. (1) "Send file to phone" in the
+      Builder also accepts a GymLog backup file and offers Copy link for
+      it (no QR code when the link is too long). (2) `phone.html` knows the
+      backup format and says "Copy Backup". (3) GymLog's Restore from
+      Backup gets a paste box next to "Choose File", like Import has. The
+      paste goes through the same v72 restore check. This is a GymLog
+      change, so it needs a version bump.
+    - Other ways, kept for later: several QR codes in a row read by a
+      camera scanner in GymLog (much more work), or cloud sync (see
+      "Cloud backup/sync" above; needs a service and an account).
+    - Questions for the user first: how does a backup get from the phone
+      to the PC today (the other direction)? Is a restore on the phone
+      needed often, or only to test?
+  - A "Paste" button in GymLog's Import box is a small possible extra.
 - **Exercise variants as their own names** (reminder, 17 November 2026):
   the progress screen and Recent find sessions by name. Variants that
   are only in the notes (for example Squats high bar, paused, beltless)
