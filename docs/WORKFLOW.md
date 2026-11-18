@@ -23,7 +23,11 @@ Rules for working on GymLog and the Program Builder. Claude Code follows these e
 - Bump `APP_VERSION` in `index.html` so it matches.
 - Update the cache version in `PROJECT_SUMMARY.md`.
 - Both must change together, or the phone keeps serving the old cached copy.
-- Changes to `builder/` alone need no bump. The builder has no service worker.
+- Changes to `builder/` alone need no cache bump. The builder has no service worker.
+
+## Builder revision (whenever anything in `builder/` changes)
+- Increase `BUILDER_VERSION` in `builder/index.html` by one (e.g. `b1` to `b2`). It shows at the bottom of the builder, so the user can see which build is open.
+- One increase per build the user tests, not per edit. Note the new revision in `builder/PROJECT_SUMMARY.md` and in the commit message.
 
 ## Build snapshots in OneDrive (archive)
 After a build the user has approved, copy it to a dated folder under `C:\Users\cjroy\OneDrive\Personal Projects\GymLog\` as a read-only archive:

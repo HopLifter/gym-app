@@ -289,6 +289,8 @@
   .lib-empty { padding: var(--s2) var(--s4); border-top: 1px solid var(--line); color: var(--text-dim); font-size: var(--f-sm); }
   .lib-foot { display: flex; align-items: center; gap: var(--s4); padding: var(--s2) var(--s4); border-top: 1px solid var(--line); color: var(--text-dim); font-size: var(--f-xs); }
   .lib-foot .grow { flex: 1; }
+  /* The editor's version line: the same small dim text as the library footer */
+  .ver-foot { flex: none; text-align: right; padding: var(--s1) var(--s4); border-top: 1px solid var(--line); color: var(--text-dim); font-size: var(--f-xs); }
   .lib-foot .stale { color: var(--warn); }
   .meter { width: 120px; height: 4px; background: var(--line); border-radius: var(--r1); overflow: hidden; display: inline-block; vertical-align: middle; margin-left: var(--s2); }
   .meter i { display: block; height: 100%; background: var(--accent); }
@@ -393,6 +395,7 @@
     <div class="main" id="main"><div id="grid"></div></div>
     <div class="detail" id="detail" hidden></div>
   </div>
+  <div class="ver-foot" id="ver-foot" hidden></div>
 
 <script>
 'use strict';
@@ -402,7 +405,8 @@
    Pure functions: no drawing code here, so they are easy to test and reuse.
    ========================================================================== */
 
-var DRAFT_KEY = 'builder_draft_v1';         // Phase 1 draft: read once to move it into the library, never written or deleted
+var BUILDER_VERSION = 'b1';                 // the builder's revision: +1 with every change to builder/ (shown at the bottom)
+var DRAFT_KEY = 'builder_draft_v1';        // Phase 1 draft: read once to move it into the library, never written or deleted
 var PROGRAMS_KEY = 'builder_programs_v1';   // the library: array of { id, name, modified, program }
 var OPEN_KEY = 'builder_open_v1';           // { kind: 'program', id } of the item open in the editor
 var PROFILES_KEY = 'builder_profiles_v1';   // athlete profiles: array of profile objects (Phase 2 spec step 3)
@@ -3750,6 +3754,7 @@ function render() {
     libraryOpen = true;
     header.hidden = true;
     workspace.hidden = true;
+    document.getElementById('ver-foot').hidden = true;   // the library footer shows the version
     lib.hidden = false;
     renderLibrary();
     return;
@@ -3757,6 +3762,9 @@ function render() {
   lib.hidden = true;
   header.hidden = false;
   workspace.hidden = false;
+  var verFoot = document.getElementById('ver-foot');
+  verFoot.textContent = 'Program Builder ' + BUILDER_VERSION;
+  verFoot.hidden = false;
   renderHeader();
   updateProfileBar();
   if (!findSelected()) selected = null;
@@ -4127,7 +4135,8 @@ function renderLibraryFooter() {
     el('span', null, [
       el('span', { text: 'Browser storage: ' + label + ' of about 5 MB' }),
       el('span', { className: 'meter' + (share >= 80 ? ' warn' : '') }, [el('i', { style: 'width:' + share + '%' })])
-    ])
+    ]),
+    el('span', { text: 'Program Builder ' + BUILDER_VERSION })
   ]);
 }
 

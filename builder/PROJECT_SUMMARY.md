@@ -355,6 +355,11 @@ Mockups: `../docs/mockups/Program Builder UI Overhaul - Panel Options.html` (the
 - **The library can be empty.** Deleting the last template (or athlete, or restoring an empty backup) no longer creates a "New Template". `setCurrent(null)` means no open program (`program` and `currentId` are null); `render()` then always shows the Library. The Templates section shows "No templates yet". The Phase 1 draft is moved in only on the very first visit (no `builder_programs_v1` key yet), so an emptied library stays empty after a reload.
 - Tested by script in the preview pane (no storage there): new athlete with no lifts, Add lift, focus stays in the Training max box after a 1RM change, delete the last template and the last athlete. Not tested: a reload of an empty library in a real browser.
 
+## Revision number (18 November 2026, b1, awaiting user test)
+**Why.** The user wants to see at a glance which build is open while developing (local copy or the live page).
+- `BUILDER_VERSION` (now `b1`) at the top of the DATA MODEL section. It shows as "Program Builder b1": at the right end of the Library footer, and in a thin line at the bottom of the editor (`#ver-foot`, hidden in the Library).
+- Increase it by one with each build the user tests (rule in `docs/WORKFLOW.md`). `phone.html` has no number.
+
 ## Send to phone (18 November 2026, published, tested on the phone)
 **Why.** The user's corporate iPhone cannot open a downloaded file in GymLog, and selecting a whole JSON text by hand in Gmail takes minutes. A share-sheet target is not possible for an iPhone web app, and a Home Screen app has storage apart from Safari, so a link cannot import directly.
 - **How it works.** The GymLog import file is packed into a link: compact JSON, `CompressionStream('deflate-raw')`, base64url, after `#1.` on `phone.html` (`1` is the link format). The part after `#` is never sent to a server, so nothing is uploaded. The real Block 2 file (10 KB, 16 workouts) gives a link of about 1,150 characters: one QR code.
